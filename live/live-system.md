@@ -1,10 +1,21 @@
 # Live System
 
 ## Known operating pattern
-The project owner states that Profeta Elias has daily Zoom meetings generally starting around 21:00. These meetings may also be associated with TikTok, and recordings are subsequently published on YouTube.
+Profeta Elias holds Zoom meetings every day. The schedule supplied by the project
+owner on 2026-09-15, in Africa/Luanda time, is:
+
+| Day | Start |
+| --- | --- |
+| Monday, Thursday | 20:30 |
+| Wednesday, Friday, Saturday, Sunday | 19:30 |
+| Tuesday | after the ministers' live — no fixed time |
+
+These meetings may also be associated with TikTok, and recordings are subsequently
+published on YouTube.
 
 ## Important
-The 21:00 schedule and all URLs are operational data, not immutable code constants.
+The schedule and all URLs are operational data, not immutable code constants.
+They live in `data/live-config.json`, which the admin workflow must be able to edit.
 
 Admin must be able to:
 - change the meeting time

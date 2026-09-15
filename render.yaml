@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: elias-istn-sj
+    runtime: node
+    plan: free
+    region: frankfurt
+    branch: main
+    buildCommand: npm run check
+    startCommand: npm start
+    healthCheckPath: /
+    autoDeploy: true
