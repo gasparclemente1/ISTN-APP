@@ -1,0 +1,12 @@
+{
+  "name": "elias-istn-sj",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node server.mjs",
+    "start": "node server.mjs",
+    "check": "node --input-type=module --check < src/app.js && node --input-type=module --check < src/data.js && node --input-type=module --check < server.mjs && node --check < sw.js",
+    "import-youtube-library": "/Users/gasparclemente/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/bin/python3 scripts/import_youtube_library.py"
+  }
+}
