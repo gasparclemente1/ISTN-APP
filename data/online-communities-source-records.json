@@ -1,0 +1,73 @@
+[
+  {
+    "country": "Estados Unidos da América",
+    "contact": "Bispo Rui Vaz",
+    "phone": "+244 923 409 830",
+    "modality": "online",
+    "verification_status": "needs_review",
+    "note": "Supplied message used Liberia flag; country text says United States."
+  },
+  {
+    "country": "Canadá",
+    "contact": "Bispo Rui Vaz",
+    "phone": "+244 923 409 830",
+    "modality": "online",
+    "verification_status": "needs_review"
+  },
+  {
+    "country": "África do Sul",
+    "contact": "Bispo Rufino Boaz",
+    "phone": "+244 922 846 000",
+    "modality": "online",
+    "verification_status": "needs_review"
+  },
+  {
+    "country": "Suíça",
+    "contact": "Bispo Panzo Bento",
+    "phone": "+244 940 954 658",
+    "modality": "online",
+    "verification_status": "needs_review"
+  },
+  {
+    "country": "Noruega",
+    "contact": "Pr. Gaspar Clemente",
+    "phone": "+47 906 64 958",
+    "modality": "online",
+    "verification_status": "needs_review"
+  },
+  {
+    "country": "Congo",
+    "contact": "Pr. Gaspar Clemente",
+    "phone": "+47 906 64 958",
+    "modality": "online",
+    "verification_status": "needs_review"
+  },
+  {
+    "country": "Tanzânia",
+    "contact": "Pr. Nilton Silva",
+    "phone": "+244 929 184 966",
+    "modality": "online",
+    "verification_status": "needs_review"
+  },
+  {
+    "country": "Quénia",
+    "contact": "Pr. Nilton Silva",
+    "phone": "+244 929 184 966",
+    "modality": "online",
+    "verification_status": "needs_review"
+  },
+  {
+    "country": "Senegal",
+    "contact": "P.r José Chicussa",
+    "phone": "+351 967 377 074",
+    "modality": "online",
+    "verification_status": "needs_review"
+  },
+  {
+    "country": "Polónia",
+    "contact": "Pr. João Levi",
+    "phone": "+48 579 385 641",
+    "modality": "online",
+    "verification_status": "needs_review"
+  }
+]

@@ -1,0 +1,7 @@
+{
+  "project": "ISTN-SJ / ELIAS",
+  "source_records_physical_service_entries": 75,
+  "online_community_records": 10,
+  "note": "Service entries can represent multiple schedules for the same congregation; do not count them as unique churches without deduplication/verification.",
+  "verification_status_default": "needs_review"
+}
