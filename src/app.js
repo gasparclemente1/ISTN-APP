@@ -295,7 +295,12 @@ function home() {
     <section class="content-section">${liveCard(true)}</section>
     <section class="content-section">${latestVideosSection()}</section>
     <section class="content-section"><div class="section-heading"><div><span class="eyebrow">BIBLIOTECA</span><h2>Fontes de ensino</h2></div><button class="link-button" data-page="teachings">Explorar</button></div><div class="horizontal-scroll">${APP_CONFIG.sources.slice(1).map((source) => sourceCard(source)).join('')}</div></section>
-    <section class="find-istn"><span class="round-icon">${icon('globe')}</span><div><span class="eyebrow">ISTN GLOBAL</span><h2>A sua comunidade pode estar mais perto.</h2><p>Procure por país, região ou localidade.</p></div><button class="button button-dark" data-page="churches">Encontrar ISTN</button></section>
+    <section class="find-istn">
+      <img class="find-istn-photo" src="/design/assets/photos/congregacao-istn-640.webp" srcset="/design/assets/photos/congregacao-istn-640.webp 640w, /design/assets/photos/congregacao-istn-1280.webp 1280w" sizes="(min-width: 760px) 700px, 100vw" alt="Membros da ISTN-SJ reunidos com o Profeta Elias" loading="lazy" />
+      <span class="round-icon">${icon('globe')}</span>
+      <div><span class="eyebrow">ISTN GLOBAL</span><h2>A sua comunidade pode estar mais perto.</h2><p>Procure por país, região ou localidade.</p></div>
+      <button class="button button-dark" data-page="churches">Encontrar ISTN</button>
+    </section>
   </main>${navigation()}`;
 }
 
