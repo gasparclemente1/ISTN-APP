@@ -4,7 +4,7 @@ const app = document.querySelector('#app');
 const state = { page: 'home', query: '', category: 'Todas', year: 'Todos', book: 'Todos', sort: 'recent', teachingPage: 1, teachingLibrary: null, directory: null, selectedChurch: null, selectedSource: null, country: 'Todos', latestVideos: {}, videosLoading: true, liveConfig: null };
 const TEACHING_CATEGORIES = ['Todas', 'Cultos', 'Cultos dos servos', 'Lives', 'Especiais'];
 const BOOK_SPELLING_FIXES = { 'Galátas': 'Gálatas', 'Exôdo': 'Êxodo', '1Timóteo': '1 Timóteo' };
-const icon = (name) => ({ home: '⌂', teachings: '◫', live: '◉', churches: '⌖', profile: '◌', search: '⌕', arrow: '→', play: '▶', back: '←', calendar: '◷', pin: '⌖', user: '♙', check: '✓', phone: '☎', external: '↗', bell: '♧', globe: '◎' }[name] || '•');
+const icon = (name) => ({ home: '⌂', teachings: '◫', live: '◉', churches: '⌖', profile: '◌', search: '⌕', arrow: '→', play: '▶', back: '←', calendar: '◷', pin: '⌖', user: '♙', check: '✓', phone: '☎', external: '↗', bell: '♧', globe: '◎', share: '⤴' }[name] || '•');
 
 function escapeHtml(value = '') { return String(value).replace(/[&<>'"]/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[char])); }
 function link(url) { return url ? `target="_blank" rel="noreferrer" href="${url}"` : ''; }
@@ -67,7 +67,16 @@ function youtubeThumbnail(url) {
 function teachingCard(teaching) {
   const thumbnail = youtubeThumbnail(teaching.url);
   const timeRange = teaching.startsAt && teaching.endsAt ? `Mensagem: ${teaching.startsAt.slice(0, 5)} – ${teaching.endsAt.slice(0, 5)}` : '';
-  return `<a class="archive-teaching" ${link(teaching.url)}>${thumbnail ? `<img src="${thumbnail}" alt="" loading="lazy" />` : '<span class="archive-teaching-image">▶</span>'}<span class="archive-teaching-body"><small>${escapeHtml(teaching.service || 'Youtube')} · ${formatTeachingDate(teaching.publishedAt)}</small><strong>${escapeHtml(teaching.title)}</strong>${teaching.biblicalReference ? `<em>${escapeHtml(teaching.biblicalReference)}</em>` : ''}${timeRange ? `<i>${timeRange}</i>` : ''}<b>Abrir no YouTube ${icon('external')}</b></span></a>`;
+  return `<article class="archive-teaching"><a class="archive-teaching-link" ${link(teaching.url)}>${thumbnail ? `<img src="${thumbnail}" alt="" loading="lazy" />` : '<span class="archive-teaching-image">▶</span>'}<span class="archive-teaching-body"><small>${escapeHtml(teaching.service || 'Youtube')} · ${formatTeachingDate(teaching.publishedAt)}</small><strong><span>${escapeHtml(teaching.title)}</span></strong>${teaching.biblicalReference ? `<em>${escapeHtml(teaching.biblicalReference)}</em>` : ''}${timeRange ? `<i>${timeRange}</i>` : ''}<b>Abrir no YouTube ${icon('external')}</b></span></a><button class="archive-share" data-share="${escapeHtml(teaching.id)}" aria-label="Partilhar ${escapeHtml(teaching.title)}" title="Partilhar">${icon('share')}</button></article>`;
+}
+
+async function shareTeaching(teaching) {
+  const label = `${teaching.title}${teaching.biblicalReference ? ` (${teaching.biblicalReference})` : ''}`;
+  if (navigator.share) {
+    try { await navigator.share({ title: teaching.title, text: label, url: teaching.url }); return; }
+    catch (error) { if (error.name === 'AbortError') return; }
+  }
+  window.open(`https://wa.me/?text=${encodeURIComponent(`${label}\n${teaching.url}`)}`, '_blank', 'noreferrer');
 }
 
 function teachingArchive() {
@@ -177,6 +186,89 @@ function relativeDayLabel(start, timeZone, now = new Date()) {
   return new Intl.DateTimeFormat('pt-PT', { timeZone, weekday: 'long' }).format(start).toUpperCase();
 }
 
+const WEEKDAY_CODES = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'];
+
+function icsStamp(date) {
+  return `${date.toISOString().replace(/[-:]/g, '').split('.')[0]}Z`;
+}
+
+// RFC 5545 caps a content line at 75 octets; continuations start with a space.
+// Measured in UTF-8 bytes so accented characters are never split mid-sequence.
+function foldIcsLine(line) {
+  const encoder = new TextEncoder();
+  if (encoder.encode(line).length <= 75) return line;
+  const parts = [];
+  let current = '';
+  let bytes = 0;
+  for (const char of line) {
+    const size = encoder.encode(char).length;
+    if (bytes + size > (parts.length ? 74 : 75)) { parts.push(current); current = ''; bytes = 0; }
+    current += char;
+    bytes += size;
+  }
+  if (current) parts.push(current);
+  return parts.join('\r\n ');
+}
+
+// Recurring calendar events with a 15-minute alarm. Times are emitted in UTC,
+// which is unambiguous because Africa/Luanda has no daylight saving.
+function buildReminderCalendar(config) {
+  const now = new Date();
+  const slots = config.schedule.filter((slot) => slot.time);
+  const byTime = new Map();
+  slots.forEach((slot) => {
+    if (!byTime.has(slot.time)) byTime.set(slot.time, []);
+    byTime.get(slot.time).push(slot.weekday);
+  });
+  const events = [...byTime.entries()].map(([time, weekdays], index) => {
+    const [hour, minute] = time.split(':').map(Number);
+    const today = zonedDateParts(now, config.timeZone);
+    let start = null;
+    for (let ahead = 0; ahead <= 7 && !start; ahead += 1) {
+      const day = new Date(Date.UTC(today.year, today.month - 1, today.day));
+      day.setUTCDate(day.getUTCDate() + ahead);
+      if (!weekdays.includes(day.getUTCDay())) continue;
+      const candidate = zonedToInstant({ year: day.getUTCFullYear(), month: day.getUTCMonth() + 1, day: day.getUTCDate(), hour, minute }, config.timeZone);
+      if (candidate > now) start = candidate;
+    }
+    const end = new Date(start.getTime() + (config.durationMinutes || 120) * 60000);
+    return [
+      'BEGIN:VEVENT',
+      `UID:elias-istn-sj-${index}-${start.getTime()}@istn-sj`,
+      `DTSTAMP:${icsStamp(now)}`,
+      `DTSTART:${icsStamp(start)}`,
+      `DTEND:${icsStamp(end)}`,
+      `RRULE:FREQ=WEEKLY;BYDAY=${weekdays.map((weekday) => WEEKDAY_CODES[weekday]).join(',')}`,
+      `SUMMARY:${config.title}`,
+      `DESCRIPTION:Hora de Luanda: ${time}. ID da reunião ${config.zoom?.meetingId || ''}`,
+      `URL:${config.zoom?.url || ''}`,
+      'BEGIN:VALARM',
+      'TRIGGER:-PT15M',
+      'ACTION:DISPLAY',
+      'DESCRIPTION:A reunião começa em 15 minutos',
+      'END:VALARM',
+      'END:VEVENT'
+    ];
+  });
+  const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//ISTN-SJ//ELIAS//PT', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH', ...events.flat(), 'END:VCALENDAR'];
+  return lines.map(foldIcsLine).join('\r\n');
+}
+
+function downloadReminder() {
+  const config = state.liveConfig;
+  if (!config) { showToast('A programação ainda não carregou.'); return; }
+  const blob = new Blob([buildReminderCalendar(config)], { type: 'text/calendar;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = 'reunioes-elias-istn-sj.ics';
+  document.body.append(anchor);
+  anchor.click();
+  anchor.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  showToast('Abra o ficheiro para adicionar os lembretes ao seu calendário.');
+}
+
 function liveCard(compact = false) {
   const config = state.liveConfig;
   if (!config) return `<section class="live-card ${compact ? 'compact' : ''}"><div class="live-kicker"><span class="live-dot"></span> PRÓXIMA REUNIÃO</div><p class="live-note">A carregar a programação…</p></section>`;
@@ -251,6 +343,7 @@ function live() {
         <div><dt>ID da reunião</dt><dd>${escapeHtml(zoom.meetingId || '—')}</dd></div>
         <div><dt>Senha de acesso</dt><dd>${escapeHtml(zoom.passcode || '—')}</dd></div>
       </dl>
+      <button class="button button-outline full-width" data-action="reminder">${icon('bell')} Adicionar lembretes ao calendário</button>
       <a class="text-button external-link" ${link(config.youtubeUrl)}>Ver transmissões no YouTube ${icon('external')}</a>
     </section>
     <section class="weekly-schedule">
@@ -323,7 +416,11 @@ function go(page) { state.page = page; window.scrollTo({ top: 0, behavior: 'inst
 function bindPage() {
   app.querySelectorAll('[data-page]').forEach((element) => element.addEventListener('click', () => go(element.dataset.page)));
   app.querySelectorAll('[data-source]').forEach((element) => { const open = () => { state.selectedSource = element.dataset.source; go('sourceDetail'); }; element.addEventListener('click', open); element.addEventListener('keydown', (event) => { if (event.key === 'Enter') open(); }); });
-  app.querySelectorAll('[data-action="reminder"]').forEach((element) => element.addEventListener('click', () => showToast('Lembretes serão ativados quando as notificações forem configuradas.')));
+  app.querySelectorAll('[data-action="reminder"]').forEach((element) => element.addEventListener('click', downloadReminder));
+  app.querySelectorAll('[data-share]').forEach((element) => element.addEventListener('click', () => {
+    const teaching = state.teachingLibrary?.find((item) => item.id === element.dataset.share);
+    if (teaching) shareTeaching(teaching);
+  }));
   app.querySelectorAll('[data-action="preferences"]').forEach((element) => element.addEventListener('click', () => showToast('As preferências serão guardadas numa próxima versão.')));
   const teachingSearch = document.querySelector('#teaching-search'); if (teachingSearch) teachingSearch.addEventListener('input', (event) => { state.query = event.target.value; state.teachingPage = 1; render(); document.querySelector('#teaching-search')?.focus(); });
   app.querySelectorAll('[data-category]').forEach((element) => element.addEventListener('click', () => { state.category = element.dataset.category; state.teachingPage = 1; render(); }));
