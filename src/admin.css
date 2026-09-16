@@ -70,3 +70,7 @@
 .admin-danger { border-color:#c08b8b; color:#8a2f2f; margin-right:auto; }
 .admin-danger:hover { background:#fbeeee; }
 .admin-card > .button-gold { margin-bottom:22px; }
+.admin-schedule td select,.admin-schedule td input { width:100%; }
+.admin-schedule td:last-child { width:74px; text-align:right; }
+.admin-schedule .text-button { font-size:.68rem; }
+#servo-minister-hint { margin:-6px 0 16px; font:600 .72rem "DM Mono",monospace; color:#17665e; }
