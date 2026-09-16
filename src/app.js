@@ -414,7 +414,7 @@ function profile() {
     <section class="profile-hero">
       <span class="round-icon">${icon('user')}</span>
       <h1>${escapeHtml(badge?.name || state.profile.display_name || 'A sua conta')}</h1>
-      ${badge ? `<span class="servo-badge role-${escapeHtml(badge.role)}">${icon('check')} ${escapeHtml(badge.label)}</span>` : ''}
+      ${badge ? `<span class="servo-badge tier-${escapeHtml(badge.tier)}">${icon('check')} ${escapeHtml(badge.tier === 'neutro' ? 'Conta verificada' : badge.label)}</span>` : ''}
     </section>
     <form id="profile-form" class="account-card">
       <label>Nome<input type="text" name="display_name" value="${escapeHtml(state.profile.display_name || '')}" /></label>
