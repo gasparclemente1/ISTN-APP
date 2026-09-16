@@ -9,7 +9,7 @@
   "scripts": {
     "dev": "node server.mjs",
     "start": "node server.mjs",
-    "check": "node --input-type=module --check < src/app.js && node --input-type=module --check < src/data.js && node --input-type=module --check < server.mjs && node --check < sw.js",
+    "check": "node --input-type=module --check < src/app.js && node --input-type=module --check < src/data.js && node --input-type=module --check < src/admin.js && node --input-type=module --check < server.mjs && node --check < sw.js",
     "import-youtube-library": "python3 scripts/import_youtube_library.py"
   }
 }

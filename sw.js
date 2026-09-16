@@ -50,6 +50,9 @@ self.addEventListener('fetch', (event) => {
   if (request.method !== 'GET') return;
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
+  // The admin panel always goes to the network: editing live data through a
+  // stale cached script is worse than being offline.
+  if (url.pathname.startsWith('/admin') || url.pathname.startsWith('/src/admin')) return;
 
   if (request.mode === 'navigate') {
     event.respondWith(networkFirst(request).catch(() => caches.match('/index.html')));

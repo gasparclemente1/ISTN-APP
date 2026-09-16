@@ -91,7 +91,18 @@ createServer((request, response) => {
     });
     return;
   }
-  const path = normalize(join(root, decodeURIComponent(url.pathname === '/' ? '/index.html' : url.pathname)));
+  // The publishable key is meant to reach the browser; row level security is
+  // what protects the data. It comes from the environment so that rotating it
+  // does not require a commit.
+  if (url.pathname === '/api/config') {
+    response.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
+    response.end(JSON.stringify({ supabaseUrl: process.env.SUPABASE_URL || '', supabaseKey: process.env.SUPABASE_PUBLISHABLE_KEY || '' }));
+    return;
+  }
+  const requested = url.pathname === '/' ? '/index.html'
+    : url.pathname === '/admin' || url.pathname === '/admin/' ? '/admin.html'
+    : url.pathname;
+  const path = normalize(join(root, decodeURIComponent(requested)));
   if (!path.startsWith(root) || !existsSync(path) || statSync(path).isDirectory()) {
     response.writeHead(404); response.end('Not found'); return;
   }
