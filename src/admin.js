@@ -1,4 +1,5 @@
 import { WEEKDAY_LABELS, recurrenceLabel } from './meetings.js';
+import { uploadPhoto } from './upload.js';
 import { badgeTier, isMinisterRole, quietCheck, roleLabel, rolesForGender, servantName, verifiedSeal } from './roles.js';
 
 const root = document.querySelector('#admin');
@@ -7,7 +8,7 @@ const SESSION_KEY = 'elias-admin-session';
 const state = {
   config: null, session: null, profile: null,
   view: 'meetings', meetings: null, churches: null,
-  query: '', filter: 'todas', editing: null, meeting: null, servo: null,
+  query: '', filter: 'todas', editing: null, meeting: null, servo: null, uploading: false,
   servos: null, services: null, busy: false
 };
 
@@ -224,6 +225,19 @@ function servosView() {
   </div>`;
 }
 
+// A new servant has no id yet, so there is nowhere to file the photograph:
+// save first, reopen, then upload.
+function photoField(url, folder, id) {
+  if (!id) return '<p class="admin-hint">Guarde primeiro para poder acrescentar uma fotografia.</p>';
+  return `<div class="photo-field">
+    ${url ? `<img class="photo-preview" src="${escapeHtml(url)}" alt="" />` : '<span class="photo-preview empty">◌</span>'}
+    <div>
+      <label class="photo-pick">${state.uploading ? 'A carregar…' : 'Escolher fotografia'}<input type="file" accept="image/jpeg,image/png,image/webp" data-upload="${folder}" data-upload-id="${id}" ${state.uploading ? 'disabled' : ''} /></label>
+      <small>Reduzida automaticamente antes de ser enviada.</small>
+    </div>
+  </div>`;
+}
+
 function servoEditor() {
   const servo = state.servo;
   const isNew = !servo.id;
@@ -249,7 +263,7 @@ function servoEditor() {
         ${igrejas.map((church) => `<option value="${church.id}" ${servo.church_id === church.id ? 'selected' : ''}>${escapeHtml(church.locality || church.country || church.record_id)}</option>`).join('')}
       </select></label>
     </div>
-    <label>Foto (URL)<input type="url" name="photo_url" value="${escapeHtml(servo.photo_url || '')}" /></label>
+    ${photoField(servo.photo_url, 'servos', servo.id)}
     <label class="admin-check"><input type="checkbox" name="active" ${servo.active === false ? '' : 'checked'} /> Em funções</label>
     <div class="admin-dialog-actions">
       ${isNew ? '' : '<button class="button button-outline admin-danger" type="button" data-action="delete-servo">Eliminar</button>'}
@@ -309,7 +323,7 @@ function churchEditor() {
       <label>Telefone<input type="text" name="leader_phone" value="${escapeHtml(church.leader_phone || '')}" /></label>
     </div>
     <label>Grupo de WhatsApp<input type="url" name="whatsapp_group_url" value="${escapeHtml(church.whatsapp_group_url || '')}" placeholder="https://chat.whatsapp.com/..." /></label>
-    <label>Foto do lugar (URL)<input type="url" name="photo_url" value="${escapeHtml(church.photo_url || '')}" /></label>
+    ${photoField(church.photo_url, 'igrejas', church.id)}
     <label>Nota<input type="text" name="note" value="${escapeHtml(church.note || '')}" /></label>
 
     <h3>Horários de culto</h3>
@@ -486,7 +500,7 @@ function bind() {
     const body = {
       full_name: values.full_name.trim(), gender: values.gender, role: values.role,
       phone: values.phone || null, church_id: values.church_id || null,
-      photo_url: values.photo_url || null, active: !!values.active
+      active: !!values.active
     };
     guard(async () => {
       const saved = state.servo.id
@@ -496,6 +510,23 @@ function bind() {
       state.servo = null; await loadServos(); toast('Servo guardado.');
     });
   });
+
+  document.querySelectorAll('[data-upload]').forEach((input) => input.addEventListener('change', async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const folder = event.target.dataset.upload;
+    const id = event.target.dataset.uploadId;
+    state.uploading = true; render();
+    try {
+      const url = await uploadPhoto(file, folder, id, state.session);
+      const table = folder === 'servos' ? 'servos' : 'churches';
+      await rest(`${table}?id=eq.${id}`, { method: 'PATCH', body: JSON.stringify({ photo_url: url }) });
+      if (folder === 'servos') { await loadServos(); state.servo = state.servos.find((item) => item.id === id) || state.servo; }
+      else { await loadChurches(); state.editing = state.churches.find((item) => item.id === id) || state.editing; }
+      toast('Fotografia atualizada.');
+    } catch (error) { toast(error.message, 'erro'); }
+    finally { state.uploading = false; render(); }
+  }));
 
   // ---- horários de culto ----
   document.querySelector('[data-action="add-service"]')?.addEventListener('click', () => {
@@ -562,7 +593,6 @@ function bind() {
           address: values.address || null,
           leader_name: values.leader_name || null, leader_phone: values.leader_phone || null,
           whatsapp_group_url: values.whatsapp_group_url || null,
-          photo_url: values.photo_url || null,
           note: values.note || null,
           verification_status: values.verified ? 'verified' : 'needs_review',
           verified_at: values.verified ? new Date().toISOString() : null,
