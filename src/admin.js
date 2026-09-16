@@ -148,7 +148,7 @@ function meetingsView() {
     <h2>Reuniões no Zoom</h2>
     <p class="admin-hint">Os horários são sempre hora de Luanda. Uma reunião sem hora fixa precisa de uma explicação no lugar dela.</p>
     <button class="button button-gold" data-action="new-meeting">Adicionar reunião</button>
-    ${group('geral', 'Reuniões gerais', 'As reuniões convencionais, abertas a toda a congregação.')}
+    ${group('geral', 'Reuniões gerais', 'As reuniões convencionais, abertas a toda a igreja.')}
     ${group('especial', 'Reuniões especiais', 'Ministros, crianças, vigílias e quaisquer outras.')}
   </div>`;
 }
@@ -203,11 +203,11 @@ function churchesView() {
     const haystack = [church.locality, church.region, church.country, church.country_code, church.leader_name].filter(Boolean).join(' ').toLowerCase();
     return matchesFilter && (!query || haystack.includes(query));
   });
-  if (!mine.length) return '<p class="admin-empty">Ainda não tem nenhuma congregação atribuída. Peça à equipa central.</p>';
+  if (!mine.length) return '<p class="admin-empty">Ainda não tem nenhuma igreja atribuída. Peça à equipa central.</p>';
   const pending = mine.filter((church) => church.verification_status !== 'verified').length;
   return `<div class="admin-card">
     <h2>Diretório</h2>
-    <p class="admin-hint">${mine.length} ${mine.length === 1 ? 'registo' : 'registos'} · <strong>${pending}</strong> por verificar. Confirme com a congregação antes de marcar como verificado.</p>
+    <p class="admin-hint">${mine.length} ${mine.length === 1 ? 'registo' : 'registos'} · <strong>${pending}</strong> por verificar. Confirme com a igreja antes de marcar como verificado.</p>
     <label class="search-box"><span>⌕</span><input id="church-search" value="${escapeHtml(state.query)}" placeholder="Procurar por localidade, região ou responsável" autocomplete="off" /></label>
     <div class="admin-filters">${[['todas', 'Todas'], ['porVerificar', 'Por verificar'], ['verificadas', 'Verificadas']]
       .map(([id, label]) => `<button class="filter ${state.filter === id ? 'selected' : ''}" data-filter="${id}">${label}</button>`).join('')}</div>
@@ -223,7 +223,7 @@ function churchesView() {
 function churchEditor() {
   const church = state.editing;
   return `<div class="admin-overlay"><form id="church-form" class="admin-card admin-dialog">
-    <h2>${escapeHtml(church.locality || church.country || 'Congregação')}</h2>
+    <h2>${escapeHtml(church.locality || church.country || 'Igreja')}</h2>
     <p class="admin-hint">Origem: ${escapeHtml(church.source || church.note || 'registo operacional')}</p>
     <div class="admin-row">
       <label>Localidade<input type="text" name="locality" value="${escapeHtml(church.locality || '')}" /></label>
@@ -238,7 +238,7 @@ function churchEditor() {
       <label>Telefone<input type="text" name="leader_phone" value="${escapeHtml(church.leader_phone || '')}" /></label>
     </div>
     <label>Nota<input type="text" name="note" value="${escapeHtml(church.note || '')}" /></label>
-    <label class="admin-check"><input type="checkbox" name="verified" ${church.verification_status === 'verified' ? 'checked' : ''} /> Confirmei estes dados com a congregação</label>
+    <label class="admin-check"><input type="checkbox" name="verified" ${church.verification_status === 'verified' ? 'checked' : ''} /> Confirmei estes dados com a igreja</label>
     <div class="admin-dialog-actions">
       <button class="button button-outline" type="button" data-action="cancel">Cancelar</button>
       <button class="button button-gold" type="submit" ${state.busy ? 'disabled' : ''}>${state.busy ? 'A guardar…' : 'Guardar'}</button>

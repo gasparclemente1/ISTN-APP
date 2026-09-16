@@ -344,7 +344,7 @@ function statusBadge(status = 'needs_review') { return `<span class="status-badg
 function churchCard(record, index) {
   const country = countryNames[record.country_code] || record.country || 'Comunidade online';
   const place = record.locality || record.country;
-  return `<article class="church-card" data-church="${index}" tabindex="0" role="button"><div class="church-card-top"><span class="church-kind">${record.modality === 'online' ? 'Comunidade online' : 'Congregação presencial'}</span>${statusBadge(record.verification_status)}</div><h3>ISTN — ${escapeHtml(place)}</h3><p>${icon('pin')} ${escapeHtml(record.region ? `${record.region}, ${country}` : country)}</p>${record.service_day ? `<p>${icon('calendar')} ${escapeHtml(record.service_day)}, ${escapeHtml(record.service_time_local)} (hora local)</p>` : '<p>Horário a confirmar com o responsável</p>'}<div class="church-leader">${icon('user')} ${escapeHtml(record.leader_name || record.contact)}</div><span class="card-arrow">${icon('arrow')}</span></article>`;
+  return `<article class="church-card" data-church="${index}" tabindex="0" role="button"><div class="church-card-top"><span class="church-kind">${record.modality === 'online' ? 'Comunidade online' : 'Local presencial'}</span>${statusBadge(record.verification_status)}</div><h3>ISTN — ${escapeHtml(place)}</h3><p>${icon('pin')} ${escapeHtml(record.region ? `${record.region}, ${country}` : country)}</p>${record.service_day ? `<p>${icon('calendar')} ${escapeHtml(record.service_day)}, ${escapeHtml(record.service_time_local)} (hora local)</p>` : '<p>Horário a confirmar com o responsável</p>'}<div class="church-leader">${icon('user')} ${escapeHtml(record.leader_name || record.contact)}</div><span class="card-arrow">${icon('arrow')}</span></article>`;
 }
 
 function churches() {
@@ -359,7 +359,7 @@ function churches() {
     <section class="page-intro"><span class="eyebrow">ISTN GLOBAL</span><h1>Encontre a sua comunidade.</h1><p>Use os registos disponíveis para entrar em contacto. Moradas e horários devem ser confirmados com o responsável.</p></section>
     <label class="search-box"><span>${icon('search')}</span><input id="church-search" placeholder="Pesquisar país, região ou localidade" autocomplete="off" /></label>
     <div class="country-select"><label for="country-filter">País</label><select id="country-filter">${countries.map((country) => `<option ${state.country === country ? 'selected' : ''}>${escapeHtml(country)}</option>`).join('')}</select></div>
-    <div class="directory-summary"><strong>${items.length}</strong><span>registos operacionais</span><small>Inclui congregações e comunidades online.</small></div>
+    <div class="directory-summary"><strong>${items.length}</strong><span>registos operacionais</span><small>Inclui igrejas, casas de oração e comunidades online.</small></div>
     <div id="church-list" class="church-list">${items.map((record, index) => churchCard(record, index)).join('')}</div>
     <aside class="verification-note warning"><span>!</span><p><strong>Dados sujeitos a confirmação.</strong> Esta listagem vem de anúncios operacionais. Não combinámos registos semelhantes nem corrigimos nomes, telefones ou localidades.</p></aside>
   </main>${navigation()}`;
@@ -371,7 +371,7 @@ function churchDetail() {
   const leader = record.leader_name || record.contact;
   const phone = record.leader_phone || record.phone;
   return `${header({ title: 'Comunidade ISTN', back: 'churches' })}<main class="detail-page church-detail">
-    <section class="church-detail-head"><span class="round-icon">${record.modality === 'online' ? icon('globe') : icon('pin')}</span><div><span class="church-kind">${record.modality === 'online' ? 'COMUNIDADE ONLINE' : 'CONGREGAÇÃO PRESENCIAL'}</span><h1>ISTN — ${escapeHtml(record.locality || country)}</h1><p>${escapeHtml(record.region ? `${record.region}, ${country}` : country)}</p></div></section>
+    <section class="church-detail-head"><span class="round-icon">${record.modality === 'online' ? icon('globe') : icon('pin')}</span><div><span class="church-kind">${record.modality === 'online' ? 'COMUNIDADE ONLINE' : 'LOCAL PRESENCIAL'}</span><h1>ISTN — ${escapeHtml(record.locality || country)}</h1><p>${escapeHtml(record.region ? `${record.region}, ${country}` : country)}</p></div></section>
     ${statusBadge(record.verification_status)}
     <section class="info-list">
       <div><span>${icon('calendar')}</span><p><small>REUNIÃO</small><strong>${record.service_day ? `${record.service_day}, ${record.service_time_local} (hora local)` : 'Horário a confirmar'}</strong></p></div>
