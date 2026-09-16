@@ -414,8 +414,10 @@ function profile() {
   return `${head}<main class="page-content">
     <section class="profile-hero">
       <span class="round-icon">${icon('user')}</span>
-      <h1 class="verified-name">${escapeHtml(badge?.name || state.profile.display_name || 'A sua conta')}${badge ? verifiedSeal(badge.role, { title: badge.tier === 'neutro' ? 'Conta verificada' : `Conta verificada · ${badge.label}` }) : ''}</h1>
-      ${badge && badge.tier !== 'neutro' ? `<p class="verified-role">${escapeHtml(badge.label)}</p>` : ''}
+      <h1 class="verified-name">${escapeHtml(badge?.name || state.profile.display_name || 'A sua conta')}${badge ? verifiedSeal(badge.role, { title: `Conta verificada · ${badge.label}` }) : ''}</h1>
+      ${badge ? (badge.tier === 'neutro'
+        ? `<p class="verified-line">Servo verificado · ${escapeHtml(badge.label)}${badge.church ? ` em ${escapeHtml(badge.church)}` : ''}</p>`
+        : `<p class="verified-role">${escapeHtml(badge.label)}</p>`) : ''}
     </section>
     <form id="profile-form" class="account-card">
       <label>Nome<input type="text" name="display_name" value="${escapeHtml(state.profile.display_name || '')}" /></label>
