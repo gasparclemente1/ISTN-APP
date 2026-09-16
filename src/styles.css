@@ -85,3 +85,5 @@
 .verified-seal.tier-neutro .seal-disc { fill:#7b918a; }
 .verified-line { margin:8px 0 0; font-size:.8rem; color:var(--muted); }
 .verified-role { margin:6px 0 0; font:600 .74rem "DM Mono",monospace; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); }
+.account-providers { display:grid; gap:9px; margin:4px 0 14px; }
+.account-providers .button { justify-content:center; }
