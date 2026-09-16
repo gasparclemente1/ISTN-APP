@@ -62,3 +62,11 @@
   .admin-card { padding:18px; }
   .admin-schedule td:first-of-type { width:auto; }
 }
+
+.admin-card select { border:1px solid #c5d0ca; border-radius:11px; padding:10px 12px; font:400 .86rem "DM Sans",sans-serif; color:var(--ink); background:var(--white); width:100%; }
+.admin-weekdays { border:1px solid var(--line); border-radius:13px; padding:12px 14px 4px; margin:0 0 14px; }
+.admin-weekdays legend { padding:0 6px; font:600 .7rem "DM Sans",sans-serif; color:var(--deep); }
+.admin-weekdays .admin-check { margin:0 0 9px !important; }
+.admin-danger { border-color:#c08b8b; color:#8a2f2f; margin-right:auto; }
+.admin-danger:hover { background:#fbeeee; }
+.admin-card > .button-gold { margin-bottom:22px; }
