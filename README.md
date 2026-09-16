@@ -12,16 +12,17 @@ The church JSON files are source records supplied through operational announceme
 
 ## Read order for Codex
 1. product/istn-context.md
-2. product/product-vision.md
-3. product/product-requirements.md
-4. product/user-flows.md
-5. product/information-architecture.md
-6. product/admin-panel.md
-7. live/live-system.md
-8. data/data-validation.md
-9. design/design-principles.md
-10. data/*.json
-11. design/assets/*
+2. product/data-model.md
+3. product/product-vision.md
+4. product/product-requirements.md
+5. product/user-flows.md
+6. product/information-architecture.md
+7. product/admin-panel.md
+8. live/live-system.md
+9. data/data-validation.md
+10. design/design-principles.md
+11. data/*.json
+12. design/assets/*
 
 ## Visual assets
 The supplied ISTN-SJ logo and ministry artworks are included under design/assets.
