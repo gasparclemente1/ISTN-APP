@@ -87,39 +87,50 @@ create table if not exists public.audit_log (
   new_value   jsonb
 );
 
+create or replace function public.stamp_updated_at()
+returns trigger language plpgsql as $$
+begin
+  new.updated_at := now();
+  return new;
+end $$;
+
 -- Records who changed what, when, and both values, as the spec requires.
 -- A trigger rather than application code, so no edit path can skip it.
+--
+-- AFTER, not BEFORE: a BEFORE INSERT trigger still fires for rows that
+-- "insert ... on conflict do nothing" goes on to skip, which would log
+-- changes that never happened every time the seed is re-run.
 create or replace function public.record_audit()
 returns trigger language plpgsql security definer set search_path = public as $$
-declare
-  key text;
 begin
-  -- Stamp before logging, so new_value matches the row that is actually stored.
-  if tg_op <> 'DELETE' then
-    new.updated_at := now();
-  end if;
-  key := coalesce(to_jsonb(new) ->> 'id', to_jsonb(old) ->> 'id', 'unknown');
   insert into public.audit_log (table_name, record_id, action, changed_by, old_value, new_value)
   values (
     tg_table_name,
-    key,
+    coalesce(to_jsonb(new) ->> 'id', to_jsonb(old) ->> 'id', 'unknown'),
     lower(tg_op),
     auth.uid(),
     case when tg_op = 'INSERT' then null else to_jsonb(old) end,
     case when tg_op = 'DELETE' then null else to_jsonb(new) end
   );
-  if tg_op = 'DELETE' then return old; end if;
-  return new;
+  return null;
 end $$;
 
 drop trigger if exists churches_audit on public.churches;
+drop trigger if exists churches_stamp on public.churches;
+create trigger churches_stamp
+  before update on public.churches
+  for each row execute function public.stamp_updated_at();
 create trigger churches_audit
-  before insert or update or delete on public.churches
+  after insert or update or delete on public.churches
   for each row execute function public.record_audit();
 
 drop trigger if exists live_config_audit on public.live_config;
+drop trigger if exists live_config_stamp on public.live_config;
+create trigger live_config_stamp
+  before update on public.live_config
+  for each row execute function public.stamp_updated_at();
 create trigger live_config_audit
-  before insert or update or delete on public.live_config
+  after insert or update or delete on public.live_config
   for each row execute function public.record_audit();
 
 -- --------------------------------------------------------------- RLS ------
