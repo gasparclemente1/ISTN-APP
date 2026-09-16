@@ -1,13 +1,13 @@
 import { APP_CONFIG, countryNames, loadDirectory, loadLatestVideos, loadMeetings, loadTeachingLibrary, toWhatsApp } from './data.js';
 import { DEFAULT_DURATION_MINUTES, nextMeeting, nextOccurrence, recurrenceLabel, zonedDateParts } from './meetings.js';
-import { badgeFor, loadProfile, readSession, register, requestServantBadge, saveProfile, signIn, signOut } from './account.js';
+import { availableProviders, badgeFor, finishSocialSignIn, loadChurchOptions, loadProfile, readSession, register, requestServantBadge, saveProfile, signIn, signInWithProvider, signOut } from './account.js';
 import { verifiedSeal } from './roles.js';
 
 // Confirmed with the ISTN-SJ team: every announced time is Luanda time.
 const TIME_ZONE = 'Africa/Luanda';
 
 const app = document.querySelector('#app');
-const state = { page: 'home', query: '', category: 'Todas', year: 'Todos', book: 'Todos', sort: 'recent', teachingPage: 1, teachingLibrary: null, directory: null, selectedChurch: null, selectedSource: null, country: 'Todos', latestVideos: {}, videosLoading: true, meetings: null, meetingsError: false, session: null, profile: null, authMode: 'entrar' };
+const state = { page: 'home', query: '', category: 'Todas', year: 'Todos', book: 'Todos', sort: 'recent', teachingPage: 1, teachingLibrary: null, directory: null, selectedChurch: null, selectedSource: null, country: 'Todos', latestVideos: {}, videosLoading: true, meetings: null, meetingsError: false, session: null, profile: null, authMode: 'entrar', churchOptions: null, providers: null };
 const TEACHING_CATEGORIES = ['Todas', 'Cultos', 'Cultos dos servos', 'Lives', 'Especiais'];
 const BOOK_SPELLING_FIXES = { 'Galátas': 'Gálatas', 'Exôdo': 'Êxodo', '1Timóteo': '1 Timóteo' };
 const icon = (name) => ({ home: '⌂', teachings: '◫', live: '◉', churches: '⌖', profile: '◌', search: '⌕', arrow: '→', play: '▶', back: '←', calendar: '◷', pin: '⌖', user: '♙', check: '✓', phone: '☎', external: '↗', bell: '♧', globe: '◎', share: '⤴' }[name] || '•');
@@ -394,17 +394,29 @@ function churchDetail() {
   </main>${navigation()}`;
 }
 
+function churchOptionLabel(church) {
+  const lugar = church.locality || church.country || 'Sem nome';
+  const contexto = [church.region, countryNames[church.country_code] || church.country].filter(Boolean).join(', ');
+  const tipo = church.place_type === 'casa_de_oracao' ? ' (casa de oração)' : '';
+  return contexto ? `${lugar}${tipo} — ${contexto}` : `${lugar}${tipo}`;
+}
+
 function profile() {
+  ensureChurchOptions();
   const head = header({ title: 'Perfil', back: 'home' });
   if (!state.profile) {
     const registar = state.authMode === 'registar';
     return `${head}<main class="page-content">
       <section class="profile-hero"><span class="round-icon">${icon('user')}</span><h1>${registar ? 'Criar conta' : 'Entrar'}</h1><p>Não precisa de conta para explorar a aplicação. A conta guarda as suas preferências em mais do que um telemóvel e permite pedir o selo de servo.</p></section>
       <form id="account-form" class="account-card">
+        ${state.providers?.length ? '<p class="account-note">Com email e palavra-passe, ou por Google ou Facebook — a conta é a mesma em qualquer dos casos.</p>' : ''}
         <label>Email<input type="email" name="email" autocomplete="username" required /></label>
         <label>Palavra-passe<input type="password" name="password" autocomplete="${registar ? 'new-password' : 'current-password'}" required minlength="6" /></label>
         <button class="button button-gold full-width" type="submit">${registar ? 'Criar conta' : 'Entrar'}</button>
       </form>
+      ${state.providers?.length ? `<div class="account-providers">
+        ${state.providers.map((provider) => `<button class="button button-outline full-width" data-provider="${provider.id}">${escapeHtml(provider.label)}</button>`).join('')}
+      </div>` : ''}
       <button class="text-button account-switch" data-action="switch-auth">${registar ? 'Já tenho conta — entrar' : 'Ainda não tenho conta — registar'}</button>
     </main>${navigation()}`;
   }
@@ -421,7 +433,19 @@ function profile() {
     </section>
     <form id="profile-form" class="account-card">
       <label>Nome<input type="text" name="display_name" value="${escapeHtml(state.profile.display_name || '')}" /></label>
-      <p class="account-note">A escolha da sua igreja chega quando o diretório passar a ser lido da base de dados — hoje ainda vem de um ficheiro, e os dois não se correspondem.</p>
+      <label>Telefone<input type="tel" name="phone" value="${escapeHtml(state.profile.phone || '')}" placeholder="+244 …" /></label>
+      <label>País<select name="country_code">
+        <option value="">— não indicar —</option>
+        ${Object.entries(countryNames).map(([code, name]) => `<option value="${code}" ${state.profile.country_code === code ? 'selected' : ''}>${escapeHtml(name)}</option>`).join('')}
+      </select></label>
+      <label>A minha ISTN<select name="home_church_id">
+        <option value="">${state.churchOptions?.length ? '— ainda não escolhi —' : 'A carregar…'}</option>
+        ${(state.churchOptions || []).map((church) => `<option value="${church.id}" ${state.profile.home_church_id === church.id ? 'selected' : ''}>${escapeHtml(churchOptionLabel(church))}</option>`).join('')}
+      </select></label>
+      <label>Idioma<select name="language">
+        <option value="pt" ${state.profile.language !== 'fr' ? 'selected' : ''}>Português</option>
+        <option value="fr" ${state.profile.language === 'fr' ? 'selected' : ''}>Français</option>
+      </select></label>
       <label class="account-check"><input type="checkbox" name="meeting_reminders" ${state.profile.meeting_reminders === false ? '' : 'checked'} /> Quero lembretes das reuniões</label>
       <button class="button button-gold full-width" type="submit">Guardar</button>
     </form>
@@ -446,9 +470,22 @@ function render() {
 
 function showToast(message) { const toast = document.createElement('div'); toast.className = 'toast'; toast.textContent = message; document.body.append(toast); setTimeout(() => toast.remove(), 3200); }
 function go(page) { state.page = page; window.scrollTo({ top: 0, behavior: 'instant' }); render(); }
+
+// The church list is only needed once a member is signed in, and is needed
+// however they got there — navigating to the profile, signing in while already
+// on it, or returning with a restored session.
+function ensureChurchOptions() {
+  if (!state.profile || state.churchOptions) return;
+  state.churchOptions = [];
+  loadChurchOptions().then((churches) => { state.churchOptions = churches; render(); }).catch(() => {});
+}
 function bindPage() {
   app.querySelectorAll('[data-page]').forEach((element) => element.addEventListener('click', () => go(element.dataset.page)));
   app.querySelectorAll('[data-source]').forEach((element) => { const open = () => { state.selectedSource = element.dataset.source; go('sourceDetail'); }; element.addEventListener('click', open); element.addEventListener('keydown', (event) => { if (event.key === 'Enter') open(); }); });
+  document.querySelectorAll('[data-provider]').forEach((element) => element.addEventListener('click', () => {
+    signInWithProvider(element.dataset.provider).catch((error) => showToast(error.message));
+  }));
+
   document.querySelector('[data-action="switch-auth"]')?.addEventListener('click', () => {
     state.authMode = state.authMode === 'registar' ? 'entrar' : 'registar'; render();
   });
@@ -461,6 +498,7 @@ function bindPage() {
       if (!session) { showToast('Conta criada. Confirme o email antes de entrar.'); state.authMode = 'entrar'; render(); return; }
       state.session = session;
       state.profile = await loadProfile(session);
+      ensureChurchOptions();
       render();
       showToast('Sessão iniciada.');
     } catch (error) { showToast(error.message); }
@@ -472,6 +510,10 @@ function bindPage() {
     try {
       state.profile = await saveProfile({
         display_name: values.display_name?.trim() || null,
+        phone: values.phone?.trim() || null,
+        country_code: values.country_code || null,
+        home_church_id: values.home_church_id || null,
+        language: values.language || 'pt',
         meeting_reminders: !!values.meeting_reminders
       }) || state.profile;
       render();
@@ -520,11 +562,18 @@ function refreshMeetings() {
     .finally(render);
 }
 refreshMeetings();
-const savedSession = readSession();
-if (savedSession) {
-  state.session = savedSession;
-  loadProfile(savedSession).then((profile) => { state.profile = profile; render(); }).catch(() => { state.session = null; });
-}
+availableProviders().then((providers) => { state.providers = providers; render(); }).catch(() => {});
+finishSocialSignIn()
+  .catch((error) => { showToast(error.message); return null; })
+  .then((social) => {
+    const session = social || readSession();
+    if (!session) return;
+    state.session = session;
+    if (social) state.page = 'profile';
+    return loadProfile(session)
+      .then((profile) => { state.profile = profile; ensureChurchOptions(); render(); })
+      .catch(() => { state.session = null; });
+  });
 loadTeachingLibrary().then((teachings) => { state.teachingLibrary = teachings; render(); }).catch(() => { showToast('Não foi possível carregar o acervo Youtube.'); });
 // allSettled, not all: one channel failing must not discard the other's videos.
 Promise.allSettled(APP_CONFIG.sources.filter((source) => source.channelId).map(async (source) => [source.channelId, await loadLatestVideos(source.channelId)]))

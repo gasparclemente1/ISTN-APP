@@ -48,6 +48,45 @@ export async function register(email, password) {
 
 export function signOut() { writeSession(null); }
 
+const PROVIDER_LABELS = { google: 'Continuar com Google', facebook: 'Continuar com Facebook' };
+
+export async function availableProviders() {
+  const { providers } = await backendConfig();
+  return (providers || []).filter((id) => PROVIDER_LABELS[id]).map((id) => ({ id, label: PROVIDER_LABELS[id] }));
+}
+
+// Hands the browser to the provider. Supabase brings it back to this origin
+// with the tokens in the URL fragment, which finishSocialSignIn picks up.
+export async function signInWithProvider(provider) {
+  const { supabaseUrl } = await backendConfig();
+  if (!supabaseUrl) throw new Error('As contas ainda não estão configuradas neste servidor.');
+  const back = encodeURIComponent(`${location.origin}/`);
+  location.href = `${supabaseUrl}/auth/v1/authorize?provider=${encodeURIComponent(provider)}&redirect_to=${back}`;
+}
+
+// The fragment never reaches a server, which is why the tokens travel there.
+// It is cleared from the address bar as soon as it has been read.
+export async function finishSocialSignIn() {
+  const fragment = location.hash.startsWith('#') ? location.hash.slice(1) : '';
+  if (!fragment) return null;
+  const params = new URLSearchParams(fragment);
+  const error = params.get('error_description') || params.get('error');
+  const accessToken = params.get('access_token');
+  if (!accessToken && !error) return null;
+  history.replaceState(null, '', location.pathname + location.search);
+  if (error) throw new Error(decodeURIComponent(error.replace(/\+/g, ' ')));
+
+  const { supabaseUrl, supabaseKey } = await backendConfig();
+  const response = await fetch(`${supabaseUrl}/auth/v1/user`, {
+    headers: { apikey: supabaseKey, Authorization: `Bearer ${accessToken}` }
+  });
+  if (!response.ok) throw new Error('Não foi possível concluir a autenticação.');
+  const user = await response.json();
+  const session = { access_token: accessToken, refresh_token: params.get('refresh_token'), user };
+  writeSession(session);
+  return session;
+}
+
 async function rest(path, options = {}, session = readSession()) {
   const { supabaseUrl, supabaseKey } = await backendConfig();
   const response = await fetch(`${supabaseUrl}/rest/v1/${path}`, {
@@ -75,6 +114,13 @@ export async function loadProfile(session = readSession()) {
     body: JSON.stringify({ id: session.user.id, display_name: session.user.email?.split('@')[0] || null })
   }, session);
   return created?.[0] || null;
+}
+
+// The directory lives in the database now, so the member can actually pick a
+// church — it could not before, when the app read it from a bundled file whose
+// records share no id with the table.
+export async function loadChurchOptions() {
+  return rest('churches?select=id,locality,country,country_code,region,place_type&order=country_code.asc,region.asc,locality.asc');
 }
 
 export async function saveProfile(changes, session = readSession()) {

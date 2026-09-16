@@ -103,7 +103,10 @@ createServer((request, response) => {
       : /^https?:\/\//.test(configured) ? configured
       : `https://${configured}.supabase.co`;
     response.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
-    response.end(JSON.stringify({ supabaseUrl, supabaseKey: process.env.SUPABASE_PUBLISHABLE_KEY || '' }));
+    // Only advertise providers that are actually enabled in Supabase; a button
+    // that leads to "provider is not enabled" is worse than no button.
+    const providers = (process.env.SUPABASE_OAUTH_PROVIDERS || '').split(',').map((name) => name.trim()).filter(Boolean);
+    response.end(JSON.stringify({ supabaseUrl, supabaseKey: process.env.SUPABASE_PUBLISHABLE_KEY || '', providers }));
     return;
   }
   const requested = url.pathname === '/' ? '/index.html'
