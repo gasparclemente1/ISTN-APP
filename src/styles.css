@@ -62,3 +62,19 @@
 .schedule-time { display:block; text-align:right; }
 .schedule-time small { display:block; margin-top:3px; font:500 .58rem/1.3 "DM Mono",monospace; color:var(--muted); letter-spacing:.06em; }
 .schedule-time em { max-width:none; }
+
+.join-invite { margin:40px 20px 0; background:var(--deep); color:var(--white); border-radius:var(--radius); padding:26px; display:grid; grid-template-columns:auto 1fr; gap:15px; align-items:start; }
+.join-invite .round-icon { grid-row:span 2; background:var(--gold); color:var(--deep); }
+.join-invite h2 { margin:5px 0 8px; }
+.join-invite p { color:#b9d2d9; font-size:.86rem; margin:0; }
+.join-invite .button { grid-column:1/-1; margin-top:6px; justify-self:start; background:var(--gold); color:var(--deep); }
+.account-card { background:var(--white); border:1px solid var(--line); border-radius:var(--radius); padding:22px; margin-bottom:16px; }
+.account-card h2 { margin-bottom:8px; }
+.account-card p { font-size:.84rem; }
+.account-card label { display:grid; gap:5px; margin-bottom:14px; font:600 .72rem "DM Sans",sans-serif; color:var(--deep); }
+.account-card input[type=text],.account-card input[type=email],.account-card input[type=password] { border:1px solid #c5d0ca; border-radius:11px; padding:10px 12px; font:400 .86rem "DM Sans",sans-serif; width:100%; }
+.account-check { display:flex !important; align-items:center; gap:9px; font-size:.8rem !important; }
+.account-check input { width:18px; height:18px; }
+.account-note { color:var(--muted); font-size:.76rem; margin:-4px 0 14px; }
+.account-switch { display:block; margin:4px auto 0; }
+.servo-badge { display:inline-flex; align-items:center; gap:6px; margin-top:10px; padding:6px 13px; border-radius:999px; font:600 .74rem "DM Sans",sans-serif; background:var(--gold-soft); color:var(--deep); border:1px solid var(--gold); }

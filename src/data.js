@@ -27,7 +27,7 @@ export async function loadLatestVideos(channelId) {
 // immediately. There is no bundled fallback on purpose: showing a stale Zoom
 // link would send people to a room that is not the meeting.
 let configPromise = null;
-function backendConfig() {
+export function backendConfig() {
   configPromise ||= fetch('/api/config').then((response) => response.json()).catch(() => ({ supabaseUrl: '', supabaseKey: '' }));
   return configPromise;
 }
