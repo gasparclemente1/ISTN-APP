@@ -23,9 +23,20 @@ export async function loadLatestVideos(channelId) {
   return response.json();
 }
 
-export async function loadLiveConfig() {
-  const response = await fetch('/data/live-config.json');
-  if (!response.ok) throw new Error('Não foi possível carregar a programação das reuniões.');
+// Meetings come from Supabase so the admin panel's edits reach the congregation
+// immediately. There is no bundled fallback on purpose: showing a stale Zoom
+// link would send people to a room that is not the meeting.
+let configPromise = null;
+function backendConfig() {
+  configPromise ||= fetch('/api/config').then((response) => response.json()).catch(() => ({ supabaseUrl: '', supabaseKey: '' }));
+  return configPromise;
+}
+
+export async function loadMeetings() {
+  const { supabaseUrl, supabaseKey } = await backendConfig();
+  if (!supabaseUrl || !supabaseKey) throw new Error('A ligação à base de dados não está configurada.');
+  const response = await fetch(`${supabaseUrl}/rest/v1/meetings?select=*&active=eq.true&order=kind.asc,sort_order.asc`, { headers: { apikey: supabaseKey } });
+  if (!response.ok) throw new Error('Não foi possível carregar as reuniões.');
   return response.json();
 }
 

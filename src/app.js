@@ -1,7 +1,11 @@
-import { APP_CONFIG, countryNames, loadDirectory, loadLatestVideos, loadLiveConfig, loadTeachingLibrary, toWhatsApp } from './data.js';
+import { APP_CONFIG, countryNames, loadDirectory, loadLatestVideos, loadMeetings, loadTeachingLibrary, toWhatsApp } from './data.js';
+import { DEFAULT_DURATION_MINUTES, nextMeeting, nextOccurrence, recurrenceLabel, zonedDateParts } from './meetings.js';
+
+// Confirmed with the ISTN-SJ team: every announced time is Luanda time.
+const TIME_ZONE = 'Africa/Luanda';
 
 const app = document.querySelector('#app');
-const state = { page: 'home', query: '', category: 'Todas', year: 'Todos', book: 'Todos', sort: 'recent', teachingPage: 1, teachingLibrary: null, directory: null, selectedChurch: null, selectedSource: null, country: 'Todos', latestVideos: {}, videosLoading: true, liveConfig: null };
+const state = { page: 'home', query: '', category: 'Todas', year: 'Todos', book: 'Todos', sort: 'recent', teachingPage: 1, teachingLibrary: null, directory: null, selectedChurch: null, selectedSource: null, country: 'Todos', latestVideos: {}, videosLoading: true, meetings: null, meetingsError: false };
 const TEACHING_CATEGORIES = ['Todas', 'Cultos', 'Cultos dos servos', 'Lives', 'Especiais'];
 const BOOK_SPELLING_FIXES = { 'Galátas': 'Gálatas', 'Exôdo': 'Êxodo', '1Timóteo': '1 Timóteo' };
 const icon = (name) => ({ home: '⌂', teachings: '◫', live: '◉', churches: '⌖', profile: '◌', search: '⌕', arrow: '→', play: '▶', back: '←', calendar: '◷', pin: '⌖', user: '♙', check: '✓', phone: '☎', external: '↗', bell: '♧', globe: '◎', share: '⤴' }[name] || '•');
@@ -130,43 +134,10 @@ function latestVideosSection() {
 }
 
 const userZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+const showBothZones = () => userZone && userZone !== TIME_ZONE;
 
-function zoneOffset(instant, timeZone) {
-  const parts = Object.fromEntries(new Intl.DateTimeFormat('en-US', { timeZone, hour12: false, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' })
-    .formatToParts(new Date(instant)).map((part) => [part.type, part.value]));
-  return Date.UTC(Number(parts.year), Number(parts.month) - 1, Number(parts.day), Number(parts.hour) % 24, Number(parts.minute), Number(parts.second)) - instant;
-}
-
-// Wall-clock time in `timeZone` -> UTC instant. Two passes so DST transitions resolve correctly.
-function zonedToInstant({ year, month, day, hour, minute }, timeZone) {
-  const wall = Date.UTC(year, month - 1, day, hour, minute);
-  const approximate = wall - zoneOffset(wall, timeZone);
-  return new Date(wall - zoneOffset(approximate, timeZone));
-}
-
-function zonedDateParts(date, timeZone) {
-  const parts = Object.fromEntries(new Intl.DateTimeFormat('en-US', { timeZone, hour12: false, year: 'numeric', month: '2-digit', day: '2-digit' })
-    .formatToParts(date).map((part) => [part.type, part.value]));
-  return { year: Number(parts.year), month: Number(parts.month), day: Number(parts.day) };
-}
-
-function nextMeeting(config, now = new Date()) {
-  const today = zonedDateParts(now, config.timeZone);
-  const windowMs = (config.durationMinutes || 120) * 60000;
-  for (let ahead = 0; ahead <= 7; ahead += 1) {
-    const day = new Date(Date.UTC(today.year, today.month - 1, today.day));
-    day.setUTCDate(day.getUTCDate() + ahead);
-    const slot = config.schedule.find((entry) => entry.weekday === day.getUTCDay());
-    if (!slot?.time) continue;
-    const [hour, minute] = slot.time.split(':').map(Number);
-    const start = zonedToInstant({ year: day.getUTCFullYear(), month: day.getUTCMonth() + 1, day: day.getUTCDate(), hour, minute }, config.timeZone);
-    if (now.getTime() < start.getTime() + windowMs) return { slot, start, isLive: now >= start };
-  }
-  return null;
-}
-
-function formatInZone(date, timeZone, withWeekday = false) {
-  return new Intl.DateTimeFormat('pt-PT', { timeZone, hour: '2-digit', minute: '2-digit', ...(withWeekday ? { weekday: 'long' } : {}) }).format(date);
+function formatInZone(date, timeZone) {
+  return new Intl.DateTimeFormat('pt-PT', { timeZone, hour: '2-digit', minute: '2-digit' }).format(date);
 }
 
 // Only returns a countdown inside 24h; beyond that the weekday label already says it.
@@ -177,13 +148,13 @@ function countdownLabel(start, now = new Date()) {
   return hours < 24 ? `Começa em ${hours}h ${String(minutes % 60).padStart(2, '0')}min` : '';
 }
 
-function relativeDayLabel(start, timeZone, now = new Date()) {
-  const startDay = zonedDateParts(start, timeZone);
-  const today = zonedDateParts(now, timeZone);
+function relativeDayLabel(start, now = new Date()) {
+  const startDay = zonedDateParts(start, TIME_ZONE);
+  const today = zonedDateParts(now, TIME_ZONE);
   const diff = Math.round((Date.UTC(startDay.year, startDay.month - 1, startDay.day) - Date.UTC(today.year, today.month - 1, today.day)) / 86400000);
   if (diff === 0) return 'HOJE';
   if (diff === 1) return 'AMANHÃ';
-  return new Intl.DateTimeFormat('pt-PT', { timeZone, weekday: 'long' }).format(start).toUpperCase();
+  return new Intl.DateTimeFormat('pt-PT', { timeZone: TIME_ZONE, weekday: 'long' }).format(start).toUpperCase();
 }
 
 const WEEKDAY_CODES = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'];
@@ -209,55 +180,49 @@ function foldIcsLine(line) {
   if (current) parts.push(current);
   return parts.join('\r\n ');
 }
-
-// Recurring calendar events with a 15-minute alarm. Times are emitted in UTC,
-// which is unambiguous because Africa/Luanda has no daylight saving.
-function buildReminderCalendar(config) {
+// One recurring calendar entry per meeting that has a fixed start time, each
+// with a 15-minute alarm. Times are emitted in UTC, which is exact because
+// Angola has no daylight saving.
+function buildReminderCalendar(meetings) {
   const now = new Date();
-  const slots = config.schedule.filter((slot) => slot.time);
-  const byTime = new Map();
-  slots.forEach((slot) => {
-    if (!byTime.has(slot.time)) byTime.set(slot.time, []);
-    byTime.get(slot.time).push(slot.weekday);
-  });
-  const events = [...byTime.entries()].map(([time, weekdays], index) => {
-    const [hour, minute] = time.split(':').map(Number);
-    const today = zonedDateParts(now, config.timeZone);
-    let start = null;
-    for (let ahead = 0; ahead <= 7 && !start; ahead += 1) {
-      const day = new Date(Date.UTC(today.year, today.month - 1, today.day));
-      day.setUTCDate(day.getUTCDate() + ahead);
-      if (!weekdays.includes(day.getUTCDay())) continue;
-      const candidate = zonedToInstant({ year: day.getUTCFullYear(), month: day.getUTCMonth() + 1, day: day.getUTCDate(), hour, minute }, config.timeZone);
-      if (candidate > now) start = candidate;
-    }
-    const end = new Date(start.getTime() + (config.durationMinutes || 120) * 60000);
-    return [
-      'BEGIN:VEVENT',
-      `UID:elias-istn-sj-${index}-${start.getTime()}@istn-sj`,
-      `DTSTAMP:${icsStamp(now)}`,
-      `DTSTART:${icsStamp(start)}`,
-      `DTEND:${icsStamp(end)}`,
-      `RRULE:FREQ=WEEKLY;BYDAY=${weekdays.map((weekday) => WEEKDAY_CODES[weekday]).join(',')}`,
-      `SUMMARY:${config.title}`,
-      `DESCRIPTION:Hora de Luanda: ${time}. ID da reunião ${config.zoom?.meetingId || ''}`,
-      `URL:${config.zoom?.url || ''}`,
-      'BEGIN:VALARM',
-      'TRIGGER:-PT15M',
-      'ACTION:DISPLAY',
-      'DESCRIPTION:A reunião começa em 15 minutos',
-      'END:VALARM',
-      'END:VEVENT'
-    ];
-  });
+  const events = meetings
+    .map((meeting) => ({ meeting, occurrence: nextOccurrence(meeting, TIME_ZONE, now) }))
+    .filter(({ occurrence }) => occurrence)
+    .map(({ meeting, occurrence }, index) => {
+      const start = occurrence.start;
+      const end = new Date(start.getTime() + DEFAULT_DURATION_MINUTES * 60000);
+      const rule = meeting.recurrence === 'weekly'
+        ? `RRULE:FREQ=WEEKLY;BYDAY=${(meeting.weekdays || []).map((weekday) => WEEKDAY_CODES[weekday]).join(',')}`
+        : meeting.recurrence === 'monthly_last'
+          ? `RRULE:FREQ=MONTHLY;BYDAY=-1${WEEKDAY_CODES[(meeting.weekdays || [])[0]]}`
+          : meeting.recurrence === 'yearly'
+            ? 'RRULE:FREQ=YEARLY'
+            : '';
+      return [
+        'BEGIN:VEVENT',
+        `UID:elias-istn-sj-${index}-${start.getTime()}@istn-sj`,
+        `DTSTAMP:${icsStamp(now)}`,
+        `DTSTART:${icsStamp(start)}`,
+        `DTEND:${icsStamp(end)}`,
+        ...(rule ? [rule] : []),
+        `SUMMARY:${meeting.title}`,
+        `DESCRIPTION:Hora de Luanda: ${String(meeting.start_time).slice(0, 5)}.${meeting.zoom_meeting_id ? ` ID da reunião ${meeting.zoom_meeting_id}` : ''}`,
+        ...(meeting.zoom_url ? [`URL:${meeting.zoom_url}`] : []),
+        'BEGIN:VALARM',
+        'TRIGGER:-PT15M',
+        'ACTION:DISPLAY',
+        'DESCRIPTION:A reunião começa em 15 minutos',
+        'END:VALARM',
+        'END:VEVENT'
+      ];
+    });
   const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//ISTN-SJ//ELIAS//PT', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH', ...events.flat(), 'END:VCALENDAR'];
   return lines.map(foldIcsLine).join('\r\n');
 }
 
 function downloadReminder() {
-  const config = state.liveConfig;
-  if (!config) { showToast('A programação ainda não carregou.'); return; }
-  const blob = new Blob([buildReminderCalendar(config)], { type: 'text/calendar;charset=utf-8' });
+  if (!state.meetings?.length) { showToast('A programação ainda não carregou.'); return; }
+  const blob = new Blob([buildReminderCalendar(state.meetings)], { type: 'text/calendar;charset=utf-8' });
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement('a');
   anchor.href = url;
@@ -270,21 +235,72 @@ function downloadReminder() {
 }
 
 function liveCard(compact = false) {
-  const config = state.liveConfig;
-  if (!config) return `<section class="live-card ${compact ? 'compact' : ''}"><div class="live-kicker"><span class="live-dot"></span> PRÓXIMA REUNIÃO</div><p class="live-note">A carregar a programação…</p></section>`;
-  const next = nextMeeting(config);
-  const showBothZones = userZone && userZone !== config.timeZone;
-  const status = next && (next.isLive ? 'A reunião já começou.' : countdownLabel(next.start));
-  return `<section class="live-card ${compact ? 'compact' : ''}">
-    <div class="live-kicker"><span class="live-dot"></span> ${next?.isLive ? 'A DECORRER AGORA' : 'PRÓXIMA REUNIÃO'}</div>
-    <h2>${escapeHtml(config.title)}</h2>
-    ${next ? `<p class="live-time"><strong>${formatInZone(next.start, config.timeZone)}</strong> <span>${relativeDayLabel(next.start, config.timeZone)} · horário de Luanda${showBothZones ? `<br>${formatInZone(next.start, userZone)} no seu fuso` : ''}</span></p>
-    ${status ? `<p class="live-countdown">${status}</p>` : ''}` : `<p class="live-note">Sem horário fixo definido.</p>`}
+  const wrapper = (inner) => `<section class="live-card ${compact ? 'compact' : ''}">${inner}</section>`;
+  if (state.meetingsError) return wrapper(`<div class="live-kicker"><span class="live-dot"></span> PRÓXIMA REUNIÃO</div><p class="live-note">Não foi possível carregar a programação. <button class="text-button" data-action="retry-meetings">Tentar de novo</button></p>`);
+  if (!state.meetings) return wrapper('<div class="live-kicker"><span class="live-dot"></span> PRÓXIMA REUNIÃO</div><p class="live-note">A carregar a programação…</p>');
+  const next = nextMeeting(state.meetings, TIME_ZONE);
+  if (!next) return wrapper('<div class="live-kicker"><span class="live-dot"></span> PRÓXIMA REUNIÃO</div><p class="live-note">Sem reuniões com hora marcada.</p>');
+  const status = next.isLive ? 'A reunião já começou.' : countdownLabel(next.start);
+  return wrapper(`<div class="live-kicker"><span class="live-dot"></span> ${next.isLive ? 'A DECORRER AGORA' : 'PRÓXIMA REUNIÃO'}</div>
+    <h2>${escapeHtml(next.meeting.title)}</h2>
+    <p class="live-time"><strong>${formatInZone(next.start, TIME_ZONE)}</strong> <span>${relativeDayLabel(next.start)} · horário de Luanda${showBothZones() ? `<br>${formatInZone(next.start, userZone)} no seu fuso` : ''}</span></p>
+    ${status ? `<p class="live-countdown">${status}</p>` : ''}
     <div class="live-actions">
       <button class="button button-light" data-page="live">Ver reunião <span>${icon('arrow')}</span></button>
       <button class="text-button" data-action="reminder">${icon('bell')} Lembrar-me</button>
-    </div>
-  </section>`;
+    </div>`);
+}
+
+function meetingRow(meeting) {
+  const occurrence = nextOccurrence(meeting, TIME_ZONE);
+  return `<li>
+    <span class="schedule-day">${escapeHtml(meeting.title)}<b>${escapeHtml(recurrenceLabel(meeting))}</b></span>
+    <span class="schedule-time">${meeting.start_time ? escapeHtml(String(meeting.start_time).slice(0, 5)) : `<em>${escapeHtml(meeting.time_note || 'A confirmar')}</em>`}${occurrence ? `<small>${relativeDayLabel(occurrence.start)}</small>` : ''}</span>
+  </li>`;
+}
+
+function live() {
+  const head = header({ title: 'Ao vivo', back: 'home' });
+  const hero = `<section class="live-hero"><span class="live-kicker"><span class="live-dot"></span> PROGRAMAÇÃO</span><h1>Reuniões que nos aproximam.</h1><p>Acompanhe o próximo encontro e entre diretamente pelo Zoom.</p></section>`;
+  if (state.meetingsError) return `${head}<main class="page-content live-page">${hero}<div class="video-feed-empty"><span>⌁</span><p>Não foi possível carregar a programação. <button class="text-button" data-action="retry-meetings">Tentar de novo</button></p></div></main>${navigation()}`;
+  if (!state.meetings) return `${head}<main class="page-content live-page">${hero}<div class="video-feed-empty"><span><i class="loader"></i></span><p>A carregar a programação…</p></div></main>${navigation()}`;
+
+  const now = new Date();
+  const next = nextMeeting(state.meetings, TIME_ZONE, now);
+  const room = next?.meeting;
+  const gerais = state.meetings.filter((meeting) => meeting.kind === 'geral');
+  const especiais = state.meetings.filter((meeting) => meeting.kind !== 'geral');
+
+  return `${head}<main class="page-content live-page">
+    ${hero}
+    ${next ? `<section class="live-detail-card ${next.isLive ? 'is-live' : ''}">
+      <div class="live-date"><span>${relativeDayLabel(next.start, now)}</span><strong>${formatInZone(next.start, TIME_ZONE)}</strong><small>Luanda</small></div>
+      <div><span class="eyebrow">${next.isLive ? 'A DECORRER AGORA' : 'PRÓXIMA REUNIÃO'}</span><h2>${escapeHtml(next.meeting.title)}</h2><p>${[next.isLive ? 'A reunião já começou.' : countdownLabel(next.start, now), showBothZones() ? `${formatInZone(next.start, userZone)} no seu fuso` : ''].filter(Boolean).join(' · ')}</p></div>
+    </section>` : ''}
+    <div class="timezone-row"><span>${icon('calendar')}</span><p>Agora em Luanda: <strong>${formatInZone(now, TIME_ZONE)}</strong>${showBothZones() ? ` · No seu fuso (${escapeHtml(userZone)}): <strong>${formatInZone(now, userZone)}</strong>` : ''}</p></div>
+    <section class="join-panel">
+      <h2>Entrar na reunião</h2>
+      <p>${room ? escapeHtml(room.title) : 'Sem reunião marcada.'}</p>
+      ${room?.zoom_url
+        ? `<a class="button button-gold full-width" ${link(room.zoom_url)}>Entrar no Zoom ${icon('external')}</a>
+           <dl class="meeting-credentials">
+             <div><dt>ID da reunião</dt><dd>${escapeHtml(room.zoom_meeting_id || '—')}</dd></div>
+             <div><dt>Senha de acesso</dt><dd>${escapeHtml(room.zoom_passcode || '—')}</dd></div>
+           </dl>`
+        : '<p class="live-note">A sala desta reunião ainda não foi publicada pela equipa.</p>'}
+      <button class="button button-outline full-width" data-action="reminder">${icon('bell')} Adicionar lembretes ao calendário</button>
+      <a class="text-button external-link" ${link(APP_CONFIG.sources[0].url)}>Ver transmissões no YouTube ${icon('external')}</a>
+    </section>
+    ${gerais.length ? `<section class="weekly-schedule">
+      <div class="section-heading"><div><span class="eyebrow">REUNIÕES GERAIS</span><h2>Todas as semanas</h2></div><span class="zone-tag">Hora de Luanda</span></div>
+      <ul class="schedule-list">${gerais.map(meetingRow).join('')}</ul>
+    </section>` : ''}
+    ${especiais.length ? `<section class="weekly-schedule">
+      <div class="section-heading"><div><span class="eyebrow">REUNIÕES ESPECIAIS</span><h2>Encontros próprios</h2></div></div>
+      <ul class="schedule-list">${especiais.map(meetingRow).join('')}</ul>
+    </section>` : ''}
+    <section class="recording-state"><span class="round-icon">${icon('play')}</span><div><span class="eyebrow">APÓS A REUNIÃO</span><h2>Gravação pendente</h2><p>Quando associada pela equipa, a gravação aparecerá no arquivo.</p></div></section>
+  </main>${navigation()}`;
 }
 
 function home() {
@@ -295,7 +311,12 @@ function home() {
     <section class="content-section">${liveCard(true)}</section>
     <section class="content-section">${latestVideosSection()}</section>
     <section class="content-section"><div class="section-heading"><div><span class="eyebrow">BIBLIOTECA</span><h2>Fontes de ensino</h2></div><button class="link-button" data-page="teachings">Explorar</button></div><div class="horizontal-scroll">${APP_CONFIG.sources.slice(1).map((source) => sourceCard(source)).join('')}</div></section>
-    <section class="find-istn"><span class="round-icon">${icon('globe')}</span><div><span class="eyebrow">ISTN GLOBAL</span><h2>A sua comunidade pode estar mais perto.</h2><p>Procure por país, região ou localidade.</p></div><button class="button button-dark" data-page="churches">Encontrar ISTN</button></section>
+    <section class="find-istn">
+      <img class="find-istn-photo" src="/design/assets/photos/congregacao-istn-640.webp" srcset="/design/assets/photos/congregacao-istn-640.webp 640w, /design/assets/photos/congregacao-istn-1280.webp 1280w" sizes="(min-width: 760px) 700px, 100vw" alt="Membros da ISTN-SJ reunidos com o Profeta Elias" loading="lazy" />
+      <span class="round-icon">${icon('globe')}</span>
+      <div><span class="eyebrow">ISTN GLOBAL</span><h2>A sua comunidade pode estar mais perto.</h2><p>Procure por país, região ou localidade.</p></div>
+      <button class="button button-dark" data-page="churches">Encontrar ISTN</button>
+    </section>
   </main>${navigation()}`;
 }
 
@@ -316,45 +337,6 @@ function sourceDetail() {
     <section class="detail-copy"><span class="platform">${escapeHtml(source.platform)}</span><h1>${escapeHtml(source.title)}</h1><p class="source-type">${escapeHtml(source.type)} · Fonte externa</p><p>${escapeHtml(source.description || 'Este espaço organiza o acesso ao conteúdo disponível na plataforma de origem.')} Não há resumo ou referência atribuída nesta publicação porque esses dados não foram fornecidos para verificação.</p><a class="button button-dark full-width" ${link(source.url)}>Abrir no ${escapeHtml(source.platform)} <span>${icon('external')}</span></a></section>
     <section class="source-facts"><div><span>Origem</span><strong>${escapeHtml(source.platform)}</strong></div><div><span>Estado editorial</span><strong>Fonte a confirmar</strong></div></section>
     <section class="detail-related"><span class="eyebrow">CONTINUE A EXPLORAR</span><h2>Outras fontes</h2><div class="horizontal-scroll">${APP_CONFIG.sources.filter((item) => item.id !== source.id).map((item) => sourceCard(item)).join('')}</div></section>
-  </main>${navigation()}`;
-}
-
-function live() {
-  const config = state.liveConfig;
-  if (!config) return `${header({ title: 'Ao vivo', back: 'home' })}<main class="page-content live-page"><section class="live-hero"><h1>Reuniões que nos aproximam.</h1><p>A carregar a programação…</p></section></main>${navigation()}`;
-  const now = new Date();
-  const next = nextMeeting(config, now);
-  const showBothZones = userZone && userZone !== config.timeZone;
-  const today = zonedDateParts(now, config.timeZone);
-  const todayWeekday = new Date(Date.UTC(today.year, today.month - 1, today.day)).getUTCDay();
-  const zoom = config.zoom || {};
-  return `${header({ title: 'Ao vivo', back: 'home' })}<main class="page-content live-page">
-    <section class="live-hero"><span class="live-kicker"><span class="live-dot"></span> PROGRAMAÇÃO</span><h1>Reuniões que nos aproximam.</h1><p>Acompanhe o próximo encontro e entre diretamente pelo Zoom.</p></section>
-    ${next ? `<section class="live-detail-card ${next.isLive ? 'is-live' : ''}">
-      <div class="live-date"><span>${relativeDayLabel(next.start, config.timeZone, now)}</span><strong>${formatInZone(next.start, config.timeZone)}</strong><small>Luanda</small></div>
-      <div><span class="eyebrow">${next.isLive ? 'A DECORRER AGORA' : 'PRÓXIMA REUNIÃO'}</span><h2>${escapeHtml(config.title)}</h2><p>${[next.isLive ? 'A reunião já começou.' : countdownLabel(next.start, now), showBothZones ? `${formatInZone(next.start, userZone)} no seu fuso` : ''].filter(Boolean).join(' · ')}</p></div>
-    </section>` : ''}
-    <div class="timezone-row"><span>${icon('calendar')}</span><p>Agora em Luanda: <strong>${formatInZone(now, config.timeZone)}</strong>${showBothZones ? ` · No seu fuso (${escapeHtml(userZone)}): <strong>${formatInZone(now, userZone)}</strong>` : ''}</p></div>
-    <section class="join-panel">
-      <h2>Entrar na reunião</h2>
-      <p>${escapeHtml(config.subtitle || '')}</p>
-      <a class="button button-gold full-width" ${link(zoom.url)}>Entrar no Zoom ${icon('external')}</a>
-      <dl class="meeting-credentials">
-        <div><dt>ID da reunião</dt><dd>${escapeHtml(zoom.meetingId || '—')}</dd></div>
-        <div><dt>Senha de acesso</dt><dd>${escapeHtml(zoom.passcode || '—')}</dd></div>
-      </dl>
-      <button class="button button-outline full-width" data-action="reminder">${icon('bell')} Adicionar lembretes ao calendário</button>
-      <a class="text-button external-link" ${link(config.youtubeUrl)}>Ver transmissões no YouTube ${icon('external')}</a>
-    </section>
-    <section class="weekly-schedule">
-      <div class="section-heading"><div><span class="eyebrow">TODA A SEMANA</span><h2>Horário das lives</h2></div><span class="zone-tag">Hora de Luanda</span></div>
-      <ul class="schedule-list">${config.schedule.map((slot) => `<li class="${slot.weekday === todayWeekday ? 'is-today' : ''}">
-        <span class="schedule-day">${escapeHtml(slot.label)}${slot.weekday === todayWeekday ? ' <b>· hoje</b>' : ''}</span>
-        <span class="schedule-time">${slot.time ? escapeHtml(slot.time) : `<em>${escapeHtml(slot.note || 'A confirmar')}</em>`}</span>
-      </li>`).join('')}</ul>
-      <p class="schedule-note">${escapeHtml(config.note || '')}</p>
-    </section>
-    <section class="recording-state"><span class="round-icon">${icon('play')}</span><div><span class="eyebrow">APÓS A REUNIÃO</span><h2>Gravação pendente</h2><p>Quando associada pela equipa, a gravação aparecerá no arquivo.</p></div></section>
   </main>${navigation()}`;
 }
 
@@ -417,6 +399,7 @@ function bindPage() {
   app.querySelectorAll('[data-page]').forEach((element) => element.addEventListener('click', () => go(element.dataset.page)));
   app.querySelectorAll('[data-source]').forEach((element) => { const open = () => { state.selectedSource = element.dataset.source; go('sourceDetail'); }; element.addEventListener('click', open); element.addEventListener('keydown', (event) => { if (event.key === 'Enter') open(); }); });
   app.querySelectorAll('[data-action="reminder"]').forEach((element) => element.addEventListener('click', downloadReminder));
+  app.querySelectorAll('[data-action="retry-meetings"]').forEach((element) => element.addEventListener('click', refreshMeetings));
   app.querySelectorAll('[data-share]').forEach((element) => element.addEventListener('click', () => {
     const teaching = state.teachingLibrary?.find((item) => item.id === element.dataset.share);
     if (teaching) shareTeaching(teaching);
@@ -435,7 +418,14 @@ function bindPage() {
 }
 
 loadDirectory().then((directory) => { state.directory = directory; render(); }).catch(() => { state.directory = { physical: [], online: [] }; render(); showToast('Não foi possível carregar o diretório neste momento.'); });
-loadLiveConfig().then((config) => { state.liveConfig = config; render(); }).catch(() => { showToast('Não foi possível carregar a programação das reuniões.'); });
+function refreshMeetings() {
+  state.meetingsError = false;
+  return loadMeetings()
+    .then((meetings) => { state.meetings = meetings; })
+    .catch(() => { state.meetingsError = true; })
+    .finally(render);
+}
+refreshMeetings();
 loadTeachingLibrary().then((teachings) => { state.teachingLibrary = teachings; render(); }).catch(() => { showToast('Não foi possível carregar o acervo Youtube.'); });
 // allSettled, not all: one channel failing must not discard the other's videos.
 Promise.allSettled(APP_CONFIG.sources.filter((source) => source.channelId).map(async (source) => [source.channelId, await loadLatestVideos(source.channelId)]))
