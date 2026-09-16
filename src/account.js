@@ -48,11 +48,15 @@ export async function register(email, password) {
 
 export function signOut() { writeSession(null); }
 
-const PROVIDER_LABELS = { google: 'Continuar com Google', facebook: 'Continuar com Facebook' };
+const PROVIDER_LABELS = {
+  google: { button: 'Continuar com Google', name: 'Google' },
+  facebook: { button: 'Continuar com Facebook', name: 'Facebook' },
+  zoom: { button: 'Continuar com Zoom', name: 'Zoom' }
+};
 
 export async function availableProviders() {
   const { providers } = await backendConfig();
-  return (providers || []).filter((id) => PROVIDER_LABELS[id]).map((id) => ({ id, label: PROVIDER_LABELS[id] }));
+  return (providers || []).filter((id) => PROVIDER_LABELS[id]).map((id) => ({ id, label: PROVIDER_LABELS[id].button, name: PROVIDER_LABELS[id].name }));
 }
 
 // Hands the browser to the provider. Supabase brings it back to this origin
