@@ -413,7 +413,7 @@ function profile() {
   return `${head}<main class="page-content">
     <section class="profile-hero">
       <span class="round-icon">${icon('user')}</span>
-      <h1>${escapeHtml(state.profile.display_name || 'A sua conta')}</h1>
+      <h1>${escapeHtml(badge?.name || state.profile.display_name || 'A sua conta')}</h1>
       ${badge ? `<span class="servo-badge role-${escapeHtml(badge.role)}">${icon('check')} ${escapeHtml(badge.label)}</span>` : ''}
     </section>
     <form id="profile-form" class="account-card">
@@ -425,7 +425,7 @@ function profile() {
     <section class="account-card">
       <h2>Selo de servo</h2>
       ${badge
-        ? `<p>A sua conta está verificada como <strong>${escapeHtml(badge.label)}</strong>${badge.isMinister ? ', função de ministro' : ''}.</p>`
+        ? `<p>A sua conta está verificada como <strong>${escapeHtml(badge.label)}</strong>${badge.isMinister ? ', função de ministro' : ''}. O seu nome aparece como <strong>${escapeHtml(badge.name)}</strong>.</p>`
         : claim === 'pendente'
           ? '<p>O seu pedido está a aguardar aprovação da equipa ISTN-SJ.</p>'
           : `<p>Se serve na ISTN, peça o selo. ${claim === 'recusado' ? 'O pedido anterior não foi aprovado; pode voltar a pedir.' : 'A equipa confirma antes de o atribuir — ninguém se verifica a si próprio.'}</p>
