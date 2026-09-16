@@ -67,7 +67,7 @@ async function rest(path, options = {}, session = readSession()) {
 // the linked servant, never from anything the member can write.
 export async function loadProfile(session = readSession()) {
   if (!session?.user?.id) return null;
-  const rows = await rest(`app_users?select=*,servo:servo_id(full_name,role,is_minister)&id=eq.${session.user.id}`, {}, session);
+  const rows = await rest(`app_users?select=*,servo:servo_id(full_name,role,is_minister,church:church_id(locality,country))&id=eq.${session.user.id}`, {}, session);
   if (rows.length) return rows[0];
   const created = await rest('app_users', {
     method: 'POST',
@@ -93,5 +93,6 @@ export async function requestServantBadge(note, session = readSession()) {
 export function badgeFor(profile) {
   const servo = profile?.servo;
   if (profile?.servo_claim_status !== 'aprovado' || !servo) return null;
-  return { label: roleLabel(servo.role), role: servo.role, tier: badgeTier(servo.role), isMinister: servo.is_minister, name: servantName(servo) };
+  const church = servo.church?.locality || servo.church?.country || null;
+  return { label: roleLabel(servo.role), role: servo.role, tier: badgeTier(servo.role), isMinister: servo.is_minister, name: servantName(servo), church };
 }
