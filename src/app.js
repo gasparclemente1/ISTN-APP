@@ -1,11 +1,12 @@
 import { APP_CONFIG, countryNames, loadDirectory, loadLatestVideos, loadMeetings, loadTeachingLibrary, toWhatsApp } from './data.js';
 import { DEFAULT_DURATION_MINUTES, nextMeeting, nextOccurrence, recurrenceLabel, zonedDateParts } from './meetings.js';
+import { badgeFor, loadProfile, readSession, register, requestServantBadge, saveProfile, signIn, signOut } from './account.js';
 
 // Confirmed with the ISTN-SJ team: every announced time is Luanda time.
 const TIME_ZONE = 'Africa/Luanda';
 
 const app = document.querySelector('#app');
-const state = { page: 'home', query: '', category: 'Todas', year: 'Todos', book: 'Todos', sort: 'recent', teachingPage: 1, teachingLibrary: null, directory: null, selectedChurch: null, selectedSource: null, country: 'Todos', latestVideos: {}, videosLoading: true, meetings: null, meetingsError: false };
+const state = { page: 'home', query: '', category: 'Todas', year: 'Todos', book: 'Todos', sort: 'recent', teachingPage: 1, teachingLibrary: null, directory: null, selectedChurch: null, selectedSource: null, country: 'Todos', latestVideos: {}, videosLoading: true, meetings: null, meetingsError: false, session: null, profile: null, authMode: 'entrar' };
 const TEACHING_CATEGORIES = ['Todas', 'Cultos', 'Cultos dos servos', 'Lives', 'Especiais'];
 const BOOK_SPELLING_FIXES = { 'Galátas': 'Gálatas', 'Exôdo': 'Êxodo', '1Timóteo': '1 Timóteo' };
 const icon = (name) => ({ home: '⌂', teachings: '◫', live: '◉', churches: '⌖', profile: '◌', search: '⌕', arrow: '→', play: '▶', back: '←', calendar: '◷', pin: '⌖', user: '♙', check: '✓', phone: '☎', external: '↗', bell: '♧', globe: '◎', share: '⤴' }[name] || '•');
@@ -311,6 +312,15 @@ function home() {
     <section class="content-section">${liveCard(true)}</section>
     <section class="content-section">${latestVideosSection()}</section>
     <section class="content-section"><div class="section-heading"><div><span class="eyebrow">BIBLIOTECA</span><h2>Fontes de ensino</h2></div><button class="link-button" data-page="teachings">Explorar</button></div><div class="horizontal-scroll">${APP_CONFIG.sources.slice(1).map((source) => sourceCard(source)).join('')}</div></section>
+    ${state.profile ? '' : `<section class="join-invite">
+      <span class="round-icon">${icon('user')}</span>
+      <div>
+        <span class="eyebrow">A SUA CONTA</span>
+        <h2>Leve as suas preferências consigo.</h2>
+        <p>As suas preferências passam a acompanhá-lo em qualquer telemóvel. E se serve na ISTN, pode pedir o selo de verificação.</p>
+      </div>
+      <button class="button button-dark" data-page="profile">Entrar ou registar-se</button>
+    </section>`}
     <section class="find-istn">
       <img class="find-istn-photo" src="/design/assets/photos/congregacao-istn-640.webp" srcset="/design/assets/photos/congregacao-istn-640.webp 640w, /design/assets/photos/congregacao-istn-1280.webp 1280w" sizes="(min-width: 760px) 700px, 100vw" alt="Membros da ISTN-SJ reunidos com o Profeta Elias" loading="lazy" />
       <span class="round-icon">${icon('globe')}</span>
@@ -384,7 +394,45 @@ function churchDetail() {
 }
 
 function profile() {
-  return `${header({ title: 'Perfil', back: 'home' })}<main class="page-content"><section class="profile-hero"><span class="round-icon">${icon('user')}</span><h1>O seu espaço, ao seu ritmo.</h1><p>Não precisa criar uma conta para explorar ensinos, reuniões e comunidades ISTN.</p></section><section class="preference-card"><div><h2>Preferências</h2><p>Personalize quando estiver pronto.</p></div><button class="button button-outline" data-action="preferences">Configurar</button></section><div class="profile-list"><button data-action="preferences"><span>◎</span><div><strong>Idioma e país</strong><small>Português · Escolha o seu país</small></div><b>›</b></button><button data-action="preferences"><span>♧</span><div><strong>Lembretes de reuniões</strong><small>Desativados</small></div><b>›</b></button><button data-page="churches"><span>⌖</span><div><strong>A minha ISTN</strong><small>Escolha uma comunidade</small></div><b>›</b></button></div><aside class="verification-note"><span>${icon('check')}</span><p>Os seus dados pessoais só serão pedidos se decidir guardar preferências numa futura versão com conta.</p></aside></main>${navigation()}`;
+  const head = header({ title: 'Perfil', back: 'home' });
+  if (!state.profile) {
+    const registar = state.authMode === 'registar';
+    return `${head}<main class="page-content">
+      <section class="profile-hero"><span class="round-icon">${icon('user')}</span><h1>${registar ? 'Criar conta' : 'Entrar'}</h1><p>Não precisa de conta para explorar a aplicação. A conta guarda as suas preferências em mais do que um telemóvel e permite pedir o selo de servo.</p></section>
+      <form id="account-form" class="account-card">
+        <label>Email<input type="email" name="email" autocomplete="username" required /></label>
+        <label>Palavra-passe<input type="password" name="password" autocomplete="${registar ? 'new-password' : 'current-password'}" required minlength="6" /></label>
+        <button class="button button-gold full-width" type="submit">${registar ? 'Criar conta' : 'Entrar'}</button>
+      </form>
+      <button class="text-button account-switch" data-action="switch-auth">${registar ? 'Já tenho conta — entrar' : 'Ainda não tenho conta — registar'}</button>
+    </main>${navigation()}`;
+  }
+
+  const badge = badgeFor(state.profile);
+  const claim = state.profile.servo_claim_status;
+  return `${head}<main class="page-content">
+    <section class="profile-hero">
+      <span class="round-icon">${icon('user')}</span>
+      <h1>${escapeHtml(state.profile.display_name || 'A sua conta')}</h1>
+      ${badge ? `<span class="servo-badge role-${escapeHtml(badge.role)}">${icon('check')} ${escapeHtml(badge.label)}</span>` : ''}
+    </section>
+    <form id="profile-form" class="account-card">
+      <label>Nome<input type="text" name="display_name" value="${escapeHtml(state.profile.display_name || '')}" /></label>
+      <p class="account-note">A escolha da sua igreja chega quando o diretório passar a ser lido da base de dados — hoje ainda vem de um ficheiro, e os dois não se correspondem.</p>
+      <label class="account-check"><input type="checkbox" name="meeting_reminders" ${state.profile.meeting_reminders === false ? '' : 'checked'} /> Quero lembretes das reuniões</label>
+      <button class="button button-gold full-width" type="submit">Guardar</button>
+    </form>
+    <section class="account-card">
+      <h2>Selo de servo</h2>
+      ${badge
+        ? `<p>A sua conta está verificada como <strong>${escapeHtml(badge.label)}</strong>${badge.isMinister ? ', função de ministro' : ''}.</p>`
+        : claim === 'pendente'
+          ? '<p>O seu pedido está a aguardar aprovação da equipa ISTN-SJ.</p>'
+          : `<p>Se serve na ISTN, peça o selo. ${claim === 'recusado' ? 'O pedido anterior não foi aprovado; pode voltar a pedir.' : 'A equipa confirma antes de o atribuir — ninguém se verifica a si próprio.'}</p>
+             <button class="button button-outline full-width" data-action="request-badge">Pedir verificação</button>`}
+    </section>
+    <button class="text-button account-switch" data-action="signout">Terminar sessão</button>
+  </main>${navigation()}`;
 }
 
 function render() {
@@ -398,6 +446,49 @@ function go(page) { state.page = page; window.scrollTo({ top: 0, behavior: 'inst
 function bindPage() {
   app.querySelectorAll('[data-page]').forEach((element) => element.addEventListener('click', () => go(element.dataset.page)));
   app.querySelectorAll('[data-source]').forEach((element) => { const open = () => { state.selectedSource = element.dataset.source; go('sourceDetail'); }; element.addEventListener('click', open); element.addEventListener('keydown', (event) => { if (event.key === 'Enter') open(); }); });
+  document.querySelector('[data-action="switch-auth"]')?.addEventListener('click', () => {
+    state.authMode = state.authMode === 'registar' ? 'entrar' : 'registar'; render();
+  });
+
+  document.querySelector('#account-form')?.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const { email, password } = Object.fromEntries(new FormData(event.target).entries());
+    try {
+      const session = state.authMode === 'registar' ? await register(email, password) : await signIn(email, password);
+      if (!session) { showToast('Conta criada. Confirme o email antes de entrar.'); state.authMode = 'entrar'; render(); return; }
+      state.session = session;
+      state.profile = await loadProfile(session);
+      render();
+      showToast('Sessão iniciada.');
+    } catch (error) { showToast(error.message); }
+  });
+
+  document.querySelector('#profile-form')?.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const values = Object.fromEntries(new FormData(event.target).entries());
+    try {
+      state.profile = await saveProfile({
+        display_name: values.display_name?.trim() || null,
+        meeting_reminders: !!values.meeting_reminders
+      }) || state.profile;
+      render();
+      showToast('Preferências guardadas.');
+    } catch (error) { showToast(error.message); }
+  });
+
+  document.querySelector('[data-action="request-badge"]')?.addEventListener('click', async () => {
+    try {
+      state.profile = await requestServantBadge() || state.profile;
+      state.profile = await loadProfile();
+      render();
+      showToast('Pedido enviado. A equipa ISTN-SJ vai confirmar.');
+    } catch (error) { showToast(error.message); }
+  });
+
+  document.querySelector('[data-action="signout"]')?.addEventListener('click', () => {
+    signOut(); state.session = null; state.profile = null; render(); showToast('Sessão terminada.');
+  });
+
   app.querySelectorAll('[data-action="reminder"]').forEach((element) => element.addEventListener('click', downloadReminder));
   app.querySelectorAll('[data-action="retry-meetings"]').forEach((element) => element.addEventListener('click', refreshMeetings));
   app.querySelectorAll('[data-share]').forEach((element) => element.addEventListener('click', () => {
@@ -426,6 +517,11 @@ function refreshMeetings() {
     .finally(render);
 }
 refreshMeetings();
+const savedSession = readSession();
+if (savedSession) {
+  state.session = savedSession;
+  loadProfile(savedSession).then((profile) => { state.profile = profile; render(); }).catch(() => { state.session = null; });
+}
 loadTeachingLibrary().then((teachings) => { state.teachingLibrary = teachings; render(); }).catch(() => { showToast('Não foi possível carregar o acervo Youtube.'); });
 // allSettled, not all: one channel failing must not discard the other's videos.
 Promise.allSettled(APP_CONFIG.sources.filter((source) => source.channelId).map(async (source) => [source.channelId, await loadLatestVideos(source.channelId)]))
