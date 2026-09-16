@@ -395,6 +395,9 @@ function churchDetail() {
   </main>${navigation()}`;
 }
 
+const listaDeNomes = (providers) => providers.map((provider) => provider.name)
+  .reduce((texto, nome, indice, todos) => indice === 0 ? nome : `${texto}${indice === todos.length - 1 ? ' ou ' : ', '}${nome}`, '');
+
 function churchOptionLabel(church) {
   const lugar = church.locality || church.country || 'Sem nome';
   const contexto = [church.region, countryNames[church.country_code] || church.country].filter(Boolean).join(', ');
@@ -410,7 +413,7 @@ function profile() {
     return `${head}<main class="page-content">
       <section class="profile-hero"><span class="round-icon">${icon('user')}</span><h1>${registar ? 'Criar conta' : 'Entrar'}</h1><p>Não precisa de conta para explorar a aplicação. A conta guarda as suas preferências em mais do que um telemóvel e permite pedir o selo de servo.</p></section>
       <form id="account-form" class="account-card">
-        ${state.providers?.length ? '<p class="account-note">Com email e palavra-passe, ou por Google ou Facebook — a conta é a mesma em qualquer dos casos.</p>' : ''}
+        ${state.providers?.length ? `<p class="account-note">Com email e palavra-passe, ou por ${escapeHtml(listaDeNomes(state.providers))} — a conta é a mesma em qualquer dos casos.</p>` : ''}
         <label>Email<input type="email" name="email" autocomplete="username" required /></label>
         <label>Palavra-passe<input type="password" name="password" autocomplete="${registar ? 'new-password' : 'current-password'}" required minlength="6" /></label>
         <button class="button button-gold full-width" type="submit">${registar ? 'Criar conta' : 'Entrar'}</button>
