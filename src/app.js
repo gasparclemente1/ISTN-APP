@@ -1,5 +1,6 @@
 import { APP_CONFIG, countryNames, loadDirectory, loadLatestVideos, loadMeetings, loadTeachingLibrary, toWhatsApp } from './data.js';
 import { DEFAULT_DURATION_MINUTES, nextMeeting, nextOccurrence, recurrenceLabel, zonedDateParts } from './meetings.js';
+import { uploadPhoto } from './upload.js';
 import { availableProviders, badgeFor, finishSocialSignIn, loadChurchOptions, loadProfile, readSession, register, requestServantBadge, saveProfile, signIn, signInWithProvider, signOut } from './account.js';
 import { verifiedSeal } from './roles.js';
 
@@ -7,7 +8,7 @@ import { verifiedSeal } from './roles.js';
 const TIME_ZONE = 'Africa/Luanda';
 
 const app = document.querySelector('#app');
-const state = { page: 'home', query: '', category: 'Todas', year: 'Todos', book: 'Todos', sort: 'recent', teachingPage: 1, teachingLibrary: null, directory: null, selectedChurch: null, selectedSource: null, country: 'Todos', latestVideos: {}, videosLoading: true, meetings: null, meetingsError: false, session: null, profile: null, authMode: 'entrar', churchOptions: null, providers: null };
+const state = { page: 'home', query: '', category: 'Todas', year: 'Todos', book: 'Todos', sort: 'recent', teachingPage: 1, teachingLibrary: null, directory: null, selectedChurch: null, selectedSource: null, country: 'Todos', latestVideos: {}, videosLoading: true, meetings: null, meetingsError: false, session: null, profile: null, authMode: 'entrar', churchOptions: null, providers: null, uploading: false };
 const TEACHING_CATEGORIES = ['Todas', 'Cultos', 'Cultos dos servos', 'Lives', 'Especiais'];
 const BOOK_SPELLING_FIXES = { 'Galátas': 'Gálatas', 'Exôdo': 'Êxodo', '1Timóteo': '1 Timóteo' };
 const icon = (name) => ({ home: '⌂', teachings: '◫', live: '◉', churches: '⌖', profile: '◌', search: '⌕', arrow: '→', play: '▶', back: '←', calendar: '◷', pin: '⌖', user: '♙', check: '✓', phone: '☎', external: '↗', bell: '♧', globe: '◎', share: '⤴' }[name] || '•');
@@ -432,6 +433,13 @@ function profile() {
         : `<p class="verified-role">${escapeHtml(badge.label)}</p>`) : ''}
     </section>
     <form id="profile-form" class="account-card">
+      <div class="photo-field">
+        ${state.profile.photo_url ? `<img class="photo-preview" src="${escapeHtml(state.profile.photo_url)}" alt="" />` : `<span class="photo-preview empty">${icon('user')}</span>`}
+        <div>
+          <label class="photo-pick">${state.uploading ? 'A carregar…' : 'Escolher fotografia'}<input type="file" accept="image/jpeg,image/png,image/webp" data-upload="membros" ${state.uploading ? 'disabled' : ''} /></label>
+          <small>A imagem é reduzida no telemóvel antes de ser enviada.</small>
+        </div>
+      </div>
       <label>Nome<input type="text" name="display_name" value="${escapeHtml(state.profile.display_name || '')}" /></label>
       <label>Telefone<input type="tel" name="phone" value="${escapeHtml(state.profile.phone || '')}" placeholder="+244 …" /></label>
       <label>País<select name="country_code">
@@ -503,6 +511,18 @@ function bindPage() {
       showToast('Sessão iniciada.');
     } catch (error) { showToast(error.message); }
   });
+
+  document.querySelectorAll('[data-upload]').forEach((input) => input.addEventListener('change', async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    state.uploading = true; render();
+    try {
+      const url = await uploadPhoto(file, event.target.dataset.upload, state.session.user.id, state.session);
+      state.profile = await saveProfile({ photo_url: url }) || state.profile;
+      showToast('Fotografia atualizada.');
+    } catch (error) { showToast(error.message); }
+    finally { state.uploading = false; render(); }
+  }));
 
   document.querySelector('#profile-form')?.addEventListener('submit', async (event) => {
     event.preventDefault();
