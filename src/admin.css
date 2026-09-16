@@ -1,0 +1,64 @@
+#admin { min-height:100vh; }
+.admin-empty { padding:64px 24px; text-align:center; color:var(--muted); }
+
+.admin-login { min-height:100vh; display:grid; place-items:center; padding:24px; background:var(--deep); }
+.admin-login-card { width:100%; max-width:380px; background:var(--white); border-radius:var(--radius); padding:32px 28px 26px; text-align:center; }
+.admin-login-card .brand-sun { margin:0 auto 14px; width:40px; height:40px; font-size:20px; }
+.admin-login-card h1 { font-size:1.9rem; margin-bottom:6px; }
+.admin-login-card > p { font-size:.84rem; margin-bottom:22px; }
+.admin-login-card form { display:grid; gap:2px; text-align:left; margin-bottom:18px; }
+.admin-login-card label { margin-bottom:12px; }
+
+.admin-bar { display:flex; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap; padding:16px max(20px,calc((100vw - 900px)/2)); background:var(--deep); color:var(--white); }
+.admin-bar strong { display:block; font:700 1rem/1.2 "DM Sans",sans-serif; }
+.admin-bar small { color:#9fc0c9; font:500 .68rem/1.4 "DM Mono",monospace; }
+.admin-bar-actions { display:flex; align-items:center; gap:12px; }
+.admin-bar .text-button { color:var(--gold); }
+.admin-bar .button-outline { border-color:#37606e; color:var(--white); padding:8px 16px; font-size:.78rem; }
+
+.admin-tabs { display:flex; gap:8px; padding:14px max(20px,calc((100vw - 900px)/2)) 0; }
+.admin-tab { padding:9px 18px; border-radius:999px; border:1px solid var(--line); background:var(--white); font:600 .82rem "DM Sans",sans-serif; color:var(--deep); }
+.admin-tab.selected { background:var(--deep); border-color:var(--deep); color:var(--white); }
+
+.admin-main { max-width:900px; margin:auto; padding:18px max(20px,calc((100vw - 900px)/2)) 80px; }
+.admin-card { background:var(--white); border:1px solid var(--line); border-radius:var(--radius); padding:24px; }
+.admin-card h2 { margin-bottom:6px; }
+.admin-card h3 { margin:26px 0 4px; }
+.admin-hint { font-size:.8rem; margin-bottom:18px; }
+.admin-card label,.admin-login-card label { display:grid; gap:5px; margin-bottom:14px; font:600 .72rem/1.3 "DM Sans",sans-serif; color:var(--deep); }
+.admin-card input[type=text],.admin-card input[type=url],.admin-card input[type=email],.admin-card input[type=password],.admin-card input[type=number],.admin-card input[type=time],
+.admin-login-card input {
+  border:1px solid #c5d0ca; border-radius:11px; padding:10px 12px; font:400 .86rem "DM Sans",sans-serif; color:var(--ink); background:var(--white); width:100%; }
+.admin-card input:focus,.admin-login-card input:focus { outline:2px solid var(--gold); outline-offset:1px; }
+.admin-row { display:flex; flex-wrap:wrap; gap:14px; }
+.admin-row label { flex:1 1 180px; min-width:0; }
+.admin-narrow { max-width:180px; }
+.admin-check { display:flex !important; grid-template-columns:none; align-items:center; gap:9px; font-size:.8rem !important; margin:18px 0 22px !important; }
+.admin-check input { width:18px; height:18px; }
+
+.admin-schedule { width:100%; border-collapse:collapse; margin-bottom:22px; }
+.admin-schedule th { text-align:left; font:600 .8rem "DM Sans",sans-serif; color:var(--deep); padding:7px 10px 7px 0; white-space:nowrap; }
+.admin-schedule td { padding:5px 0 5px 10px; }
+.admin-schedule td:first-of-type { width:120px; }
+
+.admin-filters { display:flex; gap:8px; flex-wrap:wrap; margin:12px 0 16px; }
+.admin-list { list-style:none; margin:0; padding:0; border:1px solid var(--line); border-radius:15px; overflow:hidden; }
+.admin-list li + li { border-top:1px solid var(--line); }
+.admin-list button { width:100%; display:flex; align-items:center; justify-content:space-between; gap:14px; padding:13px 16px; background:var(--white); text-align:left; }
+.admin-list button:hover { background:#f2f6f3; }
+.admin-list strong { display:block; font:600 .9rem/1.25 "DM Sans",sans-serif; color:var(--deep); }
+.admin-list small { color:var(--muted); font:500 .66rem/1.4 "DM Mono",monospace; }
+
+.admin-overlay { position:fixed; inset:0; z-index:40; display:grid; place-items:center; padding:20px; background:#041d26b8; overflow-y:auto; }
+.admin-dialog { width:100%; max-width:560px; max-height:90vh; overflow-y:auto; }
+.admin-dialog-actions { display:flex; gap:10px; justify-content:flex-end; }
+
+.admin-toast.erro { background:#8a2f2f; }
+
+@media (max-width:620px) {
+  .admin-bar { padding:14px 20px; }
+  .admin-tabs { padding:14px 20px 0; }
+  .admin-main { padding:16px 20px 80px; }
+  .admin-card { padding:18px; }
+  .admin-schedule td:first-of-type { width:auto; }
+}
