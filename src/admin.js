@@ -1,5 +1,5 @@
 import { WEEKDAY_LABELS, recurrenceLabel } from './meetings.js';
-import { isMinisterRole, roleLabel, rolesForGender, servantName } from './roles.js';
+import { isMinisterRole, roleLabel, rolesForGender, servantName, verifiedSeal } from './roles.js';
 
 const root = document.querySelector('#admin');
 const SESSION_KEY = 'elias-admin-session';
@@ -217,7 +217,7 @@ function servosView() {
     <button class="button button-gold" data-action="new-servo">Adicionar servo</button>
     <ul class="admin-list">${mine.map((servo) => `<li>
       <button data-servo="${servo.id}">
-        <span><strong>${escapeHtml(servantName(servo))}${servo.active ? '' : ' · inativo'}</strong><small>${escapeHtml(roleLabel(servo.role))} · ${escapeHtml(churchLabel(servo.church_id))}</small></span>
+        <span><strong class="servo-line">${escapeHtml(servantName(servo))}${verifiedSeal(servo.role)}${servo.active ? ' · inativo' : ''}</strong><small>${escapeHtml(roleLabel(servo.role))} · ${escapeHtml(churchLabel(servo.church_id))}</small></span>
         ${servo.is_minister ? '<span class="status-badge verified">Ministro</span>' : ''}
       </button>
     </li>`).join('') || '<li class="admin-empty">Nenhum servo registado.</li>'}</ul>
