@@ -96,7 +96,7 @@ aquelas são presenciais, de cada lugar.
 | Campo | Tipo | Notas |
 | --- | --- | --- |
 | `id` | uuid | |
-| `full_name` | text | Sem a abreviatura da função. |
+| `full_name` | text | **Sem** a abreviatura da função. |
 | `gender` | text | `masculino` ou `feminino`. |
 | `role` | text | `apostolo`, `bispo`, `bispo_auxiliar`, `pastor`, `pastor_auxiliar`, `discipulo`, `obreiro`, `futuro_obreiro`, `dona`, `obreira`, `futura_obreira`. |
 | `is_minister` | boolean | **Coluna gerada.** Verdadeira de discípulo para cima. |
@@ -109,6 +109,12 @@ aquelas são presenciais, de cada lugar.
 função «Obreiro» e `is_minister` verdadeiro ao mesmo tempo, e a base de dados
 estaria a afirmar duas coisas contraditórias. Como coluna gerada lê-se como
 qualquer outra e nunca pode divergir da função.
+
+**A abreviatura é derivada, não guardada.** O nome mostrado é «Bp. Rufino
+Boaz», mas o que está na coluna é «Rufino Boaz». Guardar o prefixo junto do
+nome faria com que uma promoção deixasse o tratamento errado até alguém o
+corrigir à mão. As abreviaturas estão em `src/roles.js`: Ap., Bp., Bp. Aux.,
+Pr., Pr. Aux., Disc., Obr., Fut. Obr. e Dona.
 
 **A regra do ministério é imposta pela base de dados.** Uma restrição garante
 que `dona`, `obreira` e `futura_obreira` só existem com `gender = 'feminino'`,

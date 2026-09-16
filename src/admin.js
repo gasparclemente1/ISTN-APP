@@ -1,4 +1,5 @@
 import { WEEKDAY_LABELS, recurrenceLabel } from './meetings.js';
+import { isMinisterRole, roleLabel, rolesForGender, servantName } from './roles.js';
 
 const root = document.querySelector('#admin');
 const SESSION_KEY = 'elias-admin-session';
@@ -201,16 +202,6 @@ function meetingEditor() {
   </form></div>`;
 }
 
-const ROLES = [
-  ['apostolo', 'Apóstolo', 'masculino'], ['bispo', 'Bispo', 'masculino'],
-  ['bispo_auxiliar', 'Bispo Auxiliar', 'masculino'], ['pastor', 'Pastor', 'masculino'],
-  ['pastor_auxiliar', 'Pastor Auxiliar', 'masculino'], ['discipulo', 'Discípulo', 'masculino'],
-  ['obreiro', 'Obreiro', 'masculino'], ['futuro_obreiro', 'Futuro Obreiro', 'masculino'],
-  ['dona', 'Dona', 'feminino'], ['obreira', 'Obreira', 'feminino'],
-  ['futura_obreira', 'Futura Obreira', 'feminino']
-];
-const MINISTER_ROLES = ['apostolo', 'bispo', 'bispo_auxiliar', 'pastor', 'pastor_auxiliar', 'discipulo'];
-const roleLabel = (role) => ROLES.find(([id]) => id === role)?.[1] || role;
 const churchLabel = (id) => {
   const church = state.churches?.find((item) => item.id === id);
   return church ? (church.locality || church.country || 'Sem nome') : 'Sem igreja';
@@ -226,7 +217,7 @@ function servosView() {
     <button class="button button-gold" data-action="new-servo">Adicionar servo</button>
     <ul class="admin-list">${mine.map((servo) => `<li>
       <button data-servo="${servo.id}">
-        <span><strong>${escapeHtml(servo.full_name)}${servo.active ? '' : ' · inativo'}</strong><small>${escapeHtml(roleLabel(servo.role))} · ${escapeHtml(churchLabel(servo.church_id))}</small></span>
+        <span><strong>${escapeHtml(servantName(servo))}${servo.active ? '' : ' · inativo'}</strong><small>${escapeHtml(roleLabel(servo.role))} · ${escapeHtml(churchLabel(servo.church_id))}</small></span>
         ${servo.is_minister ? '<span class="status-badge verified">Ministro</span>' : ''}
       </button>
     </li>`).join('') || '<li class="admin-empty">Nenhum servo registado.</li>'}</ul>
@@ -239,7 +230,7 @@ function servoEditor() {
   const gender = servo.gender || 'masculino';
   const igrejas = isCentral() ? (state.churches || []) : (state.churches || []).filter((c) => c.id === state.profile?.church_id);
   return `<div class="admin-overlay"><form id="servo-form" class="admin-card admin-dialog">
-    <h2>${isNew ? 'Novo servo' : escapeHtml(servo.full_name)}</h2>
+    <h2>${isNew ? 'Novo servo' : escapeHtml(servantName(servo))}</h2>
     <label>Nome<input type="text" name="full_name" value="${escapeHtml(servo.full_name || '')}" required placeholder="Sem a abreviatura da função" /></label>
     <div class="admin-row">
       <label>Género<select name="gender" id="servo-gender">
@@ -247,7 +238,7 @@ function servoEditor() {
         <option value="feminino" ${gender === 'feminino' ? 'selected' : ''}>Feminino</option>
       </select></label>
       <label>Função<select name="role" id="servo-role">
-        ${ROLES.filter(([, , g]) => g === gender).map(([id, label]) => `<option value="${id}" ${servo.role === id ? 'selected' : ''}>${label}</option>`).join('')}
+        ${rolesForGender(gender).map((role) => `<option value="${role.id}" ${servo.role === role.id ? 'selected' : ''}>${role.label}</option>`).join('')}
       </select></label>
     </div>
     <p class="admin-hint" id="servo-minister-hint"></p>
@@ -469,12 +460,12 @@ function bind() {
   const roleSelect = document.querySelector('#servo-role');
   function syncRoles(resetRole) {
     if (!genderSelect || !roleSelect) return;
-    const permitidas = ROLES.filter(([, , g]) => g === genderSelect.value);
+    const permitidas = rolesForGender(genderSelect.value);
     const anterior = roleSelect.value;
-    roleSelect.innerHTML = permitidas.map(([id, label]) => `<option value="${id}">${label}</option>`).join('');
-    if (!resetRole && permitidas.some(([id]) => id === anterior)) roleSelect.value = anterior;
+    roleSelect.innerHTML = permitidas.map((role) => `<option value="${role.id}">${role.label}</option>`).join('');
+    if (!resetRole && permitidas.some((role) => role.id === anterior)) roleSelect.value = anterior;
     const hint = document.querySelector('#servo-minister-hint');
-    if (hint) hint.textContent = MINISTER_ROLES.includes(roleSelect.value)
+    if (hint) hint.textContent = isMinisterRole(roleSelect.value)
       ? 'Esta função é de ministro.' : 'Esta função não é de ministro.';
   }
   genderSelect?.addEventListener('change', () => syncRoles(true));
@@ -482,7 +473,7 @@ function bind() {
   syncRoles(false);
 
   document.querySelector('[data-action="delete-servo"]')?.addEventListener('click', () => {
-    if (!confirm(`Eliminar "${state.servo.full_name}"? Esta ação não pode ser anulada.`)) return;
+    if (!confirm(`Eliminar "${servantName(state.servo)}"? Esta ação não pode ser anulada.`)) return;
     guard(async () => {
       await rest(`servos?id=eq.${state.servo.id}`, { method: 'DELETE' });
       state.servo = null; await loadServos(); toast('Servo eliminado.');
