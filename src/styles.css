@@ -77,7 +77,10 @@
 .account-check input { width:18px; height:18px; }
 .account-note { color:var(--muted); font-size:.76rem; margin:-4px 0 14px; }
 .account-switch { display:block; margin:4px auto 0; }
-.servo-badge { display:inline-flex; align-items:center; gap:6px; margin-top:10px; padding:6px 13px; border-radius:999px; font:600 .74rem "DM Sans",sans-serif; border:1px solid transparent; }
-.servo-badge.tier-dourado { background:var(--gold); color:var(--deep); border-color:#d9a91f; box-shadow:0 0 0 3px #f3c5461f; }
-.servo-badge.tier-azul { background:#dbeaf5; color:#10496f; border-color:#a8cae2; }
-.servo-badge.tier-neutro { background:#e9efec; color:#41625b; border-color:#cbdad3; }
+.verified-name { display:flex; align-items:center; justify-content:center; gap:8px; flex-wrap:wrap; }
+.verified-seal { flex:0 0 auto; vertical-align:middle; }
+.verified-seal .seal-check { stroke:var(--white); }
+.verified-seal.tier-dourado .seal-disc { fill:#e0a800; }
+.verified-seal.tier-azul .seal-disc { fill:#1d7ec4; }
+.verified-seal.tier-neutro .seal-disc { fill:#7b918a; }
+.verified-role { margin:6px 0 0; font:600 .74rem "DM Mono",monospace; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); }

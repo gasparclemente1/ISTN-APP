@@ -74,3 +74,10 @@
 .admin-schedule td:last-child { width:74px; text-align:right; }
 .admin-schedule .text-button { font-size:.68rem; }
 #servo-minister-hint { margin:-6px 0 16px; font:600 .72rem "DM Mono",monospace; color:#17665e; }
+
+.servo-line { display:inline-flex; align-items:center; gap:6px; }
+.verified-seal { flex:0 0 auto; }
+.verified-seal .seal-check { stroke:#fff; }
+.verified-seal.tier-dourado .seal-disc { fill:#e0a800; }
+.verified-seal.tier-azul .seal-disc { fill:#1d7ec4; }
+.verified-seal.tier-neutro .seal-disc { fill:#7b918a; }

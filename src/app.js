@@ -1,6 +1,7 @@
 import { APP_CONFIG, countryNames, loadDirectory, loadLatestVideos, loadMeetings, loadTeachingLibrary, toWhatsApp } from './data.js';
 import { DEFAULT_DURATION_MINUTES, nextMeeting, nextOccurrence, recurrenceLabel, zonedDateParts } from './meetings.js';
 import { badgeFor, loadProfile, readSession, register, requestServantBadge, saveProfile, signIn, signOut } from './account.js';
+import { verifiedSeal } from './roles.js';
 
 // Confirmed with the ISTN-SJ team: every announced time is Luanda time.
 const TIME_ZONE = 'Africa/Luanda';
@@ -413,8 +414,8 @@ function profile() {
   return `${head}<main class="page-content">
     <section class="profile-hero">
       <span class="round-icon">${icon('user')}</span>
-      <h1>${escapeHtml(badge?.name || state.profile.display_name || 'A sua conta')}</h1>
-      ${badge ? `<span class="servo-badge tier-${escapeHtml(badge.tier)}">${icon('check')} ${escapeHtml(badge.tier === 'neutro' ? 'Conta verificada' : badge.label)}</span>` : ''}
+      <h1 class="verified-name">${escapeHtml(badge?.name || state.profile.display_name || 'A sua conta')}${badge ? verifiedSeal(badge.role, { title: badge.tier === 'neutro' ? 'Conta verificada' : `Conta verificada · ${badge.label}` }) : ''}</h1>
+      ${badge && badge.tier !== 'neutro' ? `<p class="verified-role">${escapeHtml(badge.label)}</p>` : ''}
     </section>
     <form id="profile-form" class="account-card">
       <label>Nome<input type="text" name="display_name" value="${escapeHtml(state.profile.display_name || '')}" /></label>
