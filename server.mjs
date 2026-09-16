@@ -7,7 +7,8 @@ const root = process.cwd();
 const types = {
   '.css': 'text/css; charset=utf-8', '.html': 'text/html; charset=utf-8',
   '.jpeg': 'image/jpeg', '.jpg': 'image/jpeg', '.js': 'text/javascript; charset=utf-8',
-  '.json': 'application/json; charset=utf-8', '.png': 'image/png', '.webmanifest': 'application/manifest+json'
+  '.json': 'application/json; charset=utf-8', '.png': 'image/png', '.svg': 'image/svg+xml',
+  '.webmanifest': 'application/manifest+json', '.webp': 'image/webp'
 };
 const port = Number(process.env.PORT || 4173);
 // youtube.com/feeds/videos.xml answers 404/500 for every channel, so the public
