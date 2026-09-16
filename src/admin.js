@@ -1,10 +1,12 @@
+import { WEEKDAY_LABELS, recurrenceLabel } from './meetings.js';
+
 const root = document.querySelector('#admin');
 const SESSION_KEY = 'elias-admin-session';
 
 const state = {
   config: null, session: null, profile: null,
-  view: 'live', live: null, churches: null,
-  query: '', filter: 'todas', editing: null, busy: false
+  view: 'meetings', meetings: null, churches: null,
+  query: '', filter: 'todas', editing: null, meeting: null, busy: false
 };
 
 function escapeHtml(value = '') {
@@ -35,8 +37,11 @@ async function authRequest(grant, body) {
     headers: { apikey: state.config.supabaseKey, 'Content-Type': 'application/json' },
     body: JSON.stringify(body)
   });
-  const payload = await response.json().catch(() => ({}));
+  const payload = await response.json().catch(() => null);
   if (!response.ok) {
+    // Not JSON means the request never reached Supabase — almost always a
+    // misconfigured SUPABASE_URL pointing somewhere that is not the project.
+    if (payload === null) throw new Error(`A ligação ao Supabase está mal configurada (${state.config.supabaseUrl} respondeu ${response.status}).`);
     const reason = payload.error_description || payload.msg || payload.error || '';
     if (/invalid login credentials/i.test(reason)) throw new Error('Email ou palavra-passe incorretos.');
     if (/email not confirmed/i.test(reason)) throw new Error('Confirme o email antes de entrar.');
@@ -75,9 +80,8 @@ async function loadProfile() {
   state.profile = rows[0] || { role: 'local', church_id: null, full_name: state.session.user.email };
 }
 
-async function loadLive() {
-  const rows = await rest('live_config?select=*&limit=1');
-  state.live = rows[0] || null;
+async function loadMeetings() {
+  state.meetings = await rest('meetings?select=*&order=kind.asc,sort_order.asc');
 }
 
 async function loadChurches() {
@@ -106,8 +110,8 @@ function loginView() {
 
 function shell(content) {
   const role = isCentral() ? 'Equipa central' : 'Editor local';
-  const tabs = [['live', 'Reuniões'], ['churches', 'Diretório']]
-    .filter(([id]) => id !== 'live' || isCentral())
+  const tabs = [['meetings', 'Reuniões'], ['churches', 'Diretório']]
+    .filter(([id]) => id !== 'meetings' || isCentral())
     .map(([id, label]) => `<button class="admin-tab ${state.view === id ? 'selected' : ''}" data-view="${id}">${label}</button>`).join('');
   return `<header class="admin-bar">
       <div><strong>ELIAS · Administração</strong><small>${escapeHtml(state.profile?.full_name || state.session.user.email)} · ${role}</small></div>
@@ -117,39 +121,75 @@ function shell(content) {
     <main class="admin-main">${content}</main>`;
 }
 
-const WEEKDAYS = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+const RECURRENCES = [
+  ['weekly', 'Semanal — em dias fixos da semana'],
+  ['monthly_last', 'Mensal — no último dia da semana escolhido'],
+  ['yearly', 'Anual — sempre na mesma data'],
+  ['once', 'Apenas uma vez — numa data']
+];
 
-function liveView() {
-  if (!isCentral()) return '<p class="admin-empty">Só a equipa central pode alterar a programação das reuniões.</p>';
-  if (!state.live) return '<p class="admin-empty">A carregar…</p>';
-  const live = state.live;
-  const schedule = Array.isArray(live.schedule) ? live.schedule : [];
-  const rows = WEEKDAYS.map((label, weekday) => {
-    const slot = schedule.find((item) => item.weekday === weekday) || { weekday, label };
-    return `<tr>
-      <th>${label}</th>
-      <td><input type="time" name="time-${weekday}" value="${escapeHtml(slot.time || '')}" /></td>
-      <td><input type="text" name="note-${weekday}" value="${escapeHtml(slot.note || '')}" placeholder="Sem hora fixa: descreva quando" /></td>
-    </tr>`;
-  }).join('');
-  return `<form id="live-form" class="admin-card">
-    <h2>Reunião no Zoom</h2>
-    <p class="admin-hint">Estes valores são o que a congregação vê. O horário é sempre hora de Luanda.</p>
-    <label>Título<input type="text" name="title" value="${escapeHtml(live.title || '')}" required /></label>
-    <label>Subtítulo<input type="text" name="subtitle" value="${escapeHtml(live.subtitle || '')}" /></label>
+function meetingsView() {
+  if (!isCentral()) return '<p class="admin-empty">Só a equipa central pode alterar as reuniões.</p>';
+  if (!state.meetings) return '<p class="admin-empty">A carregar…</p>';
+  const group = (kind, title, hint) => {
+    const rows = state.meetings.filter((meeting) => meeting.kind === kind);
+    return `<h3>${title}</h3><p class="admin-hint">${hint}</p>
+      <ul class="admin-list">${rows.map((meeting) => `<li>
+        <button data-meeting="${meeting.id}">
+          <span>
+            <strong>${escapeHtml(meeting.title)}${meeting.active ? '' : ' · inativa'}</strong>
+            <small>${escapeHtml(recurrenceLabel(meeting))} · ${escapeHtml(meeting.start_time ? meeting.start_time.slice(0, 5) : meeting.time_note || 'sem hora')}</small>
+          </span>
+          <span class="status-badge ${meeting.zoom_url ? 'verified' : 'needs_review'}">${meeting.zoom_url ? 'Zoom definido' : 'Sem Zoom'}</span>
+        </button>
+      </li>`).join('') || '<li class="admin-empty">Nenhuma reunião.</li>'}</ul>`;
+  };
+  return `<div class="admin-card">
+    <h2>Reuniões no Zoom</h2>
+    <p class="admin-hint">Os horários são sempre hora de Luanda. Uma reunião sem hora fixa precisa de uma explicação no lugar dela.</p>
+    <button class="button button-gold" data-action="new-meeting">Adicionar reunião</button>
+    ${group('geral', 'Reuniões gerais', 'As reuniões convencionais, abertas a toda a congregação.')}
+    ${group('especial', 'Reuniões especiais', 'Ministros, crianças, vigílias e quaisquer outras.')}
+  </div>`;
+}
+
+function meetingEditor() {
+  const meeting = state.meeting;
+  const isNew = !meeting.id;
+  const weekdays = (meeting.weekdays || []).map(Number);
+  return `<div class="admin-overlay"><form id="meeting-form" class="admin-card admin-dialog">
+    <h2>${isNew ? 'Nova reunião' : escapeHtml(meeting.title)}</h2>
+    <label>Título<input type="text" name="title" value="${escapeHtml(meeting.title || '')}" required /></label>
     <div class="admin-row">
-      <label>Link do Zoom<input type="url" name="zoom_url" value="${escapeHtml(live.zoom_url || '')}" /></label>
-      <label>ID da reunião<input type="text" name="zoom_meeting_id" value="${escapeHtml(live.zoom_meeting_id || '')}" /></label>
-      <label>Senha<input type="text" name="zoom_passcode" value="${escapeHtml(live.zoom_passcode || '')}" /></label>
+      <label>Tipo<select name="kind">
+        <option value="geral" ${meeting.kind === 'geral' ? 'selected' : ''}>Geral (convencional)</option>
+        <option value="especial" ${meeting.kind !== 'geral' ? 'selected' : ''}>Especial</option>
+      </select></label>
+      <label>Hora de início<input type="time" name="start_time" value="${escapeHtml((meeting.start_time || '').slice(0, 5))}" /></label>
     </div>
-    <label>Canal do YouTube<input type="url" name="youtube_url" value="${escapeHtml(live.youtube_url || '')}" /></label>
-    <label>Nota para a congregação<input type="text" name="note" value="${escapeHtml(live.note || '')}" /></label>
-    <label class="admin-narrow">Duração (minutos)<input type="number" name="duration_minutes" min="15" max="600" value="${live.duration_minutes || 120}" /></label>
-    <h3>Horário semanal</h3>
-    <p class="admin-hint">Deixe a hora vazia num dia sem hora fixa e explique na nota — é assim que a terça-feira aparece hoje.</p>
-    <table class="admin-schedule"><tbody>${rows}</tbody></table>
-    <button class="button button-gold" type="submit" ${state.busy ? 'disabled' : ''}>${state.busy ? 'A guardar…' : 'Guardar alterações'}</button>
-  </form>`;
+    <label>Se não tiver hora fixa, explique quando começa<input type="text" name="time_note" value="${escapeHtml(meeting.time_note || '')}" placeholder="Ex.: Após a live dos ministros" /></label>
+    <h3>Quando se repete</h3>
+    <label>Recorrência<select name="recurrence" id="recurrence-select">
+      ${RECURRENCES.map(([id, label]) => `<option value="${id}" ${meeting.recurrence === id ? 'selected' : ''}>${label}</option>`).join('')}
+    </select></label>
+    <fieldset class="admin-weekdays" data-when="weekly monthly_last">
+      <legend>Dias da semana</legend>
+      ${WEEKDAY_LABELS.map((label, index) => `<label class="admin-check"><input type="checkbox" name="weekday" value="${index}" ${weekdays.includes(index) ? 'checked' : ''} /> ${label}</label>`).join('')}
+    </fieldset>
+    <label data-when="yearly once">Data<input type="date" name="event_date" value="${escapeHtml(meeting.event_date || '')}" /></label>
+    <h3>Sala do Zoom</h3>
+    <label>Link<input type="url" name="zoom_url" value="${escapeHtml(meeting.zoom_url || '')}" placeholder="https://us02web.zoom.us/j/..." /></label>
+    <div class="admin-row">
+      <label>ID da reunião<input type="text" name="zoom_meeting_id" value="${escapeHtml(meeting.zoom_meeting_id || '')}" /></label>
+      <label>Senha<input type="text" name="zoom_passcode" value="${escapeHtml(meeting.zoom_passcode || '')}" /></label>
+    </div>
+    <label class="admin-check"><input type="checkbox" name="active" ${meeting.active === false ? '' : 'checked'} /> Visível na aplicação</label>
+    <div class="admin-dialog-actions">
+      ${isNew ? '' : '<button class="button button-outline admin-danger" type="button" data-action="delete-meeting">Eliminar</button>'}
+      <button class="button button-outline" type="button" data-action="cancel-meeting">Cancelar</button>
+      <button class="button button-gold" type="submit" ${state.busy ? 'disabled' : ''}>${state.busy ? 'A guardar…' : 'Guardar'}</button>
+    </div>
+  </form></div>`;
 }
 
 function churchesView() {
@@ -215,8 +255,8 @@ function render() {
     return;
   }
   if (!state.session) { root.innerHTML = loginView(); bind(); return; }
-  const content = state.view === 'live' ? liveView() : churchesView();
-  root.innerHTML = shell(content) + (state.editing ? churchEditor() : '');
+  const content = state.view === 'meetings' ? meetingsView() : churchesView();
+  root.innerHTML = shell(content) + (state.editing ? churchEditor() : '') + (state.meeting ? meetingEditor() : '');
   bind();
 }
 
@@ -238,8 +278,8 @@ function bind() {
     guard(async () => {
       writeSession(await authRequest('password', { email, password }));
       await loadProfile();
-      state.view = isCentral() ? 'live' : 'churches';
-      await (isCentral() ? loadLive() : Promise.resolve());
+      state.view = isCentral() ? 'meetings' : 'churches';
+      if (isCentral()) await loadMeetings();
       await loadChurches();
       toast('Sessão iniciada.');
     });
@@ -248,8 +288,70 @@ function bind() {
   root.querySelectorAll('[data-view]').forEach((element) => element.addEventListener('click', () => { state.view = element.dataset.view; render(); }));
   root.querySelectorAll('[data-filter]').forEach((element) => element.addEventListener('click', () => { state.filter = element.dataset.filter; render(); }));
   root.querySelectorAll('[data-action="signout"]').forEach((element) => element.addEventListener('click', () => {
-    writeSession(null); state.profile = null; state.live = null; state.churches = null; render();
+    writeSession(null); state.profile = null; state.meetings = null; state.churches = null; render();
   }));
+
+  function syncRecurrenceFields() {
+    const select = document.querySelector('#recurrence-select');
+    if (!select) return;
+    document.querySelectorAll('[data-when]').forEach((element) => {
+      element.hidden = !element.dataset.when.split(' ').includes(select.value);
+    });
+  }
+  document.querySelector('#recurrence-select')?.addEventListener('change', syncRecurrenceFields);
+  syncRecurrenceFields();
+
+  root.querySelectorAll('[data-action="new-meeting"]').forEach((element) => element.addEventListener('click', () => {
+    state.meeting = { kind: 'especial', recurrence: 'weekly', weekdays: [], active: true };
+    render();
+  }));
+  root.querySelectorAll('[data-meeting]').forEach((element) => element.addEventListener('click', () => {
+    state.meeting = state.meetings.find((meeting) => meeting.id === element.dataset.meeting) || null;
+    render();
+  }));
+  document.querySelector('[data-action="cancel-meeting"]')?.addEventListener('click', () => { state.meeting = null; render(); });
+
+  document.querySelector('[data-action="delete-meeting"]')?.addEventListener('click', () => {
+    if (!confirm(`Eliminar "${state.meeting.title}"? Esta ação não pode ser anulada.`)) return;
+    guard(async () => {
+      await rest(`meetings?id=eq.${state.meeting.id}`, { method: 'DELETE' });
+      state.meeting = null;
+      await loadMeetings();
+      toast('Reunião eliminada.');
+    });
+  });
+
+  document.querySelector('#meeting-form')?.addEventListener('submit', (event) => {
+    event.preventDefault();
+    const form = event.target;
+    const values = Object.fromEntries(new FormData(form).entries());
+    const weekdays = [...form.querySelectorAll('input[name="weekday"]:checked')].map((input) => Number(input.value));
+    const recurrence = values.recurrence;
+    const startTime = values.start_time || null;
+    const timeNote = (values.time_note || '').trim() || null;
+    if (!startTime && !timeNote) { toast('Indique uma hora de início ou explique quando começa.', 'erro'); return; }
+    if (recurrence === 'weekly' && !weekdays.length) { toast('Escolha pelo menos um dia da semana.', 'erro'); return; }
+    if (recurrence === 'monthly_last' && weekdays.length !== 1) { toast('Escolha exatamente um dia da semana.', 'erro'); return; }
+    if ((recurrence === 'yearly' || recurrence === 'once') && !values.event_date) { toast('Escolha uma data.', 'erro'); return; }
+    const body = {
+      title: values.title.trim(), kind: values.kind,
+      zoom_url: values.zoom_url || null, zoom_meeting_id: values.zoom_meeting_id || null,
+      zoom_passcode: values.zoom_passcode || null,
+      start_time: startTime, time_note: timeNote,
+      recurrence, weekdays: recurrence === 'yearly' || recurrence === 'once' ? [] : weekdays,
+      event_date: recurrence === 'yearly' || recurrence === 'once' ? values.event_date : null,
+      active: !!values.active
+    };
+    guard(async () => {
+      const saved = state.meeting.id
+        ? await rest(`meetings?id=eq.${state.meeting.id}`, { method: 'PATCH', headers: { Prefer: 'return=representation' }, body: JSON.stringify(body) })
+        : await rest('meetings', { method: 'POST', headers: { Prefer: 'return=representation' }, body: JSON.stringify(body) });
+      if (!saved?.length) throw new Error('Não tem permissão para guardar esta reunião.');
+      state.meeting = null;
+      await loadMeetings();
+      toast('Reunião guardada.');
+    });
+  });
 
   const search = document.querySelector('#church-search');
   if (search) search.addEventListener('input', (event) => {
@@ -264,31 +366,6 @@ function bind() {
   }));
 
   document.querySelector('[data-action="cancel"]')?.addEventListener('click', () => { state.editing = null; render(); });
-
-  document.querySelector('#live-form')?.addEventListener('submit', (event) => {
-    event.preventDefault();
-    const values = formValues(event.target);
-    const schedule = WEEKDAYS.map((label, weekday) => {
-      const time = values[`time-${weekday}`] ? values[`time-${weekday}`].slice(0, 5) : null;
-      const note = (values[`note-${weekday}`] || '').trim();
-      return { weekday, label, time, ...(note ? { note } : {}) };
-    });
-    guard(async () => {
-      await rest(`live_config?id=eq.${state.live.id}`, {
-        method: 'PATCH',
-        headers: { Prefer: 'return=representation' },
-        body: JSON.stringify({
-          title: values.title, subtitle: values.subtitle || null,
-          zoom_url: values.zoom_url || null, zoom_meeting_id: values.zoom_meeting_id || null,
-          zoom_passcode: values.zoom_passcode || null, youtube_url: values.youtube_url || null,
-          note: values.note || null, duration_minutes: Number(values.duration_minutes) || 120,
-          schedule
-        })
-      });
-      await loadLive();
-      toast('Programação atualizada.');
-    });
-  });
 
   document.querySelector('#church-form')?.addEventListener('submit', (event) => {
     event.preventDefault();
@@ -323,7 +400,7 @@ async function start() {
     state.session = session;
     try {
       await loadProfile();
-      if (isCentral()) await loadLive();
+      if (isCentral()) await loadMeetings();
       await loadChurches();
       if (!isCentral()) state.view = 'churches';
     } catch { writeSession(null); }

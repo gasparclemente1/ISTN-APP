@@ -1,4 +1,4 @@
-const VERSION = 'elias-v1';
+const VERSION = 'elias-v2';
 const SHELL = [
   '/',
   '/index.html',
@@ -6,7 +6,6 @@ const SHELL = [
   '/src/data.js',
   '/src/styles.css',
   '/manifest.webmanifest',
-  '/data/live-config.json',
   '/design/assets/icons/icon-192.png',
   '/design/assets/icons/icon-512.png'
 ];

@@ -96,8 +96,14 @@ createServer((request, response) => {
   // what protects the data. It comes from the environment so that rotating it
   // does not require a commit.
   if (url.pathname === '/api/config') {
+    // Supabase shows the project id more prominently than the URL, so accept
+    // either: a bare id becomes https://<id>.supabase.co.
+    const configured = (process.env.SUPABASE_URL || '').trim().replace(/\/+$/, '');
+    const supabaseUrl = !configured ? ''
+      : /^https?:\/\//.test(configured) ? configured
+      : `https://${configured}.supabase.co`;
     response.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
-    response.end(JSON.stringify({ supabaseUrl: process.env.SUPABASE_URL || '', supabaseKey: process.env.SUPABASE_PUBLISHABLE_KEY || '' }));
+    response.end(JSON.stringify({ supabaseUrl, supabaseKey: process.env.SUPABASE_PUBLISHABLE_KEY || '' }));
     return;
   }
   const requested = url.pathname === '/' ? '/index.html'
