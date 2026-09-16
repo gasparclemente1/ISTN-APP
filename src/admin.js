@@ -35,8 +35,11 @@ async function authRequest(grant, body) {
     headers: { apikey: state.config.supabaseKey, 'Content-Type': 'application/json' },
     body: JSON.stringify(body)
   });
-  const payload = await response.json().catch(() => ({}));
+  const payload = await response.json().catch(() => null);
   if (!response.ok) {
+    // Not JSON means the request never reached Supabase — almost always a
+    // misconfigured SUPABASE_URL pointing somewhere that is not the project.
+    if (payload === null) throw new Error(`A ligação ao Supabase está mal configurada (${state.config.supabaseUrl} respondeu ${response.status}).`);
     const reason = payload.error_description || payload.msg || payload.error || '';
     if (/invalid login credentials/i.test(reason)) throw new Error('Email ou palavra-passe incorretos.');
     if (/email not confirmed/i.test(reason)) throw new Error('Confirme o email antes de entrar.');
