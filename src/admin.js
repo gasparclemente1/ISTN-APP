@@ -6,7 +6,8 @@ const SESSION_KEY = 'elias-admin-session';
 const state = {
   config: null, session: null, profile: null,
   view: 'meetings', meetings: null, churches: null,
-  query: '', filter: 'todas', editing: null, meeting: null, busy: false
+  query: '', filter: 'todas', editing: null, meeting: null, servo: null,
+  servos: null, services: null, busy: false
 };
 
 function escapeHtml(value = '') {
@@ -88,6 +89,14 @@ async function loadChurches() {
   state.churches = await rest('churches?select=*&order=country_code.asc,region.asc,locality.asc');
 }
 
+async function loadServos() {
+  state.servos = await rest('servos?select=*&order=role.asc,full_name.asc');
+}
+
+async function loadServices(churchId) {
+  state.services = await rest(`church_services?select=*&church_id=eq.${churchId}&order=weekday.asc,start_time.asc`);
+}
+
 const isCentral = () => state.profile?.role === 'central';
 
 // ----------------------------------------------------------------- vistas --
@@ -110,7 +119,7 @@ function loginView() {
 
 function shell(content) {
   const role = isCentral() ? 'Equipa central' : 'Editor local';
-  const tabs = [['meetings', 'Reuniões'], ['churches', 'Diretório']]
+  const tabs = [['meetings', 'Reuniões'], ['churches', 'Diretório'], ['servos', 'Servos']]
     .filter(([id]) => id !== 'meetings' || isCentral())
     .map(([id, label]) => `<button class="admin-tab ${state.view === id ? 'selected' : ''}" data-view="${id}">${label}</button>`).join('');
   return `<header class="admin-bar">
@@ -192,6 +201,73 @@ function meetingEditor() {
   </form></div>`;
 }
 
+const ROLES = [
+  ['apostolo', 'Apóstolo', 'masculino'], ['bispo', 'Bispo', 'masculino'],
+  ['bispo_auxiliar', 'Bispo Auxiliar', 'masculino'], ['pastor', 'Pastor', 'masculino'],
+  ['pastor_auxiliar', 'Pastor Auxiliar', 'masculino'], ['discipulo', 'Discípulo', 'masculino'],
+  ['obreiro', 'Obreiro', 'masculino'], ['futuro_obreiro', 'Futuro Obreiro', 'masculino'],
+  ['dona', 'Dona', 'feminino'], ['obreira', 'Obreira', 'feminino'],
+  ['futura_obreira', 'Futura Obreira', 'feminino']
+];
+const MINISTER_ROLES = ['apostolo', 'bispo', 'bispo_auxiliar', 'pastor', 'pastor_auxiliar', 'discipulo'];
+const roleLabel = (role) => ROLES.find(([id]) => id === role)?.[1] || role;
+const churchLabel = (id) => {
+  const church = state.churches?.find((item) => item.id === id);
+  return church ? (church.locality || church.country || 'Sem nome') : 'Sem igreja';
+};
+
+function servosView() {
+  if (!state.servos) return '<p class="admin-empty">A carregar…</p>';
+  const mine = isCentral() ? state.servos : state.servos.filter((servo) => servo.church_id === state.profile?.church_id);
+  const ministros = mine.filter((servo) => servo.is_minister).length;
+  return `<div class="admin-card">
+    <h2>Servos</h2>
+    <p class="admin-hint">${mine.length} ${mine.length === 1 ? 'registo' : 'registos'} · <strong>${ministros}</strong> ministros. Ministro é de discípulo para cima — a aplicação calcula, não se escolhe.</p>
+    <button class="button button-gold" data-action="new-servo">Adicionar servo</button>
+    <ul class="admin-list">${mine.map((servo) => `<li>
+      <button data-servo="${servo.id}">
+        <span><strong>${escapeHtml(servo.full_name)}${servo.active ? '' : ' · inativo'}</strong><small>${escapeHtml(roleLabel(servo.role))} · ${escapeHtml(churchLabel(servo.church_id))}</small></span>
+        ${servo.is_minister ? '<span class="status-badge verified">Ministro</span>' : ''}
+      </button>
+    </li>`).join('') || '<li class="admin-empty">Nenhum servo registado.</li>'}</ul>
+  </div>`;
+}
+
+function servoEditor() {
+  const servo = state.servo;
+  const isNew = !servo.id;
+  const gender = servo.gender || 'masculino';
+  const igrejas = isCentral() ? (state.churches || []) : (state.churches || []).filter((c) => c.id === state.profile?.church_id);
+  return `<div class="admin-overlay"><form id="servo-form" class="admin-card admin-dialog">
+    <h2>${isNew ? 'Novo servo' : escapeHtml(servo.full_name)}</h2>
+    <label>Nome<input type="text" name="full_name" value="${escapeHtml(servo.full_name || '')}" required placeholder="Sem a abreviatura da função" /></label>
+    <div class="admin-row">
+      <label>Género<select name="gender" id="servo-gender">
+        <option value="masculino" ${gender === 'masculino' ? 'selected' : ''}>Masculino</option>
+        <option value="feminino" ${gender === 'feminino' ? 'selected' : ''}>Feminino</option>
+      </select></label>
+      <label>Função<select name="role" id="servo-role">
+        ${ROLES.filter(([, , g]) => g === gender).map(([id, label]) => `<option value="${id}" ${servo.role === id ? 'selected' : ''}>${label}</option>`).join('')}
+      </select></label>
+    </div>
+    <p class="admin-hint" id="servo-minister-hint"></p>
+    <div class="admin-row">
+      <label>Contacto<input type="text" name="phone" value="${escapeHtml(servo.phone || '')}" /></label>
+      <label>Igreja onde serve<select name="church_id">
+        <option value="">— sem igreja —</option>
+        ${igrejas.map((church) => `<option value="${church.id}" ${servo.church_id === church.id ? 'selected' : ''}>${escapeHtml(church.locality || church.country || church.record_id)}</option>`).join('')}
+      </select></label>
+    </div>
+    <label>Foto (URL)<input type="url" name="photo_url" value="${escapeHtml(servo.photo_url || '')}" /></label>
+    <label class="admin-check"><input type="checkbox" name="active" ${servo.active === false ? '' : 'checked'} /> Em funções</label>
+    <div class="admin-dialog-actions">
+      ${isNew ? '' : '<button class="button button-outline admin-danger" type="button" data-action="delete-servo">Eliminar</button>'}
+      <button class="button button-outline" type="button" data-action="cancel-servo">Cancelar</button>
+      <button class="button button-gold" type="submit" ${state.busy ? 'disabled' : ''}>${state.busy ? 'A guardar…' : 'Guardar'}</button>
+    </div>
+  </form></div>`;
+}
+
 function churchesView() {
   if (!state.churches) return '<p class="admin-empty">A carregar…</p>';
   const mine = isCentral() ? state.churches : state.churches.filter((church) => church.id === state.profile?.church_id);
@@ -222,28 +298,53 @@ function churchesView() {
 
 function churchEditor() {
   const church = state.editing;
+  const services = state.services || [];
   return `<div class="admin-overlay"><form id="church-form" class="admin-card admin-dialog">
-    <h2>${escapeHtml(church.locality || church.country || 'Igreja')}</h2>
+    <h2>${escapeHtml(church.locality || church.country || 'Local')}</h2>
     <p class="admin-hint">Origem: ${escapeHtml(church.source || church.note || 'registo operacional')}</p>
+    <label>Tipo de lugar<select name="place_type">
+      <option value="" ${!church.place_type ? 'selected' : ''}>— por confirmar —</option>
+      <option value="igreja" ${church.place_type === 'igreja' ? 'selected' : ''}>Igreja</option>
+      <option value="casa_de_oracao" ${church.place_type === 'casa_de_oracao' ? 'selected' : ''}>Casa de oração</option>
+    </select></label>
+    <label data-when-church="igreja">Passou a igreja em<input type="date" name="became_church_on" value="${escapeHtml(church.became_church_on || '')}" /></label>
     <div class="admin-row">
       <label>Localidade<input type="text" name="locality" value="${escapeHtml(church.locality || '')}" /></label>
       <label>Região<input type="text" name="region" value="${escapeHtml(church.region || '')}" /></label>
     </div>
-    <div class="admin-row">
-      <label>Dia<input type="text" name="service_day" value="${escapeHtml(church.service_day || '')}" placeholder="Domingo" /></label>
-      <label>Hora local<input type="text" name="service_time_local" value="${escapeHtml(church.service_time_local || '')}" placeholder="09:00" /></label>
-    </div>
+    <label>Morada<input type="text" name="address" value="${escapeHtml(church.address || '')}" placeholder="Para quem se desloca pela primeira vez" /></label>
     <div class="admin-row">
       <label>Responsável<input type="text" name="leader_name" value="${escapeHtml(church.leader_name || '')}" /></label>
       <label>Telefone<input type="text" name="leader_phone" value="${escapeHtml(church.leader_phone || '')}" /></label>
     </div>
+    <label>Grupo de WhatsApp<input type="url" name="whatsapp_group_url" value="${escapeHtml(church.whatsapp_group_url || '')}" placeholder="https://chat.whatsapp.com/..." /></label>
+    <label>Foto do lugar (URL)<input type="url" name="photo_url" value="${escapeHtml(church.photo_url || '')}" /></label>
     <label>Nota<input type="text" name="note" value="${escapeHtml(church.note || '')}" /></label>
+
+    <h3>Horários de culto</h3>
+    <p class="admin-hint">Um lugar pode ter culto em mais do que um dia. Deixe a hora vazia se ainda não for conhecida.</p>
+    <table class="admin-schedule"><tbody id="service-rows">
+      ${services.map((service, index) => serviceRow(service, index)).join('') || serviceRow({}, 0)}
+    </tbody></table>
+    <button class="text-button" type="button" data-action="add-service">+ Acrescentar horário</button>
+
     <label class="admin-check"><input type="checkbox" name="verified" ${church.verification_status === 'verified' ? 'checked' : ''} /> Confirmei estes dados com a igreja</label>
     <div class="admin-dialog-actions">
       <button class="button button-outline" type="button" data-action="cancel">Cancelar</button>
       <button class="button button-gold" type="submit" ${state.busy ? 'disabled' : ''}>${state.busy ? 'A guardar…' : 'Guardar'}</button>
     </div>
   </form></div>`;
+}
+
+function serviceRow(service, index) {
+  return `<tr data-service-row>
+    <td><select name="service-weekday-${index}">
+      ${WEEKDAY_LABELS.map((label, weekday) => `<option value="${weekday}" ${Number(service.weekday) === weekday ? 'selected' : ''}>${label}</option>`).join('')}
+    </select></td>
+    <td><input type="time" name="service-time-${index}" value="${escapeHtml((service.start_time || '').slice(0, 5))}" /></td>
+    <td><input type="text" name="service-label-${index}" value="${escapeHtml(service.label || '')}" placeholder="Culto dos servos" /></td>
+    <td><button class="text-button admin-danger" type="button" data-remove-service>remover</button></td>
+  </tr>`;
 }
 
 // ---------------------------------------------------------------- ligação --
@@ -255,8 +356,8 @@ function render() {
     return;
   }
   if (!state.session) { root.innerHTML = loginView(); bind(); return; }
-  const content = state.view === 'meetings' ? meetingsView() : churchesView();
-  root.innerHTML = shell(content) + (state.editing ? churchEditor() : '') + (state.meeting ? meetingEditor() : '');
+  const content = state.view === 'meetings' ? meetingsView() : state.view === 'servos' ? servosView() : churchesView();
+  root.innerHTML = shell(content) + (state.editing ? churchEditor() : '') + (state.meeting ? meetingEditor() : '') + (state.servo ? servoEditor() : '');
   bind();
 }
 
@@ -281,6 +382,7 @@ function bind() {
       state.view = isCentral() ? 'meetings' : 'churches';
       if (isCentral()) await loadMeetings();
       await loadChurches();
+      await loadServos();
       toast('Sessão iniciada.');
     });
   });
@@ -288,7 +390,7 @@ function bind() {
   root.querySelectorAll('[data-view]').forEach((element) => element.addEventListener('click', () => { state.view = element.dataset.view; render(); }));
   root.querySelectorAll('[data-filter]').forEach((element) => element.addEventListener('click', () => { state.filter = element.dataset.filter; render(); }));
   root.querySelectorAll('[data-action="signout"]').forEach((element) => element.addEventListener('click', () => {
-    writeSession(null); state.profile = null; state.meetings = null; state.churches = null; render();
+    writeSession(null); state.profile = null; state.meetings = null; state.churches = null; state.servos = null; render();
   }));
 
   function syncRecurrenceFields() {
@@ -353,6 +455,83 @@ function bind() {
     });
   });
 
+  // ---- servos ----
+  root.querySelectorAll('[data-action="new-servo"]').forEach((el) => el.addEventListener('click', () => {
+    state.servo = { gender: 'masculino', role: 'obreiro', active: true }; render();
+  }));
+  root.querySelectorAll('[data-servo]').forEach((el) => el.addEventListener('click', () => {
+    state.servo = state.servos.find((servo) => servo.id === el.dataset.servo) || null; render();
+  }));
+  document.querySelector('[data-action="cancel-servo"]')?.addEventListener('click', () => { state.servo = null; render(); });
+
+  // As funções são separadas por género, e o aviso de ministro acompanha a escolha.
+  const genderSelect = document.querySelector('#servo-gender');
+  const roleSelect = document.querySelector('#servo-role');
+  function syncRoles(resetRole) {
+    if (!genderSelect || !roleSelect) return;
+    const permitidas = ROLES.filter(([, , g]) => g === genderSelect.value);
+    const anterior = roleSelect.value;
+    roleSelect.innerHTML = permitidas.map(([id, label]) => `<option value="${id}">${label}</option>`).join('');
+    if (!resetRole && permitidas.some(([id]) => id === anterior)) roleSelect.value = anterior;
+    const hint = document.querySelector('#servo-minister-hint');
+    if (hint) hint.textContent = MINISTER_ROLES.includes(roleSelect.value)
+      ? 'Esta função é de ministro.' : 'Esta função não é de ministro.';
+  }
+  genderSelect?.addEventListener('change', () => syncRoles(true));
+  roleSelect?.addEventListener('change', () => syncRoles(false));
+  syncRoles(false);
+
+  document.querySelector('[data-action="delete-servo"]')?.addEventListener('click', () => {
+    if (!confirm(`Eliminar "${state.servo.full_name}"? Esta ação não pode ser anulada.`)) return;
+    guard(async () => {
+      await rest(`servos?id=eq.${state.servo.id}`, { method: 'DELETE' });
+      state.servo = null; await loadServos(); toast('Servo eliminado.');
+    });
+  });
+
+  document.querySelector('#servo-form')?.addEventListener('submit', (event) => {
+    event.preventDefault();
+    const values = formValues(event.target);
+    const body = {
+      full_name: values.full_name.trim(), gender: values.gender, role: values.role,
+      phone: values.phone || null, church_id: values.church_id || null,
+      photo_url: values.photo_url || null, active: !!values.active
+    };
+    guard(async () => {
+      const saved = state.servo.id
+        ? await rest(`servos?id=eq.${state.servo.id}`, { method: 'PATCH', headers: { Prefer: 'return=representation' }, body: JSON.stringify(body) })
+        : await rest('servos', { method: 'POST', headers: { Prefer: 'return=representation' }, body: JSON.stringify(body) });
+      if (!saved?.length) throw new Error('Não tem permissão para guardar este servo.');
+      state.servo = null; await loadServos(); toast('Servo guardado.');
+    });
+  });
+
+  // ---- horários de culto ----
+  document.querySelector('[data-action="add-service"]')?.addEventListener('click', () => {
+    const corpo = document.querySelector('#service-rows');
+    const indice = corpo.querySelectorAll('[data-service-row]').length;
+    corpo.insertAdjacentHTML('beforeend', serviceRow({}, indice));
+    bindServiceRemoval();
+  });
+  function bindServiceRemoval() {
+    document.querySelectorAll('[data-remove-service]').forEach((el) => {
+      el.onclick = () => {
+        const corpo = document.querySelector('#service-rows');
+        if (corpo.querySelectorAll('[data-service-row]').length > 1) el.closest('[data-service-row]').remove();
+        else el.closest('[data-service-row]').querySelectorAll('input').forEach((i) => { i.value = ''; });
+      };
+    });
+  }
+  bindServiceRemoval();
+
+  const placeType = document.querySelector('[name="place_type"]');
+  function syncPlaceType() {
+    const campo = document.querySelector('[data-when-church]');
+    if (campo) campo.hidden = placeType?.value !== 'igreja';
+  }
+  placeType?.addEventListener('change', syncPlaceType);
+  syncPlaceType();
+
   const search = document.querySelector('#church-search');
   if (search) search.addEventListener('input', (event) => {
     state.query = event.target.value; render();
@@ -362,23 +541,37 @@ function bind() {
 
   root.querySelectorAll('[data-edit]').forEach((element) => element.addEventListener('click', () => {
     state.editing = state.churches.find((church) => church.id === element.dataset.edit) || null;
+    state.services = null;
     render();
+    if (state.editing) guard(async () => { await loadServices(state.editing.id); });
   }));
 
   document.querySelector('[data-action="cancel"]')?.addEventListener('click', () => { state.editing = null; render(); });
 
   document.querySelector('#church-form')?.addEventListener('submit', (event) => {
     event.preventDefault();
-    const values = formValues(event.target);
+    const form = event.target;
+    const values = formValues(form);
     const church = state.editing;
+    const linhas = [...form.querySelectorAll('[data-service-row]')].map((row) => ({
+      weekday: Number(row.querySelector('select').value),
+      start_time: row.querySelector('input[type="time"]').value || null,
+      label: row.querySelector('input[type="text"]').value.trim() || null
+    }));
+    // Uma linha totalmente vazia é a linha em branco do formulário, não um horário.
+    const servicos = linhas.filter((linha) => linha.start_time || linha.label);
     guard(async () => {
       const updated = await rest(`churches?id=eq.${church.id}`, {
         method: 'PATCH',
         headers: { Prefer: 'return=representation' },
         body: JSON.stringify({
+          place_type: values.place_type || null,
+          became_church_on: values.place_type === 'igreja' && values.became_church_on ? values.became_church_on : null,
           locality: values.locality || null, region: values.region || null,
-          service_day: values.service_day || null, service_time_local: values.service_time_local || null,
+          address: values.address || null,
           leader_name: values.leader_name || null, leader_phone: values.leader_phone || null,
+          whatsapp_group_url: values.whatsapp_group_url || null,
+          photo_url: values.photo_url || null,
           note: values.note || null,
           verification_status: values.verified ? 'verified' : 'needs_review',
           verified_at: values.verified ? new Date().toISOString() : null,
@@ -386,11 +579,21 @@ function bind() {
         })
       });
       if (!updated?.length) throw new Error('Não tem permissão para alterar este registo.');
-      state.editing = null;
+      // Substituir os horários por inteiro é mais simples e mais seguro do que
+      // tentar casar linhas do formulário com linhas da base de dados.
+      await rest(`church_services?church_id=eq.${church.id}`, { method: 'DELETE' });
+      if (servicos.length) {
+        await rest('church_services', {
+          method: 'POST',
+          body: JSON.stringify(servicos.map((servico) => ({ ...servico, church_id: church.id })))
+        });
+      }
+      state.editing = null; state.services = null;
       await loadChurches();
       toast('Registo guardado.');
     });
   });
+
 }
 
 async function start() {
@@ -402,6 +605,7 @@ async function start() {
       await loadProfile();
       if (isCentral()) await loadMeetings();
       await loadChurches();
+      await loadServos();
       if (!isCentral()) state.view = 'churches';
     } catch { writeSession(null); }
   }
