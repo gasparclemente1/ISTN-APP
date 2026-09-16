@@ -7,8 +7,8 @@ export const ROLES = [
   { id: 'bispo',          label: 'Bispo',           short: 'Bp.',      gender: 'masculino', badge: 'azul' },
   { id: 'bispo_auxiliar', label: 'Bispo Auxiliar',  short: 'Bp. Aux.', gender: 'masculino', badge: 'azul' },
   { id: 'pastor',         label: 'Pastor',          short: 'Pr.',      gender: 'masculino', badge: 'azul' },
-  { id: 'pastor_auxiliar',label: 'Pastor Auxiliar', short: 'Pr. Aux.', gender: 'masculino' },
-  { id: 'discipulo',      label: 'Discípulo',       short: 'Disc.',    gender: 'masculino' },
+  { id: 'pastor_auxiliar',label: 'Pastor Auxiliar', short: 'Pr. Aux.', gender: 'masculino', badge: 'cinza' },
+  { id: 'discipulo',      label: 'Discípulo',       short: 'Disc.',    gender: 'masculino', badge: 'cinza' },
   { id: 'obreiro',        label: 'Obreiro',         short: 'Obr.',     gender: 'masculino' },
   { id: 'futuro_obreiro', label: 'Futuro Obreiro',  short: 'Fut. Obr.',gender: 'masculino' },
   { id: 'dona',           label: 'Dona',            short: 'Dona',     gender: 'feminino'  },
@@ -23,10 +23,11 @@ const byId = (role) => ROLES.find((item) => item.id === role);
 export const roleLabel = (role) => byId(role)?.label || role || '';
 export const roleShort = (role) => byId(role)?.short || '';
 
-// Gold for the Apóstolo, blue for Bispos, Bispos Auxiliares and Pastores.
-// Every other verified servant gets the plain mark: the badge says the account
-// is confirmed, and only the first two ranks are set apart by colour.
-export const badgeTier = (role) => byId(role)?.badge || 'neutro';
+// Gold for the Apóstolo, blue for Bispos, Bispos Auxiliares and Pastores, grey
+// for Pastores Auxiliares and Discípulos. The line falls where the ministry
+// itself draws it: everyone with a mark is a minister, and everyone without one
+// is not. Obreiros, donas and future obreiros carry a written line instead.
+export const badgeTier = (role) => byId(role)?.badge || 'linha';
 export const isMinisterRole = (role) => MINISTER_ROLES.includes(role);
 export const rolesForGender = (gender) => ROLES.filter((role) => role.gender === gender);
 
@@ -46,7 +47,14 @@ export function servantName(servo) {
 // blue of the meaning they are there to carry.
 export function verifiedSeal(role, { title = 'Conta verificada' } = {}) {
   const tier = badgeTier(role);
-  if (tier === 'neutro') return '';
+  if (tier === 'linha') return '';
+  // Grey is a plain disc, not the scalloped seal: still a mark, visibly lesser.
+  if (tier === 'cinza') {
+    return `<svg class="verified-seal tier-cinza" viewBox="0 0 24 24" width="16" height="16" role="img" aria-label="${title}"><title>${title}</title>`
+      + '<circle class="seal-disc" cx="12" cy="12" r="10.5" />'
+      + '<path class="seal-check" d="M7.6 12.3l3 3 5.8-6.2" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" />'
+      + '</svg>';
+  }
   return `<svg class="verified-seal tier-${tier}" viewBox="0 0 24 24" width="16" height="16" role="img" aria-label="${title}"><title>${title}</title>`
     + `<path class="seal-disc" d="M10.89 2.35Q12.00 1.00 13.11 2.35Q14.23 3.69 15.86 3.08Q17.50 2.47 17.79 4.20Q18.08 5.92 19.80 6.21Q21.53 6.50 20.92 8.14Q20.31 9.77 21.65 10.89Q23.00 12.00 21.65 13.11Q20.31 14.23 20.92 15.86Q21.53 17.50 19.80 17.79Q18.08 18.08 17.79 19.80Q17.50 21.53 15.86 20.92Q14.23 20.31 13.11 21.65Q12.00 23.00 10.89 21.65Q9.77 20.31 8.14 20.92Q6.50 21.53 6.21 19.80Q5.92 18.08 4.20 17.79Q2.47 17.50 3.08 15.86Q3.69 14.23 2.35 13.11Q1.00 12.00 2.35 10.89Q3.69 9.77 3.08 8.14Q2.47 6.50 4.20 6.21Q5.92 5.92 6.21 4.20Q6.50 2.47 8.14 3.08Q9.77 3.69 10.89 2.35Z" />`
     + '<path class="seal-check" d="M7.6 12.3l3 3 5.8-6.2" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" />'

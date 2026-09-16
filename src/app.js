@@ -415,7 +415,7 @@ function profile() {
     <section class="profile-hero">
       <span class="round-icon">${icon('user')}</span>
       <h1 class="verified-name">${escapeHtml(badge?.name || state.profile.display_name || 'A sua conta')}${badge ? verifiedSeal(badge.role, { title: `Conta verificada · ${badge.label}` }) : ''}</h1>
-      ${badge ? (badge.tier === 'neutro'
+      ${badge ? (badge.tier === 'linha'
         ? `<p class="verified-line">Servo verificado · ${escapeHtml(badge.label)}${badge.church ? ` em ${escapeHtml(badge.church)}` : ''}</p>`
         : `<p class="verified-role">${escapeHtml(badge.label)}</p>`) : ''}
     </section>

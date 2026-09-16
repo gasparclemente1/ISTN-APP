@@ -80,5 +80,5 @@
 .verified-seal .seal-check { stroke:#fff; }
 .verified-seal.tier-dourado .seal-disc { fill:#e0a800; }
 .verified-seal.tier-azul .seal-disc { fill:#1d7ec4; }
-.verified-seal.tier-neutro .seal-disc { fill:#7b918a; }
+.verified-seal.tier-cinza .seal-disc { fill:#7b918a; }
 .quiet-check { flex:0 0 auto; stroke:#7b918a; color:#7b918a; }
