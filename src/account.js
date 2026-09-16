@@ -2,7 +2,7 @@
 // app works without one, and this only carries what cannot live on a single
 // device — preferences across phones, favourites, and the servant badge.
 import { backendConfig } from './data.js';
-import { roleLabel, servantName } from './roles.js';
+import { badgeTier, roleLabel, servantName } from './roles.js';
 
 const SESSION_KEY = 'elias-member-session';
 
@@ -93,5 +93,5 @@ export async function requestServantBadge(note, session = readSession()) {
 export function badgeFor(profile) {
   const servo = profile?.servo;
   if (profile?.servo_claim_status !== 'aprovado' || !servo) return null;
-  return { label: roleLabel(servo.role), role: servo.role, isMinister: servo.is_minister, name: servantName(servo) };
+  return { label: roleLabel(servo.role), role: servo.role, tier: badgeTier(servo.role), isMinister: servo.is_minister, name: servantName(servo) };
 }
