@@ -11,16 +11,17 @@ It should organize existing ministry content and connect users to live meetings 
 The church JSON files are source records supplied through operational announcements. They are intentionally marked `needs_review`. Do not silently correct, merge or invent data. Build the admin workflow so the church team can verify and edit records.
 
 ## Read order for Codex
-1. product/product-vision.md
-2. product/product-requirements.md
-3. product/user-flows.md
-4. product/information-architecture.md
-5. product/admin-panel.md
-6. live/live-system.md
-7. data/data-validation.md
-8. design/design-principles.md
-9. data/*.json
-10. design/assets/*
+1. product/istn-context.md
+2. product/product-vision.md
+3. product/product-requirements.md
+4. product/user-flows.md
+5. product/information-architecture.md
+6. product/admin-panel.md
+7. live/live-system.md
+8. data/data-validation.md
+9. design/design-principles.md
+10. data/*.json
+11. design/assets/*
 
 ## Visual assets
 The supplied ISTN-SJ logo and ministry artworks are included under design/assets.
