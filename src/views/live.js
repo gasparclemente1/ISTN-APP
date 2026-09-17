@@ -35,7 +35,7 @@ export function calendarActions({ compact = false } = {}) {
 export function liveCard(state, now = new Date()) {
   const kicker = (label) => `<div class="live-kicker"><span class="live-dot" aria-hidden="true"></span>${label}</div>`;
   if (state.meetingsError) {
-    return `<section class="live-card" aria-labelledby="live-card-title">${kicker('<span id="live-card-title">Próxima reunião</span>')}<p class="live-note">${escapeHtml(scheduleError(state))}</p><button class="button button-light" type="button" data-action="retry-meetings">${icon('refresh', { size: 18 })}Tentar de novo</button></section>`;
+    return `<section class="live-card" aria-labelledby="live-card-title">${kicker('<span id="live-card-title">Próxima reunião</span>')}<p class="live-note">${escapeHtml(scheduleError(state))}</p>${state.meetingsError === 'indisponivel' ? '' : `<button class="button button-light" type="button" data-action="retry-meetings">${icon('refresh', { size: 18 })}Tentar de novo</button>`}</section>`;
   }
   if (!state.meetings) return `<section class="live-card">${kicker('Próxima reunião')}<p class="live-note">A carregar a programação…</p></section>`;
   const next = nextMeeting(state.meetings, TIME_ZONE, now);
@@ -123,7 +123,7 @@ function otherMeetings(meetings, now) {
 export function livePage(state, now = new Date()) {
   const hero = `<section class="live-hero"><span class="eyebrow">${icon('live', { size: 16 })}Programação</span><h1>Reuniões que nos aproximam.</h1><p>Veja a próxima reunião, entre pelo Zoom e guarde os horários no calendário.</p></section>`;
   let body;
-  if (state.meetingsError) body = `${hero}${errorState(scheduleError(state), 'retry-meetings')}`;
+  if (state.meetingsError) body = `${hero}${errorState(scheduleError(state), state.meetingsError === 'indisponivel' ? '' : 'retry-meetings')}`;
   else if (!state.meetings) body = `${hero}${loadingState('A carregar a programação…')}`;
   else {
     const next = nextMeeting(state.meetings, TIME_ZONE, now);

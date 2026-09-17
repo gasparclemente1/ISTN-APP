@@ -57,6 +57,9 @@ main { max-width: 760px; margin: auto; padding-bottom: 112px; }
 .icon-button { width: var(--tap); height: var(--tap); display: grid; place-items: center; border-radius: 50%; color: var(--deep); }
 .icon-button:hover { background: #e9efe9; }
 .icon-button.small { width: 40px; height: 40px; }
+/* On inner pages the back button sits left of the centred title; on narrow
+   phones it would cover the brand's name, so only the sun remains. */
+@media (max-width: 420px) { .topbar.has-title .brand-name { display: none; } }
 @media (max-width: 340px) { .brand-name { display: none; } }
 
 .bottom-nav { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); z-index: 20; width: min(100%, 760px); display: flex; justify-content: space-around; padding: 6px 8px max(8px, env(safe-area-inset-bottom)); border-top: 1px solid var(--line); background: #fffefaf2; backdrop-filter: blur(16px); }

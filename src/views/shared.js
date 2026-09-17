@@ -27,7 +27,7 @@ const SECTION = { source: 'teachings', church: 'churches' };
 export function header({ title = '', back = '', action = '' } = {}) {
   const backPath = back ? pathFor(back) : '';
   return `<a class="skip-link" href="#conteudo">Saltar para o conteúdo</a>
-  <header class="topbar">
+  <header class="topbar ${title ? 'has-title' : ''}">
     <a class="brand" href="/" aria-label="ELIAS · ISTN-SJ — página inicial"><span class="brand-sun">${icon('sun', { size: 16 })}</span><span class="brand-name">ELIAS <small>ISTN-SJ</small></span></a>
     ${title ? `<div class="page-title">${backPath ? `<a class="icon-button" href="${backPath}" aria-label="Voltar">${icon('arrowLeft', { size: 22 })}</a>` : ''}<span>${escapeHtml(title)}</span></div>` : ''}
     <div class="topbar-action">${action}</div>

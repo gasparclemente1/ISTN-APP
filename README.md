@@ -29,41 +29,65 @@ The supplied ISTN-SJ logo and ministry artworks are included under design/assets
 
 ## Current implementation
 
-The repository now includes a mobile-first public MVP slice for **ELIAS — ISTN-SJ**:
+A mobile-first web app (installable PWA) with no build step and no runtime
+dependencies: plain ES modules in `src/`, a small Node server in `server.mjs`
+and `lib/`, and Supabase for data, accounts and photographs.
 
-- Home with featured source, next meeting and ISTN discovery entry point.
-- Teaching library with search, type filters and source-detail views.
-- Automatic latest-video rows from the public YouTube feeds for the weekend-service and recorded-Zoom channels.
-- Live schedule with local-time context, explicit unconfigured Zoom state and YouTube discovery link.
-- ISTN directory backed by the supplied operational JSON, including contact actions and the required “A confirmar” state.
-- Optional-profile and preferences UX, without mandatory account creation.
+- **Início** — next meeting with a live countdown, "A minha ISTN", latest
+  YouTube videos, the ministry's channels.
+- **Ensinos** — 379 recorded messages, searchable without accents, filtered by
+  type, year, biblical book (in canonical order) and saved items; each opens on
+  YouTube at the minute the message starts, when known.
+- **Ao vivo** — next meeting, Zoom link with copyable ID and passcode, the week
+  ahead, monthly and yearly meetings, a calendar feed (`/calendario.ics`) that
+  follows the team's edits, and the latest recordings.
+- **Igrejas** — the directory from the database, by country and region, with
+  service times, address and directions, servants, WhatsApp and group links.
+- **Perfil** — preferences kept on the device for everyone; an optional account
+  carries them across devices and lets servants ask for verification.
+- **/admin** — meetings, directory (place type, service times, photos),
+  servants, verification claims and the change history, with central and local
+  editor roles enforced by row level security.
 
-This is intentionally an orchestration layer: it sends people to the existing content platforms rather than hosting video or creating a social network.
+Every page has its own address (`/ensinos`, `/ao-vivo`, `/igrejas/<id>`,
+`/perfil`), so links can be shared and the back button works.
+
+The server only serves the files the app loads, sends a strict
+Content-Security-Policy, and reads meetings and the directory from Supabase
+with the publishable key (`/api/meetings`, `/api/directory`). The directory
+falls back to `data/` when the database cannot be reached; meetings do not,
+because an old Zoom link is worse than none.
 
 ## Run locally
 
-Requires Node.js 17+ (Node 18+ recommended). No dependency install is needed.
+Requires Node.js 17+ (Render uses 20). No install step.
 
 ```bash
-npm run check
-npm run dev
+cp .env.example .env    # optional: Supabase settings
+npm run dev             # http://localhost:4173
+npm run check           # syntax of every module
+npm test                # unit tests, no dependencies
+npm run test:db         # schema + migrations + permissions on a throwaway PostgreSQL 14+
+npm run report:editorial  # rewrites data/revisao-editorial.md
 ```
 
-Open `http://localhost:4173`.
+Without Supabase settings the app still starts: the directory is read from
+`data/`, and meetings and accounts say they are unavailable.
 
-## Configuration and integrations
+## Deploying
 
-There are no required environment variables or YouTube API key for this frontend slice. `PORT` may be set to use another local port. The local server reads the public YouTube Atom/RSS feeds through `/api/latest-videos`, caches each channel for 10 minutes and displays the six most recent entries. The operational live configuration and external source URLs are separated in `src/data.js` as a temporary frontend adapter; a production backend/admin should replace that adapter.
-
-Still needing real operational configuration:
-
-- authenticated admin and role-based local editors;
-- a backend for editable events, Zoom destination, content metadata and audit log;
-- push/reminder infrastructure;
-- editorial verification of teaching metadata and all source-record contacts/schedules.
+See [DEPLOY.md](DEPLOY.md) — Supabase setup, Render environment, the order for
+migrations, and post-deploy checks — and
+[qa/checklist-dispositivos.md](qa/checklist-dispositivos.md) for testing on
+real phones.
 
 ## Known limitations
 
-- The provided church data remains unverified and is deliberately not deduplicated or corrected.
-- No Zoom URL is configured, so the join control accurately stays unavailable.
-- The supplied YouTube channels are linked as external sources: Saturday/Sunday services at `@apostolomarcelino/streams` and recorded Zoom lives at `@LorenaLopes56/videos`.
+- The church records remain unverified until the team confirms them in the
+  panel; nothing is deduplicated or corrected automatically. What to check is
+  listed in [data/revisao-editorial.md](data/revisao-editorial.md).
+- The teaching library is a JSON file updated by
+  `scripts/import_youtube_library.py`, not edited in the panel.
+- The latest videos are read from the public YouTube channel pages, which
+  YouTube may change or throttle; the app then links to the channels instead.
+- Reminders are calendar events, not push notifications.

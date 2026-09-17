@@ -1,6 +1,6 @@
 import { createReadStream, statSync } from 'node:fs';
 import { createServer } from 'node:http';
-import { createGzip } from 'node:zlib';
+import { createGzip, gzipSync } from 'node:zlib';
 import { resolvePublicPath, isTextType } from './lib/static.mjs';
 import { securityHeaders } from './lib/security.mjs';
 import { supabaseConfig } from './lib/supabase.mjs';
@@ -8,8 +8,10 @@ import { latestVideos } from './lib/youtube.mjs';
 import { createPublicData } from './lib/public-data.mjs';
 import { buildCalendar } from './src/calendar.js';
 import { serviceWorkerScript } from './lib/service-worker.mjs';
+import { loadEnvFile } from './lib/env.mjs';
 
 const root = process.cwd();
+loadEnvFile(root);
 const port = Number(process.env.PORT || 4173);
 const config = supabaseConfig();
 const publicData = createPublicData({ config, root });
@@ -20,8 +22,15 @@ function send(request, response, status, body, headers = {}) {
   response.end(request.method === 'HEAD' ? undefined : body);
 }
 
+// The directory is some 40 KB of JSON; compressed it is a fraction of that,
+// which is what matters to someone on mobile data.
 function sendJson(request, response, status, payload, cache = 'no-cache') {
-  send(request, response, status, JSON.stringify(payload), { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': cache });
+  const body = JSON.stringify(payload);
+  const headers = { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': cache, Vary: 'Accept-Encoding' };
+  if (body.length > 1024 && /\bgzip\b/.test(request.headers['accept-encoding'] || '')) {
+    return send(request, response, status, gzipSync(body), { ...headers, 'Content-Encoding': 'gzip' });
+  }
+  return send(request, response, status, body, headers);
 }
 
 function sendFile(request, response, { path, type }) {
