@@ -6,6 +6,7 @@ import { announce, copyText, debounce, renderInto, toast } from './dom.js';
 import { filterChurches } from './directory.js';
 import { filterTeachings } from './library.js';
 import { nextMeeting } from './meetings.js';
+import { rankPrefixOf } from './roles.js';
 import { prefs } from './prefs.js';
 import { registerServiceWorker } from './pwa.js';
 import { startRouter } from './router.js';
@@ -13,7 +14,7 @@ import { churchPage, churchResults, churchesPage } from './views/churches.js';
 import { homePage } from './views/home.js';
 import { liveStatus, livePage } from './views/live.js';
 import { bindProfile, profilePage } from './views/profile.js';
-import { TIME_ZONE } from './views/shared.js';
+import { setAccount, TIME_ZONE } from './views/shared.js';
 import { sourcePage, teachingResults, teachingsPage } from './views/teachings.js';
 
 const app = document.querySelector('#app');
@@ -44,6 +45,7 @@ const PAGES = {
 };
 
 function render() {
+  setAccount(state.profile);
   renderInto(app, (PAGES[state.route.name] || PAGES.home)());
   if (state.route.name === 'profile' && state.profile) bindProfile({ state, render, showToast: (message) => toast(message) });
 }
@@ -71,7 +73,7 @@ function onRoute(route, { scrollY, navigated }) {
   if (route.name === 'teachings' && route.search.get('guardadas') === '1') {
     state.teachingFilters = { ...state.teachingFilters, savedOnly: true, page: 1 };
   }
-  if (route.name === 'profile') ensureChurchOptions();
+  if (route.name === 'profile') { ensureChurchOptions(); askForNameIfMissing(); }
   render();
   document.title = pageTitle(route);
   window.scrollTo(0, scrollY);
@@ -131,6 +133,13 @@ function syncMyChurchFromProfile() {
   if (church && prefs.myChurch !== church.id) prefs.setMyChurch(church.id);
 }
 
+// An account with no name yet — someone who signed in with Google, where the
+// app deliberately does not borrow the name Google holds — is asked for one as
+// soon as the profile is on screen.
+function askForNameIfMissing() {
+  if (state.profile && !state.profile.display_name && !state.profileSheet) state.profileSheet = 'display_name';
+}
+
 async function afterSignIn(session) {
   state.session = session;
   state.profile = await loadProfile(session);
@@ -142,6 +151,7 @@ async function afterSignIn(session) {
   }
   syncMyChurchFromProfile();
   ensureChurchOptions();
+  askForNameIfMissing();
   // Saved teachings from before signing in join the account, and the account's
   // join this device.
   loadFavorites(session).then((ids) => {
@@ -302,10 +312,16 @@ app.addEventListener('change', (event) => {
 app.addEventListener('submit', async (event) => {
   if (event.target.id !== 'account-form') return;
   event.preventDefault();
-  const { email, password } = Object.fromEntries(new FormData(event.target).entries());
+  const { email, password, display_name: displayName } = Object.fromEntries(new FormData(event.target).entries());
+  if (state.authMode === 'registar') {
+    const name = (displayName || '').trim();
+    if (!name) { toast('Indique o seu nome.'); return; }
+    const rank = rankPrefixOf(name);
+    if (rank) { toast(`Escreva o nome sem «${rank}»: a função é acrescentada pela aplicação.`); return; }
+  }
   state.authBusy = true; render();
   try {
-    const session = state.authMode === 'registar' ? await register(email, password) : await signIn(email, password);
+    const session = state.authMode === 'registar' ? await register(email, password, (displayName || '').trim()) : await signIn(email, password);
     if (!session) { toast('Conta criada. Confirme o email antes de entrar.'); state.authMode = 'entrar'; return; }
     await afterSignIn(session);
     toast('Sessão iniciada.');

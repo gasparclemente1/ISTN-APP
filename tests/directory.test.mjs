@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { countriesIn, filterChurches, normalizeChurch, placeKindLabel, regionsIn, rowsFromSourceRecords, serviceLabel, sharedPhones, sortChurches } from '../src/directory.js';
+import { countriesIn, filterChurches, groupByCountry, normalizeChurch, placeKindLabel, regionsIn, rowsFromSourceRecords, serviceLabel, sharedPhones, sortChurches } from '../src/directory.js';
 import { foldText, matchesQuery } from '../src/text.js';
 
 const read = (name) => JSON.parse(readFileSync(new URL(`../data/${name}`, import.meta.url)));
@@ -62,4 +62,18 @@ test('números repetidos em vários registos são assinalados para revisão', ()
   const shared = sharedPhones(churches);
   assert.ok(shared.has('244923409830'));
   assert.ok(shared.get('244923409830').length >= 3);
+});
+
+test('o diretório agrupa por país, com países e igrejas por ordem alfabética', () => {
+  const groups = groupByCountry(churches);
+  const countries = groups.map(([country]) => country);
+  assert.deepEqual(countries, [...countries].sort((a, b) => a.localeCompare(b, 'pt')));
+  assert.equal(groups.reduce((total, [, list]) => total + list.length, 0), churches.length);
+  groups.forEach(([, list]) => {
+    assert.deepEqual(list.map((church) => church.name), [...list.map((church) => church.name)].sort((a, b) => a.localeCompare(b, 'pt')));
+    // Alemanha's records show up under Alemanha and nowhere else.
+    list.forEach((church) => assert.equal(church.country, list[0].country));
+  });
+  const alemanha = groups.find(([country]) => country === 'Alemanha')[1].map((church) => church.name);
+  assert.deepEqual(alemanha, [...alemanha].sort((a, b) => a.localeCompare(b, 'pt')));
 });

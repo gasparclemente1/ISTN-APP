@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { BOOKS, bookOf } from '../src/bible.js';
-import { booksIn, categoryOf, countByCategory, filterTeachings, thumbnailUrl, watchUrl } from '../src/library.js';
+import { CATEGORIES, booksIn, categoryOf, countByCategory, filterTeachings, thumbnailUrl, watchUrl } from '../src/library.js';
+import { rankPrefixOf } from '../src/roles.js';
 
 const library = JSON.parse(readFileSync(new URL('../data/youtube-teachings.json', import.meta.url)));
 
@@ -57,4 +58,24 @@ test('o link abre o vídeo no início da mensagem, quando se sabe', () => {
   assert.equal(watchUrl({ url: 'https://youtu.be/abc', startsAt: null }), 'https://youtu.be/abc');
   assert.equal(thumbnailUrl('https://www.youtube.com/watch?v=SBntJhzgKDM'), 'https://i.ytimg.com/vi/SBntJhzgKDM/mqdefault.jpg');
   assert.equal(thumbnailUrl('https://www.youtube.com/watch?v="><script>'), '');
+});
+
+test('as listas dos filtros estão por ordem alfabética, menos os livros', () => {
+  const [todas, ...rest] = CATEGORIES;
+  assert.equal(todas, 'Todas');
+  assert.deepEqual(rest, [...rest].sort((a, b) => a.localeCompare(b, 'pt')));
+  // Os livros seguem a ordem da Bíblia, não a alfabética.
+  const books = booksIn(library).map((book) => book.name);
+  assert.notDeepEqual(books, [...books].sort((a, b) => a.localeCompare(b, 'pt')));
+});
+
+test('um nome não pode começar pela abreviatura da função', () => {
+  for (const name of ['Bp. Rufino Boaz', 'bispo Rufino Boaz', 'Pr Jaime José', 'PASTOR Israel Santos', 'Dona Sónia Bento', 'Ap. Marcelino', 'Obr. Mário']) {
+    assert.ok(rankPrefixOf(name), name);
+  }
+  for (const name of ['Rufino Boaz', 'Prisca Manuel', 'Ana Paula', 'Bispos Reunidos']) {
+    assert.equal(rankPrefixOf(name), null, name);
+  }
+  assert.equal(rankPrefixOf(''), null);
+  assert.equal(rankPrefixOf(null), null);
 });

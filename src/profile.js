@@ -2,9 +2,9 @@
 // below, each row opening a sheet that edits one thing. One field per sheet
 // keeps every save small, and nobody has to scroll a long form to change a
 // phone number.
-import { badgeFor, saveProfile, saveServoContact, signOut } from './account.js';
+import { badgeFor, loadProfile, saveProfile, saveServoContact, signOut } from './account.js';
 import { ISTN_COUNTRIES, countryList, countryName } from './countries.js';
-import { claimableRoles, isMinisterRole, roleLabel, verifiedSeal } from './roles.js';
+import { claimableRoles, isMinisterRole, rankPrefixOf, roleLabel, verifiedSeal } from './roles.js';
 import { uploadPhoto } from './upload.js';
 import { safeUrl } from './html.js';
 import { icon } from './icons.js';
@@ -15,7 +15,9 @@ const LANGUAGES = [
 
 const svg = (name, size = 20) => icon(name, { size });
 
-const initials = (name = '') => name.trim().split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join('').toUpperCase() || '·';
+// Null when the account has no name yet — someone who signed in with Google,
+// where the app does not borrow the name Google holds.
+const initials = (name) => String(name ?? '').trim().split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join('').toUpperCase() || '·';
 
 function churchLabel(church, withContext = false) {
   if (!church) return '';
@@ -37,7 +39,10 @@ export function profileView({ state, escapeHtml, header, navigation, extraSectio
   const home = churches.find((church) => church.id === profile.home_church_id);
   const filled = COMPLETENESS.filter((field) => profile[field]).length;
   const claim = profile.servo_claim_status || 'nenhum';
-  const displayName = badge?.name || profile.display_name || 'Sem nome';
+  // The person's own name, so editing it shows at once. The servant record the
+  // team verified keeps its own name, shown in the directory.
+  const displayName = profile.display_name || 'Sem nome';
+  const directoryName = badge?.name && badge.name !== profile.display_name ? badge.name : '';
 
   const identity = badge
     ? (badge.tier === 'neutro'
@@ -73,6 +78,8 @@ export function profileView({ state, escapeHtml, header, navigation, extraSectio
       </label>
       <h1 class="verified-name">${escapeHtml(displayName)}${badge ? verifiedSeal(badge.role, { title: `Conta verificada · ${badge.label}` }) : ''}</h1>
       ${identity}
+      ${directoryName ? `<p class="profile-card-meta">No diretório: ${escapeHtml(directoryName)}</p>` : ''}
+      ${!profile.display_name ? '<p class="profile-card-missing">Falta o seu nome. Toque em «Nome» para o indicar.</p>' : ''}
       ${home || profile.country_code ? `<p class="profile-card-meta">${escapeHtml([home && churchLabel(home), countryName(profile.country_code)].filter(Boolean).join(' · '))}</p>` : ''}
       ${filled < COMPLETENESS.length ? `<div class="profile-progress" role="progressbar" aria-valuemin="0" aria-valuemax="${COMPLETENESS.length}" aria-valuenow="${filled}">
         <span>Perfil ${filled} de ${COMPLETENESS.length}</span>
@@ -174,7 +181,9 @@ function sheetView({ state, escapeHtml }) {
   switch (key) {
     case 'display_name':
       title = 'Nome';
-      body = `<label class="sheet-field">Como quer ser chamado<input type="text" name="display_name" value="${escapeHtml(profile.display_name || '')}" autocomplete="name" maxlength="80" required /></label>`;
+      body = `<label class="sheet-field">Como quer ser chamado<input type="text" name="display_name" value="${escapeHtml(profile.display_name || '')}" autocomplete="name" maxlength="80" required /></label>
+        <p class="sheet-hint">Escreva só o nome, sem a função: a aplicação acrescenta «Bp.», «Pr.» ou «Dona» conforme a função aprovada.</p>
+        ${badgeFor(profile) ? '<p class="sheet-hint">No diretório continua a aparecer o nome registado pela equipa.</p>' : ''}`;
       break;
     case 'gender':
       title = 'Género';
@@ -331,7 +340,10 @@ export function bindProfile({ state, render, showToast }) {
   const save = async (changes, message) => {
     state.profileSaving = true; render();
     try {
-      state.profile = await saveProfile(changes) || state.profile;
+      await saveProfile(changes);
+      // Read the row back: a PATCH answers without the linked servant, and the
+      // card would lose the seal until the next reload.
+      state.profile = await loadProfile(state.session) || state.profile;
       state.profileSheet = null; state.sheetGender = null; state.sheetChurch = null;
       showToast(message);
     } catch (error) {
@@ -378,7 +390,11 @@ export function bindProfile({ state, render, showToast }) {
       home_church_id: { home_church_id: values.home_church_id || null },
       language: { language: values.language || 'pt' }
     }[key];
-    if (key === 'display_name' && !changes.display_name) { showToast('O nome não pode ficar vazio.'); return; }
+    if (key === 'display_name') {
+      if (!changes.display_name) { showToast('O nome não pode ficar vazio.'); return; }
+      const rank = rankPrefixOf(changes.display_name);
+      if (rank) { showToast(`Escreva o nome sem «${rank}»: a função é acrescentada pela aplicação.`); return; }
+    }
     // A servant who chose to show their number shows the one they just gave.
     if (key === 'phone' && state.servoContact?.phone_public && changes.phone && state.profile.servo_id) {
       saveServoContact(state.profile.servo_id, { phone: changes.phone }, state.session)
