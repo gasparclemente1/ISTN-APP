@@ -88,3 +88,19 @@
 .photo-pick { display:inline-block !important; margin:0 0 4px !important; padding:8px 14px; border:1px solid #c5d0ca; border-radius:999px; font-size:.74rem !important; cursor:pointer; background:var(--white); }
 .photo-pick input { display:none; }
 .photo-field small { display:block; color:var(--muted); font-size:.7rem; }
+
+.tab-count { display:inline-grid; place-items:center; min-width:20px; height:20px; margin-left:7px; padding:0 6px; border-radius:99px; background:var(--gold); color:var(--deep); font:700 .66rem "DM Sans",sans-serif; vertical-align:1px; }
+.claim-list { display:grid; gap:14px; }
+.claim-card { border:1px solid var(--line); border-radius:18px; padding:16px; background:#fcfdfb; }
+.claim-head { display:flex; align-items:center; gap:12px; margin-bottom:12px; }
+.claim-head strong { display:block; font:700 1rem "DM Sans",sans-serif; color:var(--deep); }
+.claim-head small { color:var(--muted); font-size:.76rem; }
+.claim-head b { color:var(--deep); }
+.claim-photo { width:48px; height:48px; border-radius:50%; object-fit:cover; flex:0 0 auto; display:grid; place-items:center; background:var(--deep); color:var(--gold); font:700 1.2rem "Playfair Display",Georgia,serif; }
+.claim-facts { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px 14px; margin:0 0 14px; }
+.claim-facts dt { font:500 .58rem "DM Mono",monospace; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); }
+.claim-facts dd { margin:2px 0 0; font-size:.84rem; color:var(--ink); overflow-wrap:anywhere; }
+.claim-link { display:grid; gap:5px; margin-bottom:14px; font:600 .72rem "DM Sans",sans-serif; color:var(--deep); }
+.claim-link select { border:1px solid #c5d0ca; border-radius:11px; padding:10px 12px; font:400 .84rem "DM Sans",sans-serif; background:var(--white); }
+.claim-actions { display:flex; justify-content:flex-end; gap:10px; }
+.claim-actions .admin-danger { margin-right:0; }

@@ -1,14 +1,14 @@
 import { APP_CONFIG, countryNames, loadDirectory, loadLatestVideos, loadMeetings, loadTeachingLibrary, toWhatsApp } from './data.js';
 import { DEFAULT_DURATION_MINUTES, nextMeeting, nextOccurrence, recurrenceLabel, zonedDateParts } from './meetings.js';
-import { uploadPhoto } from './upload.js';
-import { availableProviders, badgeFor, finishSocialSignIn, loadChurchOptions, loadProfile, readSession, register, requestServantBadge, saveProfile, signIn, signInWithProvider, signOut } from './account.js';
+import { availableProviders, finishSocialSignIn, loadChurchOptions, loadProfile, readSession, register, signIn, signInWithProvider } from './account.js';
+import { bindProfile, profileView } from './profile.js';
 import { verifiedSeal } from './roles.js';
 
 // Confirmed with the ISTN-SJ team: every announced time is Luanda time.
 const TIME_ZONE = 'Africa/Luanda';
 
 const app = document.querySelector('#app');
-const state = { page: 'home', query: '', category: 'Todas', year: 'Todos', book: 'Todos', sort: 'recent', teachingPage: 1, teachingLibrary: null, directory: null, selectedChurch: null, selectedSource: null, country: 'Todos', latestVideos: {}, videosLoading: true, meetings: null, meetingsError: false, session: null, profile: null, authMode: 'entrar', churchOptions: null, providers: null, uploading: false };
+const state = { page: 'home', query: '', category: 'Todas', year: 'Todos', book: 'Todos', sort: 'recent', teachingPage: 1, teachingLibrary: null, directory: null, selectedChurch: null, selectedSource: null, country: 'Todos', latestVideos: {}, videosLoading: true, meetings: null, meetingsError: false, session: null, profile: null, authMode: 'entrar', churchOptions: null, providers: null, uploading: false, profileSheet: null, sheetGender: null, sheetChurch: null, profileSaving: false };
 const TEACHING_CATEGORIES = ['Todas', 'Cultos', 'Cultos dos servos', 'Lives', 'Especiais'];
 const BOOK_SPELLING_FIXES = { 'Galátas': 'Gálatas', 'Exôdo': 'Êxodo', '1Timóteo': '1 Timóteo' };
 const icon = (name) => ({ home: '⌂', teachings: '◫', live: '◉', churches: '⌖', profile: '◌', search: '⌕', arrow: '→', play: '▶', back: '←', calendar: '◷', pin: '⌖', user: '♙', check: '✓', phone: '☎', external: '↗', bell: '♧', globe: '◎', share: '⤴' }[name] || '•');
@@ -398,13 +398,6 @@ function churchDetail() {
 const listaDeNomes = (providers) => providers.map((provider) => provider.name)
   .reduce((texto, nome, indice, todos) => indice === 0 ? nome : `${texto}${indice === todos.length - 1 ? ' ou ' : ', '}${nome}`, '');
 
-function churchOptionLabel(church) {
-  const lugar = church.locality || church.country || 'Sem nome';
-  const contexto = [church.region, countryNames[church.country_code] || church.country].filter(Boolean).join(', ');
-  const tipo = church.place_type === 'casa_de_oracao' ? ' (casa de oração)' : '';
-  return contexto ? `${lugar}${tipo} — ${contexto}` : `${lugar}${tipo}`;
-}
-
 function profile() {
   ensureChurchOptions();
   const head = header({ title: 'Perfil', back: 'home' });
@@ -425,52 +418,7 @@ function profile() {
     </main>${navigation()}`;
   }
 
-  const badge = badgeFor(state.profile);
-  const claim = state.profile.servo_claim_status;
-  return `${head}<main class="page-content">
-    <section class="profile-hero">
-      <span class="round-icon">${icon('user')}</span>
-      <h1 class="verified-name">${escapeHtml(badge?.name || state.profile.display_name || 'A sua conta')}${badge ? verifiedSeal(badge.role, { title: `Conta verificada · ${badge.label}` }) : ''}</h1>
-      ${badge ? (badge.tier === 'neutro'
-        ? `<p class="verified-line">Servo verificado · ${escapeHtml(badge.label)}${badge.church ? ` em ${escapeHtml(badge.church)}` : ''}</p>`
-        : `<p class="verified-role">${escapeHtml(badge.label)}</p>`) : ''}
-    </section>
-    <form id="profile-form" class="account-card">
-      <div class="photo-field">
-        ${state.profile.photo_url ? `<img class="photo-preview" src="${escapeHtml(state.profile.photo_url)}" alt="" />` : `<span class="photo-preview empty">${icon('user')}</span>`}
-        <div>
-          <label class="photo-pick">${state.uploading ? 'A carregar…' : 'Escolher fotografia'}<input type="file" accept="image/jpeg,image/png,image/webp" data-upload="membros" ${state.uploading ? 'disabled' : ''} /></label>
-          <small>A imagem é reduzida no telemóvel antes de ser enviada.</small>
-        </div>
-      </div>
-      <label>Nome<input type="text" name="display_name" value="${escapeHtml(state.profile.display_name || '')}" /></label>
-      <label>Telefone<input type="tel" name="phone" value="${escapeHtml(state.profile.phone || '')}" placeholder="+244 …" /></label>
-      <label>País<select name="country_code">
-        <option value="">— não indicar —</option>
-        ${Object.entries(countryNames).map(([code, name]) => `<option value="${code}" ${state.profile.country_code === code ? 'selected' : ''}>${escapeHtml(name)}</option>`).join('')}
-      </select></label>
-      <label>A minha ISTN<select name="home_church_id">
-        <option value="">${state.churchOptions?.length ? '— ainda não escolhi —' : 'A carregar…'}</option>
-        ${(state.churchOptions || []).map((church) => `<option value="${church.id}" ${state.profile.home_church_id === church.id ? 'selected' : ''}>${escapeHtml(churchOptionLabel(church))}</option>`).join('')}
-      </select></label>
-      <label>Idioma<select name="language">
-        <option value="pt" ${state.profile.language !== 'fr' ? 'selected' : ''}>Português</option>
-        <option value="fr" ${state.profile.language === 'fr' ? 'selected' : ''}>Français</option>
-      </select></label>
-      <label class="account-check"><input type="checkbox" name="meeting_reminders" ${state.profile.meeting_reminders === false ? '' : 'checked'} /> Quero lembretes das reuniões</label>
-      <button class="button button-gold full-width" type="submit">Guardar</button>
-    </form>
-    <section class="account-card">
-      <h2>Selo de servo</h2>
-      ${badge
-        ? `<p>A sua conta está verificada como <strong>${escapeHtml(badge.label)}</strong>${badge.isMinister ? ', função de ministro' : ''}. O seu nome aparece como <strong>${escapeHtml(badge.name)}</strong>.</p>`
-        : claim === 'pendente'
-          ? '<p>O seu pedido está a aguardar aprovação da equipa ISTN-SJ.</p>'
-          : `<p>Se serve na ISTN, peça o selo. ${claim === 'recusado' ? 'O pedido anterior não foi aprovado; pode voltar a pedir.' : 'A equipa confirma antes de o atribuir — ninguém se verifica a si próprio.'}</p>
-             <button class="button button-outline full-width" data-action="request-badge">Pedir verificação</button>`}
-    </section>
-    <button class="text-button account-switch" data-action="signout">Terminar sessão</button>
-  </main>${navigation()}`;
+  return profileView({ state, escapeHtml, header, navigation });
 }
 
 function render() {
@@ -515,47 +463,7 @@ function bindPage() {
     } catch (error) { showToast(error.message); }
   });
 
-  document.querySelectorAll('[data-upload]').forEach((input) => input.addEventListener('change', async (event) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    state.uploading = true; render();
-    try {
-      const url = await uploadPhoto(file, event.target.dataset.upload, state.session.user.id, state.session);
-      state.profile = await saveProfile({ photo_url: url }) || state.profile;
-      showToast('Fotografia atualizada.');
-    } catch (error) { showToast(error.message); }
-    finally { state.uploading = false; render(); }
-  }));
-
-  document.querySelector('#profile-form')?.addEventListener('submit', async (event) => {
-    event.preventDefault();
-    const values = Object.fromEntries(new FormData(event.target).entries());
-    try {
-      state.profile = await saveProfile({
-        display_name: values.display_name?.trim() || null,
-        phone: values.phone?.trim() || null,
-        country_code: values.country_code || null,
-        home_church_id: values.home_church_id || null,
-        language: values.language || 'pt',
-        meeting_reminders: !!values.meeting_reminders
-      }) || state.profile;
-      render();
-      showToast('Preferências guardadas.');
-    } catch (error) { showToast(error.message); }
-  });
-
-  document.querySelector('[data-action="request-badge"]')?.addEventListener('click', async () => {
-    try {
-      state.profile = await requestServantBadge() || state.profile;
-      state.profile = await loadProfile();
-      render();
-      showToast('Pedido enviado. A equipa ISTN-SJ vai confirmar.');
-    } catch (error) { showToast(error.message); }
-  });
-
-  document.querySelector('[data-action="signout"]')?.addEventListener('click', () => {
-    signOut(); state.session = null; state.profile = null; render(); showToast('Sessão terminada.');
-  });
+  if (state.page === 'profile' && state.profile) bindProfile({ state, render, showToast });
 
   app.querySelectorAll('[data-action="reminder"]').forEach((element) => element.addEventListener('click', downloadReminder));
   app.querySelectorAll('[data-action="retry-meetings"]').forEach((element) => element.addEventListener('click', refreshMeetings));

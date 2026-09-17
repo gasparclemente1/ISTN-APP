@@ -137,6 +137,10 @@ ficam no dispositivo.
 | `home_church_id` | uuid | «A minha ISTN». |
 | `language` | text | `pt` por omissão. |
 | `meeting_reminders` | boolean | |
+| `photo_url` | text | Carregada pelo próprio; reduzida no telemóvel antes do envio. |
+| `gender` | text | `masculino` ou `feminino`. Determina as funções que se podem pedir. |
+| `city` | text | |
+| `claimed_role` | text | A função pedida. Tem de corresponder ao género; Apóstolo não se pede. |
 | `servo_id` | uuid | **Só a equipa central escreve.** Preenchido ao aprovar. |
 | `servo_claim_status` | text | `nenhum`, `pendente`, `aprovado`, `recusado`. Só a equipa central escreve. |
 | `created_at` | timestamptz | |
@@ -156,6 +160,17 @@ nestes dois campos.
 
 A cor do selo deriva de `servos.role`. Nada de cor se guarda aqui: é
 apresentação, e guardá-la permitiria que divergisse da função.
+
+### Pedir uma função
+
+O membro indica género, função e igreja, e o pedido fica `pendente`. Enquanto
+estiver pendente ou aprovado, a função e o género não mudam — a equipa aprovaria
+algo diferente do que leu. O membro pode retirar um pedido pendente.
+
+A equipa central trata os pedidos no separador **Pedidos** do painel.
+`approve_servo_claim` cria o registo em `servos` (ou liga a conta a um que já
+exista, para não duplicar) e marca o pedido como aprovado **numa só transação**;
+`reject_servo_claim` recusa. Ambas recusam quem não for da equipa central.
 
 ### Onde a conta é oferecida
 
