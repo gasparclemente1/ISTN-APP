@@ -48,10 +48,9 @@ export async function register(email, password) {
 
 export function signOut() { writeSession(null); }
 
+// Google is the only sign-in besides email and password.
 const PROVIDER_LABELS = {
-  google: { button: 'Continuar com Google', name: 'Google' },
-  facebook: { button: 'Continuar com Facebook', name: 'Facebook' },
-  zoom: { button: 'Continuar com Zoom', name: 'Zoom' }
+  google: { button: 'Continuar com Google', name: 'Google' }
 };
 
 export async function availableProviders() {

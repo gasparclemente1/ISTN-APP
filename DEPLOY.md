@@ -10,10 +10,10 @@ npm test`) e publicado.
    e depois cada ficheiro de `supabase/migrations/` por ordem numérica.
 2. **Authentication → URL Configuration**: definir o *Site URL* como o endereço
    público da aplicação (por exemplo `https://elias-istn-sj.onrender.com`) e
-   acrescentar o mesmo endereço às *Redirect URLs*. Sem isto, entrar com Google,
-   Facebook ou Zoom devolve um erro.
-3. **Authentication → Providers**: ativar só os fornecedores que vão aparecer na
-   aplicação, e listá-los em `SUPABASE_OAUTH_PROVIDERS`.
+   acrescentar o mesmo endereço às *Redirect URLs*. Sem isto, entrar com Google
+   devolve um erro.
+3. **Authentication → Providers**: ativar **Google** (além de email). Desativar
+   Facebook e Zoom, se estiverem ativos: a aplicação só oferece o Google.
 4. Criar as contas da equipa em **Authentication → Users** e, para cada uma, uma
    linha em `admin_profiles` (`role` = `central`, ou `local` com o `church_id`
    da igreja que essa pessoa edita).
@@ -25,7 +25,7 @@ npm test`) e publicado.
    - `SUPABASE_URL` — o endereço do projeto, ou só o id;
    - `SUPABASE_PUBLISHABLE_KEY` — a chave pública (*anon*). **Nunca** a
      `service_role`;
-   - `SUPABASE_OAUTH_PROVIDERS` — por exemplo `google,facebook`.
+   - `SUPABASE_OAUTH_PROVIDERS` — `google`. Qualquer outro valor é ignorado.
 3. O HTTPS é dado pelo Render. O servidor envia `Strict-Transport-Security`
    quando o pedido chega por HTTPS.
 
