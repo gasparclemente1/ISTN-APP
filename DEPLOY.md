@@ -8,10 +8,18 @@ npm test`) e publicado.
 
 1. No editor SQL, correr por esta ordem: `supabase/schema.sql`, `supabase/seed.sql`
    e depois cada ficheiro de `supabase/migrations/` por ordem numérica.
-2. **Authentication → URL Configuration**: definir o *Site URL* como o endereço
-   público da aplicação (por exemplo `https://elias-istn-sj.onrender.com`) e
-   acrescentar o mesmo endereço às *Redirect URLs*. Sem isto, entrar com Google
-   devolve um erro.
+2. **Authentication → URL Configuration**:
+   - *Site URL*: o endereço público da aplicação, por exemplo
+     `https://elias-istn-sj.onrender.com`. O Supabase cria este valor como
+     `http://localhost:3000`. Enquanto não for mudado, o link do email de
+     confirmação leva a um endereço `localhost` que não abre.
+   - *Redirect URLs*: acrescentar `https://ENDEREÇO-PÚBLICO/**`. A aplicação
+     pede ao Supabase para voltar a `/perfil` depois da confirmação do email e
+     do Google, e o Supabase só aceita endereços desta lista. Um endereço fora
+     da lista faz o Supabase usar o *Site URL*.
+   - Em **Authentication → Email Templates**, os modelos devem usar
+     `{{ .ConfirmationURL }}`, que é o valor por omissão. Se alguém escreveu um
+     endereço fixo com `localhost`, tem de o substituir.
 3. **Authentication → Providers**: ativar **Google** (além de email), com o
    *Client ID* e o *Client Secret* do Google Cloud. O botão «Continuar com
    Google» aparece sozinho, em até 5 minutos, assim que o Google estiver ativo

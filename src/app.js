@@ -160,7 +160,7 @@ async function startAccount() {
   try {
     social = await finishSocialSignIn();
   } catch (error) {
-    // Coming back from Google with an error is worth saying.
+    // Coming back from Google or from a confirmation link with an error is worth saying.
     toast(error.message);
   }
   const session = social || readSession();
@@ -168,7 +168,7 @@ async function startAccount() {
     try {
       await afterSignIn(session);
       if (social) {
-        toast('Sessão iniciada.');
+        toast(social.arrivedFrom === 'signup' ? 'Email confirmado. Sessão iniciada.' : 'Sessão iniciada.');
         window.history.replaceState(null, '', '/perfil');
         onRoute({ name: 'profile', params: {}, search: new URLSearchParams(), title: 'Perfil' }, { scrollY: 0, navigated: true });
         return;
