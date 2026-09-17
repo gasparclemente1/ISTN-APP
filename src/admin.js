@@ -2,6 +2,7 @@ import { WEEKDAY_LABELS, recurrenceLabel } from './meetings.js';
 import { uploadPhoto } from './upload.js';
 import { badgeTier, isMinisterRole, quietCheck, roleLabel, rolesForGender, servantName, verifiedSeal } from './roles.js';
 import { countryName } from './countries.js';
+import { escapeHtml, safeUrl } from './html.js';
 
 const root = document.querySelector('#admin');
 const SESSION_KEY = 'elias-admin-session';
@@ -12,10 +13,6 @@ const state = {
   query: '', filter: 'todas', editing: null, meeting: null, servo: null, uploading: false,
   servos: null, services: null, busy: false
 };
-
-function escapeHtml(value = '') {
-  return String(value).replace(/[&<>'"]/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[char]));
-}
 
 function readSession() {
   try { return JSON.parse(localStorage.getItem(SESSION_KEY) || 'null'); } catch { return null; }
@@ -103,8 +100,27 @@ async function loadClaims() {
     : [];
 }
 
+// Phone numbers live apart from servos since migration 007, readable only by
+// the team. Joined here so the editor works with one record per servant.
 async function loadServos() {
-  state.servos = await rest('servos?select=*&order=role.asc,full_name.asc');
+  const [servos, contacts] = await Promise.all([
+    rest('servos?select=*&order=role.asc,full_name.asc'),
+    rest('servo_contacts?select=servo_id,phone').catch(() => [])
+  ]);
+  const phones = new Map(contacts.map((contact) => [contact.servo_id, contact.phone]));
+  state.servos = servos.map((servo) => ({ ...servo, phone: phones.get(servo.id) ?? servo.phone ?? null }));
+}
+
+async function saveServoPhone(servoId, phone) {
+  if (phone) {
+    await rest('servo_contacts?on_conflict=servo_id', {
+      method: 'POST',
+      headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
+      body: JSON.stringify({ servo_id: servoId, phone })
+    });
+  } else {
+    await rest(`servo_contacts?servo_id=eq.${servoId}`, { method: 'DELETE' });
+  }
 }
 
 async function loadServices(churchId) {
@@ -236,7 +252,7 @@ function claimsView() {
     const since = new Intl.DateTimeFormat('pt-PT', { day: '2-digit', month: 'short' }).format(new Date(claim.updated_at));
     return `<article class="claim-card">
       <div class="claim-head">
-        ${claim.photo_url ? `<img class="claim-photo" src="${escapeHtml(claim.photo_url)}" alt="" />` : `<span class="claim-photo empty">${escapeHtml((claim.display_name || '?').trim().charAt(0).toUpperCase())}</span>`}
+        ${safeUrl(claim.photo_url) ? `<img class="claim-photo" src="${escapeHtml(safeUrl(claim.photo_url))}" alt="" />` : `<span class="claim-photo empty">${escapeHtml((claim.display_name || '?').trim().charAt(0).toUpperCase())}</span>`}
         <div>
           <strong>${escapeHtml(claim.display_name || 'Sem nome')}</strong>
           <small>Pede: <b>${escapeHtml(roleLabel(claim.claimed_role))}</b>${isMinisterRole(claim.claimed_role) ? ' · ministro' : ''} · desde ${since}</small>
@@ -289,7 +305,7 @@ function servosView() {
 function photoField(url, folder, id) {
   if (!id) return '<p class="admin-hint">Guarde primeiro para poder acrescentar uma fotografia.</p>';
   return `<div class="photo-field">
-    ${url ? `<img class="photo-preview" src="${escapeHtml(url)}" alt="" />` : '<span class="photo-preview empty">◌</span>'}
+    ${safeUrl(url) ? `<img class="photo-preview" src="${escapeHtml(safeUrl(url))}" alt="" />` : '<span class="photo-preview empty">◌</span>'}
     <div>
       <label class="photo-pick">${state.uploading ? 'A carregar…' : 'Escolher fotografia'}<input type="file" accept="image/jpeg,image/png,image/webp" data-upload="${folder}" data-upload-id="${id}" ${state.uploading ? 'disabled' : ''} /></label>
       <small>Reduzida automaticamente antes de ser enviada.</small>
@@ -316,7 +332,7 @@ function servoEditor() {
     </div>
     <p class="admin-hint" id="servo-minister-hint"></p>
     <div class="admin-row">
-      <label>Contacto<input type="text" name="phone" value="${escapeHtml(servo.phone || '')}" /></label>
+      <label>Contacto <small>(só a equipa vê)</small><input type="tel" name="phone" value="${escapeHtml(servo.phone || '')}" /></label>
       <label>Igreja onde serve<select name="church_id">
         <option value="">— sem igreja —</option>
         ${igrejas.map((church) => `<option value="${church.id}" ${servo.church_id === church.id ? 'selected' : ''}>${escapeHtml(church.locality || church.country || church.record_id)}</option>`).join('')}
@@ -503,9 +519,11 @@ function bind() {
     if (recurrence === 'weekly' && !weekdays.length) { toast('Escolha pelo menos um dia da semana.', 'erro'); return; }
     if (recurrence === 'monthly_last' && weekdays.length !== 1) { toast('Escolha exatamente um dia da semana.', 'erro'); return; }
     if ((recurrence === 'yearly' || recurrence === 'once') && !values.event_date) { toast('Escolha uma data.', 'erro'); return; }
+    // Only a real https address: the app turns this into a link people tap.
+    if (values.zoom_url && !safeUrl(values.zoom_url)) { toast('O link do Zoom tem de começar por https://.', 'erro'); return; }
     const body = {
       title: values.title.trim(), kind: values.kind,
-      zoom_url: values.zoom_url || null, zoom_meeting_id: values.zoom_meeting_id || null,
+      zoom_url: safeUrl(values.zoom_url) || null, zoom_meeting_id: values.zoom_meeting_id || null,
       zoom_passcode: values.zoom_passcode || null,
       start_time: startTime, time_note: timeNote,
       recurrence, weekdays: recurrence === 'yearly' || recurrence === 'once' ? [] : weekdays,
@@ -562,14 +580,16 @@ function bind() {
     const values = formValues(event.target);
     const body = {
       full_name: values.full_name.trim(), gender: values.gender, role: values.role,
-      phone: values.phone || null, church_id: values.church_id || null,
+      church_id: values.church_id || null,
       active: !!values.active
     };
+    const phone = (values.phone || '').trim() || null;
     guard(async () => {
       const saved = state.servo.id
         ? await rest(`servos?id=eq.${state.servo.id}`, { method: 'PATCH', headers: { Prefer: 'return=representation' }, body: JSON.stringify(body) })
         : await rest('servos', { method: 'POST', headers: { Prefer: 'return=representation' }, body: JSON.stringify(body) });
       if (!saved?.length) throw new Error('Não tem permissão para guardar este servo.');
+      if (phone !== (state.servo.phone || null)) await saveServoPhone(saved[0].id, phone);
       state.servo = null; await loadServos(); toast('Servo guardado.');
     });
   });
@@ -661,6 +681,7 @@ function bind() {
     const form = event.target;
     const values = formValues(form);
     const church = state.editing;
+    if (values.whatsapp_group_url && !safeUrl(values.whatsapp_group_url)) { toast('O link do grupo tem de começar por https://.', 'erro'); return; }
     const linhas = [...form.querySelectorAll('[data-service-row]')].map((row) => ({
       weekday: Number(row.querySelector('select').value),
       start_time: row.querySelector('input[type="time"]').value || null,
@@ -678,7 +699,7 @@ function bind() {
           locality: values.locality || null, region: values.region || null,
           address: values.address || null,
           leader_name: values.leader_name || null, leader_phone: values.leader_phone || null,
-          whatsapp_group_url: values.whatsapp_group_url || null,
+          whatsapp_group_url: safeUrl(values.whatsapp_group_url) || null,
           note: values.note || null,
           verification_status: values.verified ? 'verified' : 'needs_review',
           verified_at: values.verified ? new Date().toISOString() : null,

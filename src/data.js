@@ -45,7 +45,3 @@ export async function loadTeachingLibrary() {
   if (!response.ok) throw new Error('Não foi possível carregar o acervo de ensinos.');
   return response.json();
 }
-
-export function toWhatsApp(phone) {
-  return `https://wa.me/${phone.replace(/\D/g, '')}`;
-}

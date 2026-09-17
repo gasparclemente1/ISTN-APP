@@ -93,6 +93,9 @@ export async function finishSocialSignIn() {
 
 async function rest(path, options = {}, session = readSession()) {
   const { supabaseUrl, supabaseKey } = await backendConfig();
+  // Without a project there is nothing to ask; a relative /rest/v1 request would
+  // only reach this server and fail with a confusing 404.
+  if (!supabaseUrl) throw new Error('As contas ainda não estão configuradas neste servidor.');
   const response = await fetch(`${supabaseUrl}/rest/v1/${path}`, {
     ...options,
     headers: {

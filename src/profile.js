@@ -6,6 +6,7 @@ import { badgeFor, saveProfile, signOut } from './account.js';
 import { ISTN_COUNTRIES, countryList, countryName } from './countries.js';
 import { claimableRoles, isMinisterRole, roleLabel, verifiedSeal } from './roles.js';
 import { uploadPhoto } from './upload.js';
+import { safeUrl } from './html.js';
 
 const LANGUAGES = [
   ['pt', 'Português'], ['fr', 'Français'], ['en', 'English'], ['es', 'Español']
@@ -82,7 +83,7 @@ export function profileView({ state, escapeHtml, header, navigation }) {
   return `${header({ title: 'Perfil', back: 'home' })}<main class="page-content profile-page">
     <section class="profile-card">
       <label class="profile-avatar ${state.uploading ? 'is-busy' : ''}" aria-label="Alterar fotografia">
-        ${profile.photo_url ? `<img src="${escapeHtml(profile.photo_url)}" alt="" />` : `<span class="profile-initials">${escapeHtml(initials(profile.display_name))}</span>`}
+        ${safeUrl(profile.photo_url) ? `<img src="${escapeHtml(safeUrl(profile.photo_url))}" alt="" />` : `<span class="profile-initials">${escapeHtml(initials(profile.display_name))}</span>`}
         <span class="profile-avatar-action">${state.uploading ? '<i class="loader"></i>' : svg('camera', 16)}</span>
         <input type="file" accept="image/jpeg,image/png,image/webp" data-profile-photo ${state.uploading ? 'disabled' : ''} />
       </label>

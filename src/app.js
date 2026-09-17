@@ -1,4 +1,5 @@
-import { APP_CONFIG, countryNames, loadDirectory, loadLatestVideos, loadMeetings, loadTeachingLibrary, toWhatsApp } from './data.js';
+import { APP_CONFIG, countryNames, loadDirectory, loadLatestVideos, loadMeetings, loadTeachingLibrary } from './data.js';
+import { escapeHtml, externalLinkAttrs, whatsAppUrl } from './html.js';
 import { DEFAULT_DURATION_MINUTES, nextMeeting, nextOccurrence, recurrenceLabel, zonedDateParts } from './meetings.js';
 import { availableProviders, finishSocialSignIn, loadChurchOptions, loadProfile, readSession, register, signIn, signInWithProvider } from './account.js';
 import { bindProfile, profileView } from './profile.js';
@@ -13,8 +14,7 @@ const TEACHING_CATEGORIES = ['Todas', 'Cultos', 'Cultos dos servos', 'Lives', 'E
 const BOOK_SPELLING_FIXES = { 'Galátas': 'Gálatas', 'Exôdo': 'Êxodo', '1Timóteo': '1 Timóteo' };
 const icon = (name) => ({ home: '⌂', teachings: '◫', live: '◉', churches: '⌖', profile: '◌', search: '⌕', arrow: '→', play: '▶', back: '←', calendar: '◷', pin: '⌖', user: '♙', check: '✓', phone: '☎', external: '↗', bell: '♧', globe: '◎', share: '⤴' }[name] || '•');
 
-function escapeHtml(value = '') { return String(value).replace(/[&<>'"]/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[char])); }
-function link(url) { return url ? `target="_blank" rel="noreferrer" href="${url}"` : ''; }
+const link = (url) => externalLinkAttrs(url);
 
 function header({ back = false, title = '', action = '' } = {}) {
   return `<header class="topbar">
@@ -31,7 +31,7 @@ function navigation() {
 
 function sourceCard(source, featured = false) {
   return `<article class="source-card ${featured ? 'featured-source' : ''}" data-source="${source.id}" tabindex="0" role="button">
-    <img src="${source.image}" alt="" loading="lazy" />
+    <img src="${escapeHtml(source.image)}" alt="" loading="lazy" />
     <div class="source-card-overlay"><span class="platform">${escapeHtml(source.platform)}</span><h3>${escapeHtml(source.title)}</h3><p>${escapeHtml(source.type)} · Abrir fonte externa ${icon('arrow')}</p></div>
   </article>`;
 }
@@ -345,7 +345,7 @@ function teachings() {
 function sourceDetail() {
   const source = APP_CONFIG.sources.find((item) => item.id === state.selectedSource) || APP_CONFIG.sources[0];
   return `${header({ title: 'Fonte de ensino', back: 'teachings' })}<main class="detail-page">
-    <img class="detail-image" src="${source.image}" alt="" />
+    <img class="detail-image" src="${escapeHtml(source.image)}" alt="" />
     <section class="detail-copy"><span class="platform">${escapeHtml(source.platform)}</span><h1>${escapeHtml(source.title)}</h1><p class="source-type">${escapeHtml(source.type)} · Fonte externa</p><p>${escapeHtml(source.description || 'Este espaço organiza o acesso ao conteúdo disponível na plataforma de origem.')} Não há resumo ou referência atribuída nesta publicação porque esses dados não foram fornecidos para verificação.</p><a class="button button-dark full-width" ${link(source.url)}>Abrir no ${escapeHtml(source.platform)} <span>${icon('external')}</span></a></section>
     <section class="source-facts"><div><span>Origem</span><strong>${escapeHtml(source.platform)}</strong></div><div><span>Estado editorial</span><strong>Fonte a confirmar</strong></div></section>
     <section class="detail-related"><span class="eyebrow">CONTINUE A EXPLORAR</span><h2>Outras fontes</h2><div class="horizontal-scroll">${APP_CONFIG.sources.filter((item) => item.id !== source.id).map((item) => sourceCard(item)).join('')}</div></section>
@@ -386,11 +386,11 @@ function churchDetail() {
     <section class="church-detail-head"><span class="round-icon">${record.modality === 'online' ? icon('globe') : icon('pin')}</span><div><span class="church-kind">${record.modality === 'online' ? 'COMUNIDADE ONLINE' : 'LOCAL PRESENCIAL'}</span><h1>ISTN — ${escapeHtml(record.locality || country)}</h1><p>${escapeHtml(record.region ? `${record.region}, ${country}` : country)}</p></div></section>
     ${statusBadge(record.verification_status)}
     <section class="info-list">
-      <div><span>${icon('calendar')}</span><p><small>REUNIÃO</small><strong>${record.service_day ? `${record.service_day}, ${record.service_time_local} (hora local)` : 'Horário a confirmar'}</strong></p></div>
+      <div><span>${icon('calendar')}</span><p><small>REUNIÃO</small><strong>${record.service_day ? `${escapeHtml(record.service_day)}, ${escapeHtml(record.service_time_local || 'hora a confirmar')} (hora local)` : 'Horário a confirmar'}</strong></p></div>
       <div><span>${icon('user')}</span><p><small>RESPONSÁVEL</small><strong>${escapeHtml(leader)}</strong></p></div>
-      <div><span>${icon('phone')}</span><p><small>CONTACTO</small><strong>${escapeHtml(phone)}</strong></p></div>
+      <div><span>${icon('phone')}</span><p><small>CONTACTO</small><strong>${escapeHtml(phone || 'A confirmar')}</strong></p></div>
     </section>
-    <a class="button button-whatsapp full-width" ${link(toWhatsApp(phone))}>Contactar por WhatsApp <span>${icon('external')}</span></a>
+    ${whatsAppUrl(phone) ? `<a class="button button-whatsapp full-width" ${link(whatsAppUrl(phone))}>Contactar por WhatsApp <span>${icon('external')}</span></a>` : ''}
     <aside class="verification-note warning"><span>!</span><p><strong>Confirme antes de se deslocar.</strong> ${escapeHtml(record.source || record.note || 'Este contacto é um registo operacional a confirmar pela equipa local.')}</p></aside>
   </main>${navigation()}`;
 }
@@ -511,3 +511,6 @@ Promise.allSettled(APP_CONFIG.sources.filter((source) => source.channelId).map(a
   .then((results) => { state.latestVideos = Object.fromEntries(results.filter((result) => result.status === 'fulfilled').map((result) => result.value)); })
   .finally(() => { state.videosLoading = false; render(); });
 render();
+// Registered from here rather than an inline script, so the page can forbid
+// inline scripts altogether.
+if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js'));
