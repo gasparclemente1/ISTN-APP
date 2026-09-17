@@ -219,6 +219,79 @@ export async function requestServantBadge(note, session = readSession()) {
   return saveProfile({ servo_claim_status: 'pendente', servo_claim_note: note || null }, session);
 }
 
+// Writing in the feed. Every one of these is checked again by the database
+// (migration 009): the app only decides what to offer.
+export async function createPost({ body, title = null, churchId = null, highlighted = false, highlightUntil = null }, session = readSession()) {
+  const rows = await rest('posts', {
+    method: 'POST',
+    headers: { Prefer: 'return=representation' },
+    body: JSON.stringify({ body, title, church_id: churchId, highlighted, highlight_until: highlightUntil })
+  }, session);
+  if (!rows?.length) throw new Error('Não tem permissão para publicar.');
+  return rows[0];
+}
+
+export async function updatePost(id, changes, session = readSession()) {
+  const rows = await rest(`posts?id=eq.${id}`, {
+    method: 'PATCH',
+    headers: { Prefer: 'return=representation' },
+    body: JSON.stringify(changes)
+  }, session);
+  if (!rows?.length) throw new Error('Não tem permissão para alterar esta publicação.');
+  return rows[0];
+}
+
+export function deletePost(id, session = readSession()) {
+  return rest(`posts?id=eq.${id}`, { method: 'DELETE' }, session);
+}
+
+export function addPostImages(postId, images, session = readSession()) {
+  if (!images.length) return Promise.resolve(null);
+  return rest('post_images', {
+    method: 'POST',
+    headers: { Prefer: 'return=minimal' },
+    body: JSON.stringify(images.map((image, index) => ({ post_id: postId, url: image.url, caption: image.caption || null, sort_order: index })))
+  }, session);
+}
+
+export function loadComments(postId) {
+  return rest(`post_comments?select=id,post_id,author_id,body,created_at&post_id=eq.${postId}&hidden=eq.false&order=created_at.asc`);
+}
+
+export function loadPostAuthors() {
+  return rest('post_authors?select=id,display_name,photo_url,servo_role,verified');
+}
+
+export async function addComment(postId, body, session = readSession()) {
+  const rows = await rest('post_comments', {
+    method: 'POST',
+    headers: { Prefer: 'return=representation' },
+    body: JSON.stringify({ post_id: postId, body })
+  }, session);
+  if (!rows?.length) throw new Error('Só servos verificados podem comentar.');
+  return rows[0];
+}
+
+export function hideComment(id, hidden, session = readSession()) {
+  return rest(`post_comments?id=eq.${id}`, { method: 'PATCH', headers: { Prefer: 'return=minimal' }, body: JSON.stringify({ hidden }) }, session);
+}
+
+// One reaction per person per post: setting another replaces it, and the same
+// one again removes it.
+export function setReaction(postId, kind, session = readSession()) {
+  if (!kind) return rest(`post_reactions?post_id=eq.${postId}&user_id=eq.${session.user.id}`, { method: 'DELETE' }, session);
+  return rest('post_reactions?on_conflict=post_id,user_id', {
+    method: 'POST',
+    headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
+    body: JSON.stringify({ post_id: postId, user_id: session.user.id, kind })
+  }, session);
+}
+
+export function loadMyReactions(session = readSession()) {
+  if (!session?.user?.id) return Promise.resolve([]);
+  return rest(`post_reactions?select=post_id,kind&user_id=eq.${session.user.id}`, {}, session);
+}
+
 export function badgeFor(profile) {
   const servo = profile?.servo;
   if (profile?.servo_claim_status !== 'aprovado' || !servo) return null;

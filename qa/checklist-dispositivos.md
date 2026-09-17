@@ -34,6 +34,10 @@ Anotar para cada linha: ✅ funciona · ⚠️ funciona com problema (descrever)
 | 23 | **Perfil** → criar conta → confirmar email → entrar | Entra; as pregações guardadas e a igreja escolhida continuam lá | | |
 | 24 | Entrar com Google (se ativo) | Volta à aplicação já com sessão iniciada, na página Perfil | | |
 | 24a | Com uma conta de servo verificado: **Perfil → Mostrar o meu número**, ligar | Em até um minuto, o número aparece junto do nome na página da igreja; ao desligar, desaparece | | |
+| 24b | **Anúncios**: abrir um anúncio, tocar em **Amém**, voltar e abrir outra vez | A reação fica marcada e contada |  |  |
+| 24c | Com uma conta de servo verificado, escrever um comentário | Aparece na lista com o nome e a função |  |  |
+| 24d | Com uma conta sem selo de servo, abrir um anúncio | Explica que comentar é para servos verificados, e deixa reagir |  |  |
+| 24e | Com um direito de publicação atribuído no painel: escrever um anúncio com imagem | Publica e aparece no topo; a imagem abre |  |  |
 | 25 | Depois de uma nova publicação, abrir a aplicação instalada | Aparece «Há uma nova versão» com o botão **Atualizar**; depois de tocar, tudo funciona | | |
 
 ## Painel (computador e telemóvel)
@@ -47,4 +51,6 @@ Anotar para cada linha: ✅ funciona · ⚠️ funciona com problema (descrever)
 | P5 | Mudar a hora de uma reunião | Em menos de um minuto, «Ao vivo» mostra a nova hora; o calendário subscrito atualiza-se nas horas seguintes | |
 | P6 | Abrir **Histórico** | A alteração do P5 aparece com o nome de quem a fez e a hora antiga → nova | |
 | P6a | Abrir um servo no separador Servos | O contacto diz «privado» ou «visível no diretório, por escolha do servo»; não há forma de o tornar público a partir do painel | |
+| P8 | Em **Anúncios**, esconder um anúncio e recarregar a aplicação | Sai da aplicação; no painel continua visível e pode ser reposto | |
+| P9 | Em **Anúncios → Quem pode publicar**, dar «Só a sua igreja» a um servo verificado | Essa pessoa passa a ver «Escrever um anúncio» na aplicação, e só publica na sua igreja | |
 | P7 | Entrar com uma conta de editor local | Só vê a sua igreja e os seus servos; não vê Reuniões, Pedidos nem Histórico | |

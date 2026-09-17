@@ -53,10 +53,18 @@ No account required for basic browsing.
 - Prayer request workflow with strict privacy controls.
 - Local congregation announcements.
 
+## Announcements (decided after the first review)
+- Announcements from the central team, the Apóstolo and local editors, plus
+  accounts the central team grants the right to in the panel.
+- Announcements can be highlighted, with an optional end date.
+- Comments are restricted to verified servants; reactions are open to any
+  account; reading needs no account.
+- Everything published can be hidden by the team, and hiding is reversible.
+
 ## Explicitly out of MVP
-- Public social feed.
+- Public social feed anyone can post to.
 - User-to-user messaging.
-- Public comments.
+- Unrestricted public comments.
 - User-generated content platform.
 - Proprietary live streaming.
 - Full church management/ERP.

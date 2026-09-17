@@ -33,6 +33,14 @@ export async function loadMeetings() {
   return (await response.json()).meetings;
 }
 
+// `fresh` skips the server's one-minute cache: used right after publishing,
+// commenting or reacting, so the person sees their own change.
+export async function loadPosts({ fresh = false } = {}) {
+  const response = await fetch(`/api/posts${fresh ? '?novo=1' : ''}`);
+  if (!response.ok) throw new Error('Não foi possível carregar os anúncios.');
+  return response.json();
+}
+
 export async function loadTeachingLibrary() {
   const response = await fetch('/data/youtube-teachings.json');
   if (!response.ok) throw new Error('Não foi possível carregar o acervo de ensinos.');

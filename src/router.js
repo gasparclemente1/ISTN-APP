@@ -7,6 +7,8 @@ const ROUTES = [
   { name: 'teachings', pattern: /^\/ensinos\/?$/, title: 'Ensinos' },
   { name: 'source', pattern: /^\/fontes\/([\w-]+)\/?$/, keys: ['id'], title: 'Canal' },
   { name: 'live', pattern: /^\/ao-vivo\/?$/, title: 'Ao vivo' },
+  { name: 'posts', pattern: /^\/anuncios\/?$/, title: 'Anúncios' },
+  { name: 'post', pattern: /^\/anuncios\/([\w-]+)\/?$/, keys: ['id'], title: 'Anúncio' },
   { name: 'churches', pattern: /^\/igrejas\/?$/, title: 'Igrejas' },
   { name: 'church', pattern: /^\/igrejas\/([\w-]+)\/?$/, keys: ['id'], title: 'Igreja' },
   { name: 'profile', pattern: /^\/perfil\/?$/, title: 'Perfil' }
@@ -17,6 +19,8 @@ const PATHS = {
   teachings: () => '/ensinos',
   source: ({ id }) => `/fontes/${encodeURIComponent(id)}`,
   live: () => '/ao-vivo',
+  posts: () => '/anuncios',
+  post: ({ id }) => `/anuncios/${encodeURIComponent(id)}`,
   churches: () => '/igrejas',
   church: ({ id }) => `/igrejas/${encodeURIComponent(id)}`,
   profile: () => '/perfil'

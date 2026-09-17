@@ -119,3 +119,9 @@
 .audit-fields dd { margin: 0; overflow-wrap: anywhere; }
 .audit-fields del { color: #8a2f2f; }
 .audit-fields ins { color: #155f55; text-decoration: none; font-weight: 600; }
+
+.admin-row-wide { width: 100%; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 14px; padding: 13px 16px; }
+.admin-row-wide > span:first-child { display: grid; gap: 2px; min-width: 0; }
+.admin-row-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.admin-row-actions .text-button { font-size: .78rem; }
+.admin-list .admin-row-wide small { overflow-wrap: anywhere; }

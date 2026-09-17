@@ -494,3 +494,62 @@ button.menu-row:focus-visible { outline:3px solid var(--gold); outline-offset:-3
   .sheet-grip { display:none; }
 }
 
+
+/* ------------------------------------------------------------- anúncios -- */
+
+.post-new { margin: 6px 0 18px; }
+.post-list { display: grid; gap: 14px; }
+.post-card, .post-full { padding: 16px; border: 1px solid var(--line); border-radius: 18px; background: var(--white); }
+.post-card.is-highlighted, .post-full.is-highlighted { border-color: var(--gold); box-shadow: 0 0 0 3px var(--gold-soft); }
+.post-author { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.post-avatar { width: 40px; height: 40px; flex: 0 0 auto; display: grid; place-items: center; overflow: hidden; border-radius: 50%; background: var(--deep); color: var(--gold); font: 700 .85rem "DM Sans", sans-serif; }
+.post-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.post-byline { display: grid; gap: 2px; min-width: 0; }
+.post-byline strong { display: inline-flex; align-items: center; gap: 6px; font-size: .95rem; }
+.post-byline small { font-size: .8rem; color: var(--muted); }
+.post-pin { margin-left: auto; padding: 4px 9px; border-radius: 99px; background: var(--gold-soft); color: #6d4a00; font: 600 .75rem "DM Sans", sans-serif; white-space: nowrap; }
+.post-open { display: block; color: inherit; }
+.post-card h3, .post-full h1 { margin: 0 0 6px; }
+.post-full h1 { font-size: clamp(1.6rem, 6vw, 2.2rem); margin: 8px 0 12px; }
+.post-body p { margin: 0 0 10px; color: var(--ink); font-size: .95rem; line-height: 1.55; }
+.post-body p:last-child { margin-bottom: 0; }
+.post-body.is-clamped { display: -webkit-box; -webkit-line-clamp: 5; -webkit-box-orient: vertical; overflow: hidden; }
+.post-more { display: inline-flex; align-items: center; gap: 2px; margin-top: 6px; font-size: .85rem; font-weight: 700; color: var(--teal); }
+.post-images { display: grid; gap: 6px; margin: 12px 0 4px; }
+.post-images.is-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.post-images figure { margin: 0; }
+.post-images img { width: 100%; max-height: 420px; object-fit: cover; border-radius: 14px; background: #d9e1db; display: block; }
+.post-images figcaption { margin-top: 4px; font-size: .8rem; color: var(--muted); }
+.post-stats { display: flex; gap: 16px; margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line); font-size: .85rem; color: var(--muted); }
+.post-stats span { display: inline-flex; align-items: center; gap: 5px; }
+.reaction-row { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0 4px; }
+.reaction { display: inline-flex; align-items: center; gap: 7px; min-height: var(--tap); padding: 8px 14px; border: 1px solid var(--line); border-radius: 99px; background: var(--white); font-weight: 600; font-size: .9rem; color: var(--deep); }
+.reaction small { font: 500 .8rem "DM Mono", monospace; color: var(--muted); }
+.reaction.is-on { border-color: var(--deep); background: var(--deep); color: var(--white); }
+.reaction.is-on small { color: var(--gold); }
+.post-owner-actions { display: flex; gap: 16px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line); }
+.post-owner-actions .danger { color: #9b3434; }
+
+.comments { margin-top: 26px; }
+.comments h2 { display: flex; align-items: baseline; gap: 8px; }
+.comments h2 small { font: 500 .8rem "DM Mono", monospace; color: var(--muted); }
+.comment-form { display: grid; gap: 10px; justify-items: start; margin: 12px 0 18px; }
+.comment-form .sheet-field { width: 100%; margin: 0; }
+.comment-list { list-style: none; display: grid; gap: 12px; margin: 0; padding: 0; }
+.comment-list li { padding: 12px 14px; border-radius: 14px; background: #eff3ef; }
+.comment-list strong { display: inline-flex; align-items: center; gap: 6px; font-size: .9rem; }
+.comment-list small { margin-left: 8px; font-size: .78rem; color: var(--muted); }
+.comment-list .post-body p, .comment-list div p { margin: 6px 0 0; font-size: .9rem; }
+
+.sheet-field textarea { width: 100%; min-height: 120px; padding: 12px 14px; border: 1.5px solid #c9d4cf; border-radius: 14px; background: var(--white); font: 400 1rem/1.5 "DM Sans", sans-serif; color: var(--ink); resize: vertical; }
+.sheet-field textarea:focus { outline: none; border-color: var(--deep); box-shadow: 0 0 0 3px #f3c54659; }
+.sheet-check { display: flex; align-items: center; gap: 10px; margin: 6px 0 10px; font: 600 .85rem "DM Sans", sans-serif; color: var(--deep); }
+.sheet-check input { width: 20px; height: 20px; }
+.draft-images { display: flex; flex-wrap: wrap; gap: 8px; margin: 6px 0; }
+.draft-images figure { position: relative; margin: 0; }
+.draft-images img { width: 84px; height: 84px; object-fit: cover; border-radius: 12px; }
+.draft-images .icon-button { position: absolute; top: -8px; right: -8px; width: 32px; height: 32px; background: var(--deep); color: var(--white); }
+
+/* Six tabs fit a 360px phone; the labels stay legible by narrowing the gaps. */
+.bottom-nav { padding-left: 2px; padding-right: 2px; }
+.nav-item { max-width: none; font-size: .72rem; letter-spacing: -.01em; }

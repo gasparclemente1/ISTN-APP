@@ -93,6 +93,14 @@ async function handle(request, response) {
     }
   }
 
+  if (url.pathname === '/api/posts') {
+    try {
+      return sendJson(request, response, 200, await publicData.posts({ fresh: url.searchParams.get('novo') === '1' }));
+    } catch {
+      return sendJson(request, response, 502, { error: 'Não foi possível carregar os anúncios.' }, 'no-store');
+    }
+  }
+
   if (url.pathname === '/api/directory') {
     try {
       return sendJson(request, response, 200, await publicData.directory());

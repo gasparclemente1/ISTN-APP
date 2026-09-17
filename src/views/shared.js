@@ -29,6 +29,7 @@ function accountAvatar() {
 
 const NAV = [
   ['home', 'home', 'Início'],
+  ['posts', 'megaphone', 'Anúncios'],
   ['teachings', 'book', 'Ensinos'],
   ['live', 'live', 'Ao vivo'],
   ['churches', 'church', 'Igrejas'],
@@ -36,7 +37,7 @@ const NAV = [
 ];
 
 // Which tab a page belongs to: a church's detail lives under Igrejas.
-const SECTION = { source: 'teachings', church: 'churches' };
+const SECTION = { source: 'teachings', church: 'churches', post: 'posts' };
 
 export function header({ title = '', back = '', action = '' } = {}) {
   const backPath = back ? pathFor(back) : '';
