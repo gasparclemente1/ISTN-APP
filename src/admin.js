@@ -1,13 +1,14 @@
 import { WEEKDAY_LABELS, recurrenceLabel } from './meetings.js';
 import { uploadPhoto } from './upload.js';
 import { badgeTier, isMinisterRole, quietCheck, roleLabel, rolesForGender, servantName, verifiedSeal } from './roles.js';
+import { countryName } from './countries.js';
 
 const root = document.querySelector('#admin');
 const SESSION_KEY = 'elias-admin-session';
 
 const state = {
   config: null, session: null, profile: null,
-  view: 'meetings', meetings: null, churches: null,
+  view: 'meetings', meetings: null, churches: null, claims: null,
   query: '', filter: 'todas', editing: null, meeting: null, servo: null, uploading: false,
   servos: null, services: null, busy: false
 };
@@ -72,7 +73,10 @@ async function rest(path, options = {}, retry = true) {
       throw new Error('A sessão expirou. Entre novamente.');
     }
   }
-  if (!response.ok) throw new Error(`A base de dados respondeu ${response.status}.`);
+  if (!response.ok) {
+    const detail = await response.json().catch(() => null);
+    throw new Error(detail?.message || `A base de dados respondeu ${response.status}.`);
+  }
   return response.status === 204 ? null : response.json();
 }
 
@@ -89,6 +93,14 @@ async function loadMeetings() {
 
 async function loadChurches() {
   state.churches = await rest('churches?select=*&order=country_code.asc,region.asc,locality.asc');
+}
+
+// The requests waiting on the team. Row level security only shows the central
+// team members who asked for something, never the rest of the congregation.
+async function loadClaims() {
+  state.claims = isCentral()
+    ? await rest('app_users?select=id,display_name,photo_url,gender,phone,country_code,city,home_church_id,claimed_role,updated_at&servo_claim_status=eq.pendente&order=updated_at.asc')
+    : [];
 }
 
 async function loadServos() {
@@ -121,9 +133,10 @@ function loginView() {
 
 function shell(content) {
   const role = isCentral() ? 'Equipa central' : 'Editor local';
-  const tabs = [['meetings', 'Reuniões'], ['churches', 'Diretório'], ['servos', 'Servos']]
-    .filter(([id]) => id !== 'meetings' || isCentral())
-    .map(([id, label]) => `<button class="admin-tab ${state.view === id ? 'selected' : ''}" data-view="${id}">${label}</button>`).join('');
+  const pending = state.claims?.length || 0;
+  const tabs = [['meetings', 'Reuniões'], ['churches', 'Diretório'], ['servos', 'Servos'], ['claims', 'Pedidos']]
+    .filter(([id]) => !['meetings', 'claims'].includes(id) || isCentral())
+    .map(([id, label]) => `<button class="admin-tab ${state.view === id ? 'selected' : ''}" data-view="${id}">${label}${id === 'claims' && pending ? `<span class="tab-count">${pending}</span>` : ''}</button>`).join('');
   return `<header class="admin-bar">
       <div><strong>ELIAS · Administração</strong><small>${escapeHtml(state.profile?.full_name || state.session.user.email)} · ${role}</small></div>
       <div class="admin-bar-actions"><a class="text-button" href="/">Ver aplicação</a><button class="button button-outline" data-action="signout">Sair</button></div>
@@ -207,6 +220,52 @@ const churchLabel = (id) => {
   const church = state.churches?.find((item) => item.id === id);
   return church ? (church.locality || church.country || 'Sem nome') : 'Sem igreja';
 };
+
+function claimsView() {
+  if (!isCentral()) return '<p class="admin-empty">Só a equipa central trata pedidos de verificação.</p>';
+  if (!state.claims) return '<p class="admin-empty">A carregar…</p>';
+  const churches = state.churches || [];
+  const servos = state.servos || [];
+  const card = (claim) => {
+    const church = churches.find((item) => item.id === claim.home_church_id);
+    // Existing records this person might already be: same church and role
+    // first, then same church. Linking avoids creating a duplicate servant.
+    const candidates = servos
+      .filter((servo) => servo.church_id === claim.home_church_id)
+      .sort((a, b) => (b.role === claim.claimed_role) - (a.role === claim.claimed_role));
+    const since = new Intl.DateTimeFormat('pt-PT', { day: '2-digit', month: 'short' }).format(new Date(claim.updated_at));
+    return `<article class="claim-card">
+      <div class="claim-head">
+        ${claim.photo_url ? `<img class="claim-photo" src="${escapeHtml(claim.photo_url)}" alt="" />` : `<span class="claim-photo empty">${escapeHtml((claim.display_name || '?').trim().charAt(0).toUpperCase())}</span>`}
+        <div>
+          <strong>${escapeHtml(claim.display_name || 'Sem nome')}</strong>
+          <small>Pede: <b>${escapeHtml(roleLabel(claim.claimed_role))}</b>${isMinisterRole(claim.claimed_role) ? ' · ministro' : ''} · desde ${since}</small>
+        </div>
+      </div>
+      <dl class="claim-facts">
+        <div><dt>Igreja</dt><dd>${escapeHtml(church ? (church.locality || church.country) : '—')}${church?.region ? `, ${escapeHtml(church.region)}` : ''}</dd></div>
+        <div><dt>Género</dt><dd>${escapeHtml({ masculino: 'Masculino', feminino: 'Feminino' }[claim.gender] || '—')}</dd></div>
+        <div><dt>Telefone</dt><dd>${escapeHtml(claim.phone || '—')}</dd></div>
+        <div><dt>Onde vive</dt><dd>${escapeHtml([claim.city, countryName(claim.country_code)].filter(Boolean).join(', ') || '—')}</dd></div>
+      </dl>
+      <label class="claim-link">Ligar a um servo já registado
+        <select data-claim-servo="${claim.id}">
+          <option value="">— Criar um registo novo com estes dados —</option>
+          ${candidates.map((servo) => `<option value="${servo.id}">${escapeHtml(servantName(servo))} · ${escapeHtml(roleLabel(servo.role))}</option>`).join('')}
+        </select>
+      </label>
+      <div class="claim-actions">
+        <button class="button button-outline admin-danger" data-claim-reject="${claim.id}" ${state.busy ? 'disabled' : ''}>Recusar</button>
+        <button class="button button-gold" data-claim-approve="${claim.id}" ${state.busy ? 'disabled' : ''}>Aprovar</button>
+      </div>
+    </article>`;
+  };
+  return `<div class="admin-card">
+    <h2>Pedidos de verificação</h2>
+    <p class="admin-hint">Confirme com a igreja antes de aprovar. Aprovar atribui o selo e mostra a função no perfil da pessoa; recusar deixa-a voltar a pedir.</p>
+    ${state.claims.length ? `<div class="claim-list">${state.claims.map(card).join('')}</div>` : '<p class="admin-empty">Não há pedidos à espera.</p>'}
+  </div>`;
+}
 
 function servosView() {
   if (!state.servos) return '<p class="admin-empty">A carregar…</p>';
@@ -361,7 +420,10 @@ function render() {
     return;
   }
   if (!state.session) { root.innerHTML = loginView(); bind(); return; }
-  const content = state.view === 'meetings' ? meetingsView() : state.view === 'servos' ? servosView() : churchesView();
+  const content = state.view === 'meetings' ? meetingsView()
+    : state.view === 'servos' ? servosView()
+    : state.view === 'claims' ? claimsView()
+    : churchesView();
   root.innerHTML = shell(content) + (state.editing ? churchEditor() : '') + (state.meeting ? meetingEditor() : '') + (state.servo ? servoEditor() : '');
   bind();
 }
@@ -388,6 +450,7 @@ function bind() {
       if (isCentral()) await loadMeetings();
       await loadChurches();
       await loadServos();
+      await loadClaims();
       toast('Sessão iniciada.');
     });
   });
@@ -395,7 +458,7 @@ function bind() {
   root.querySelectorAll('[data-view]').forEach((element) => element.addEventListener('click', () => { state.view = element.dataset.view; render(); }));
   root.querySelectorAll('[data-filter]').forEach((element) => element.addEventListener('click', () => { state.filter = element.dataset.filter; render(); }));
   root.querySelectorAll('[data-action="signout"]').forEach((element) => element.addEventListener('click', () => {
-    writeSession(null); state.profile = null; state.meetings = null; state.churches = null; state.servos = null; render();
+    writeSession(null); state.profile = null; state.meetings = null; state.churches = null; state.servos = null; state.claims = null; render();
   }));
 
   function syncRecurrenceFields() {
@@ -554,6 +617,29 @@ function bind() {
   placeType?.addEventListener('change', syncPlaceType);
   syncPlaceType();
 
+  root.querySelectorAll('[data-claim-approve]').forEach((button) => button.addEventListener('click', () => {
+    const user = button.dataset.claimApprove;
+    const existing = root.querySelector(`[data-claim-servo="${user}"]`)?.value || null;
+    const claim = state.claims.find((item) => item.id === user);
+    const what = existing ? 'ligar esta conta ao servo escolhido' : `criar o servo ${claim?.display_name || ''} como ${roleLabel(claim?.claimed_role)}`;
+    if (!confirm(`Aprovar e ${what}?`)) return;
+    guard(async () => {
+      await rest('rpc/approve_servo_claim', { method: 'POST', body: JSON.stringify({ p_user: user, p_servo: existing }) });
+      await Promise.all([loadClaims(), loadServos()]);
+      toast('Pedido aprovado. O selo já aparece no perfil.');
+    });
+  }));
+
+  root.querySelectorAll('[data-claim-reject]').forEach((button) => button.addEventListener('click', () => {
+    const claim = state.claims.find((item) => item.id === button.dataset.claimReject);
+    if (!confirm(`Recusar o pedido de ${claim?.display_name || 'esta pessoa'}?`)) return;
+    guard(async () => {
+      await rest('rpc/reject_servo_claim', { method: 'POST', body: JSON.stringify({ p_user: button.dataset.claimReject }) });
+      await loadClaims();
+      toast('Pedido recusado.');
+    });
+  }));
+
   const search = document.querySelector('#church-search');
   if (search) search.addEventListener('input', (event) => {
     state.query = event.target.value; render();
@@ -627,6 +713,7 @@ async function start() {
       if (isCentral()) await loadMeetings();
       await loadChurches();
       await loadServos();
+      await loadClaims();
       if (!isCentral()) state.view = 'churches';
     } catch { writeSession(null); }
   }

@@ -30,6 +30,10 @@ export const badgeTier = (role) => byId(role)?.badge || 'neutro';
 export const isMinisterRole = (role) => MINISTER_ROLES.includes(role);
 export const rolesForGender = (gender) => ROLES.filter((role) => role.gender === gender);
 
+// What a member may ask to be verified as. The Apóstolo is left out: there is
+// one, the founder, and the database refuses the request too.
+export const claimableRoles = (gender) => rolesForGender(gender).filter((role) => role.id !== 'apostolo');
+
 // "Bp. Rufino Boaz". The stored name never carries the abbreviation.
 export function servantName(servo) {
   if (!servo?.full_name) return '';
