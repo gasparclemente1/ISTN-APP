@@ -1,6 +1,7 @@
-import { APP_CONFIG, countryNames, loadDirectory, loadLatestVideos, loadMeetings, loadTeachingLibrary } from './data.js';
+import { APP_CONFIG, loadDirectory, loadLatestVideos, loadMeetings, loadTeachingLibrary } from './data.js';
 import { escapeHtml, externalLinkAttrs, whatsAppUrl } from './html.js';
-import { DEFAULT_DURATION_MINUTES, nextMeeting, nextOccurrence, recurrenceLabel, zonedDateParts } from './meetings.js';
+import { nextMeeting, nextOccurrence, recurrenceLabel, zonedDateParts } from './meetings.js';
+import { placeKindLabel, serviceLabel } from './directory.js';
 import { availableProviders, finishSocialSignIn, loadChurchOptions, loadProfile, readSession, register, signIn, signInWithProvider } from './account.js';
 import { bindProfile, profileView } from './profile.js';
 import { verifiedSeal } from './roles.js';
@@ -160,80 +161,15 @@ function relativeDayLabel(start, now = new Date()) {
   return new Intl.DateTimeFormat('pt-PT', { timeZone: TIME_ZONE, weekday: 'long' }).format(start).toUpperCase();
 }
 
-const WEEKDAY_CODES = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'];
-
-function icsStamp(date) {
-  return `${date.toISOString().replace(/[-:]/g, '').split('.')[0]}Z`;
-}
-
-// RFC 5545 caps a content line at 75 octets; continuations start with a space.
-// Measured in UTF-8 bytes so accented characters are never split mid-sequence.
-function foldIcsLine(line) {
-  const encoder = new TextEncoder();
-  if (encoder.encode(line).length <= 75) return line;
-  const parts = [];
-  let current = '';
-  let bytes = 0;
-  for (const char of line) {
-    const size = encoder.encode(char).length;
-    if (bytes + size > (parts.length ? 74 : 75)) { parts.push(current); current = ''; bytes = 0; }
-    current += char;
-    bytes += size;
-  }
-  if (current) parts.push(current);
-  return parts.join('\r\n ');
-}
-// One recurring calendar entry per meeting that has a fixed start time, each
-// with a 15-minute alarm. Times are emitted in UTC, which is exact because
-// Angola has no daylight saving.
-function buildReminderCalendar(meetings) {
-  const now = new Date();
-  const events = meetings
-    .map((meeting) => ({ meeting, occurrence: nextOccurrence(meeting, TIME_ZONE, now) }))
-    .filter(({ occurrence }) => occurrence)
-    .map(({ meeting, occurrence }, index) => {
-      const start = occurrence.start;
-      const end = new Date(start.getTime() + DEFAULT_DURATION_MINUTES * 60000);
-      const rule = meeting.recurrence === 'weekly'
-        ? `RRULE:FREQ=WEEKLY;BYDAY=${(meeting.weekdays || []).map((weekday) => WEEKDAY_CODES[weekday]).join(',')}`
-        : meeting.recurrence === 'monthly_last'
-          ? `RRULE:FREQ=MONTHLY;BYDAY=-1${WEEKDAY_CODES[(meeting.weekdays || [])[0]]}`
-          : meeting.recurrence === 'yearly'
-            ? 'RRULE:FREQ=YEARLY'
-            : '';
-      return [
-        'BEGIN:VEVENT',
-        `UID:elias-istn-sj-${index}-${start.getTime()}@istn-sj`,
-        `DTSTAMP:${icsStamp(now)}`,
-        `DTSTART:${icsStamp(start)}`,
-        `DTEND:${icsStamp(end)}`,
-        ...(rule ? [rule] : []),
-        `SUMMARY:${meeting.title}`,
-        `DESCRIPTION:Hora de Luanda: ${String(meeting.start_time).slice(0, 5)}.${meeting.zoom_meeting_id ? ` ID da reunião ${meeting.zoom_meeting_id}` : ''}`,
-        ...(meeting.zoom_url ? [`URL:${meeting.zoom_url}`] : []),
-        'BEGIN:VALARM',
-        'TRIGGER:-PT15M',
-        'ACTION:DISPLAY',
-        'DESCRIPTION:A reunião começa em 15 minutos',
-        'END:VALARM',
-        'END:VEVENT'
-      ];
-    });
-  const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//ISTN-SJ//ELIAS//PT', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH', ...events.flat(), 'END:VCALENDAR'];
-  return lines.map(foldIcsLine).join('\r\n');
-}
-
+// The server builds the feed from the same meetings, so the file is always
+// current and a subscribed calendar keeps itself up to date.
 function downloadReminder() {
-  if (!state.meetings?.length) { showToast('A programação ainda não carregou.'); return; }
-  const blob = new Blob([buildReminderCalendar(state.meetings)], { type: 'text/calendar;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
   const anchor = document.createElement('a');
-  anchor.href = url;
+  anchor.href = '/calendario.ics';
   anchor.download = 'reunioes-elias-istn-sj.ics';
   document.body.append(anchor);
   anchor.click();
   anchor.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
   showToast('Abra o ficheiro para adicionar os lembretes ao seu calendário.');
 }
 
@@ -353,45 +289,42 @@ function sourceDetail() {
 }
 
 function statusBadge(status = 'needs_review') { return `<span class="status-badge ${status}">${status === 'verified' ? 'Verificado' : 'A confirmar'}</span>`; }
-function churchCard(record, index) {
-  const country = countryNames[record.country_code] || record.country || 'Comunidade online';
-  const place = record.locality || record.country;
-  return `<article class="church-card" data-church="${index}" tabindex="0" role="button"><div class="church-card-top"><span class="church-kind">${record.modality === 'online' ? 'Comunidade online' : 'Local presencial'}</span>${statusBadge(record.verification_status)}</div><h3>ISTN — ${escapeHtml(place)}</h3><p>${icon('pin')} ${escapeHtml(record.region ? `${record.region}, ${country}` : country)}</p>${record.service_day ? `<p>${icon('calendar')} ${escapeHtml(record.service_day)}, ${escapeHtml(record.service_time_local)} (hora local)</p>` : '<p>Horário a confirmar com o responsável</p>'}<div class="church-leader">${icon('user')} ${escapeHtml(record.leader_name || record.contact)}</div><span class="card-arrow">${icon('arrow')}</span></article>`;
+function churchCard(church, index) {
+  const where = church.region ? `${church.region}, ${church.country}` : church.country;
+  return `<article class="church-card" data-church="${index}" tabindex="0" role="button"><div class="church-card-top"><span class="church-kind">${escapeHtml(placeKindLabel(church))}</span>${statusBadge(church.verificationStatus)}</div><h3>ISTN — ${escapeHtml(church.name)}</h3><p>${icon('pin')} ${escapeHtml(where)}</p>${church.services.length ? church.services.map((service) => `<p>${icon('calendar')} ${escapeHtml(serviceLabel(service))} (hora local)</p>`).join('') : '<p>Horário a confirmar com o responsável</p>'}${church.leaderName ? `<div class="church-leader">${icon('user')} ${escapeHtml(church.leaderName)}</div>` : ''}<span class="card-arrow">${icon('arrow')}</span></article>`;
 }
 
 function churches() {
   const directory = state.directory;
   if (!directory) return `${header({ title: 'Igrejas', back: 'home' })}<main class="page-content"><div class="loading-state"><span class="loader"></span><p>A carregar diretório ISTN…</p></div></main>${navigation()}`;
-  const physical = directory.physical.map((item) => ({ ...item, category: 'physical' }));
-  const online = directory.online.map((item) => ({ ...item, category: 'online' }));
-  const items = [...physical, ...online].filter((record) => state.country === 'Todos' || (record.country_code ? countryNames[record.country_code] === state.country : record.country === state.country));
-  const countries = ['Todos', ...new Set([...physical.map((item) => countryNames[item.country_code]), ...online.map((item) => item.country)].filter(Boolean))];
+  const all = directory.churches;
+  const items = all.filter((church) => state.country === 'Todos' || church.country === state.country);
+  const countries = ['Todos', ...new Set(all.map((church) => church.country).filter(Boolean))];
   state.directoryItems = items;
   return `${header({ title: 'Igrejas', back: 'home' })}<main class="page-content">
     <section class="page-intro"><span class="eyebrow">ISTN GLOBAL</span><h1>Encontre a sua comunidade.</h1><p>Use os registos disponíveis para entrar em contacto. Moradas e horários devem ser confirmados com o responsável.</p></section>
     <label class="search-box"><span>${icon('search')}</span><input id="church-search" placeholder="Pesquisar país, região ou localidade" autocomplete="off" /></label>
     <div class="country-select"><label for="country-filter">País</label><select id="country-filter">${countries.map((country) => `<option ${state.country === country ? 'selected' : ''}>${escapeHtml(country)}</option>`).join('')}</select></div>
     <div class="directory-summary"><strong>${items.length}</strong><span>registos operacionais</span><small>Inclui igrejas, casas de oração e comunidades online.</small></div>
-    <div id="church-list" class="church-list">${items.map((record, index) => churchCard(record, index)).join('')}</div>
+    <div id="church-list" class="church-list">${items.map((church, index) => churchCard(church, index)).join('')}</div>
     <aside class="verification-note warning"><span>!</span><p><strong>Dados sujeitos a confirmação.</strong> Esta listagem vem de anúncios operacionais. Não combinámos registos semelhantes nem corrigimos nomes, telefones ou localidades.</p></aside>
   </main>${navigation()}`;
 }
 
 function churchDetail() {
-  const record = state.selectedChurch;
-  const country = countryNames[record.country_code] || record.country;
-  const leader = record.leader_name || record.contact;
-  const phone = record.leader_phone || record.phone;
+  const church = state.selectedChurch;
+  const where = church.region ? `${church.region}, ${church.country}` : church.country;
+  const phone = church.leaderPhone;
   return `${header({ title: 'Comunidade ISTN', back: 'churches' })}<main class="detail-page church-detail">
-    <section class="church-detail-head"><span class="round-icon">${record.modality === 'online' ? icon('globe') : icon('pin')}</span><div><span class="church-kind">${record.modality === 'online' ? 'COMUNIDADE ONLINE' : 'LOCAL PRESENCIAL'}</span><h1>ISTN — ${escapeHtml(record.locality || country)}</h1><p>${escapeHtml(record.region ? `${record.region}, ${country}` : country)}</p></div></section>
-    ${statusBadge(record.verification_status)}
+    <section class="church-detail-head"><span class="round-icon">${church.modality === 'online' ? icon('globe') : icon('pin')}</span><div><span class="church-kind">${escapeHtml(placeKindLabel(church).toUpperCase())}</span><h1>ISTN — ${escapeHtml(church.name)}</h1><p>${escapeHtml(where)}</p></div></section>
+    ${statusBadge(church.verificationStatus)}
     <section class="info-list">
-      <div><span>${icon('calendar')}</span><p><small>REUNIÃO</small><strong>${record.service_day ? `${escapeHtml(record.service_day)}, ${escapeHtml(record.service_time_local || 'hora a confirmar')} (hora local)` : 'Horário a confirmar'}</strong></p></div>
-      <div><span>${icon('user')}</span><p><small>RESPONSÁVEL</small><strong>${escapeHtml(leader)}</strong></p></div>
+      <div><span>${icon('calendar')}</span><p><small>REUNIÃO</small><strong>${church.services.length ? church.services.map((service) => `${escapeHtml(serviceLabel(service))} (hora local)`).join('<br>') : 'Horário a confirmar'}</strong></p></div>
+      <div><span>${icon('user')}</span><p><small>RESPONSÁVEL</small><strong>${escapeHtml(church.leaderName || 'A confirmar')}</strong></p></div>
       <div><span>${icon('phone')}</span><p><small>CONTACTO</small><strong>${escapeHtml(phone || 'A confirmar')}</strong></p></div>
     </section>
     ${whatsAppUrl(phone) ? `<a class="button button-whatsapp full-width" ${link(whatsAppUrl(phone))}>Contactar por WhatsApp <span>${icon('external')}</span></a>` : ''}
-    <aside class="verification-note warning"><span>!</span><p><strong>Confirme antes de se deslocar.</strong> ${escapeHtml(record.source || record.note || 'Este contacto é um registo operacional a confirmar pela equipa local.')}</p></aside>
+    <aside class="verification-note warning"><span>!</span><p><strong>Confirme antes de se deslocar.</strong> ${escapeHtml(church.source || church.note || 'Este contacto é um registo operacional a confirmar pela equipa local.')}</p></aside>
   </main>${navigation()}`;
 }
 
@@ -465,7 +398,10 @@ function bindPage() {
 
   if (state.page === 'profile' && state.profile) bindProfile({ state, render, showToast });
 
-  app.querySelectorAll('[data-action="reminder"]').forEach((element) => element.addEventListener('click', downloadReminder));
+  app.querySelectorAll('[data-action="reminder"]').forEach((element) => element.addEventListener('click', () => {
+    if (state.meetingsError) { showToast('A programação está indisponível neste momento.'); return; }
+    downloadReminder();
+  }));
   app.querySelectorAll('[data-action="retry-meetings"]').forEach((element) => element.addEventListener('click', refreshMeetings));
   app.querySelectorAll('[data-share]').forEach((element) => element.addEventListener('click', () => {
     const teaching = state.teachingLibrary?.find((item) => item.id === element.dataset.share);
@@ -484,7 +420,7 @@ function bindPage() {
   app.querySelectorAll('[data-church]').forEach((element) => { const open = () => { state.selectedChurch = state.directoryItems[Number(element.dataset.church)]; go('churchDetail'); }; element.addEventListener('click', open); element.addEventListener('keydown', (event) => { if (event.key === 'Enter') open(); }); });
 }
 
-loadDirectory().then((directory) => { state.directory = directory; render(); }).catch(() => { state.directory = { physical: [], online: [] }; render(); showToast('Não foi possível carregar o diretório neste momento.'); });
+loadDirectory().then((directory) => { state.directory = directory; render(); }).catch(() => { state.directory = { churches: [] }; render(); showToast('Não foi possível carregar o diretório neste momento.'); });
 function refreshMeetings() {
   state.meetingsError = false;
   return loadMeetings()

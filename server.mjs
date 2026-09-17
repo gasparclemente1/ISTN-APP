@@ -5,10 +5,14 @@ import { resolvePublicPath, isTextType } from './lib/static.mjs';
 import { securityHeaders } from './lib/security.mjs';
 import { supabaseConfig } from './lib/supabase.mjs';
 import { latestVideos } from './lib/youtube.mjs';
+import { createPublicData } from './lib/public-data.mjs';
+import { buildCalendar } from './src/calendar.js';
 
 const root = process.cwd();
 const port = Number(process.env.PORT || 4173);
 const config = supabaseConfig();
+const publicData = createPublicData({ config, root });
+if (!publicData.configured) console.warn('SUPABASE_URL/SUPABASE_PUBLISHABLE_KEY em falta: reuniões indisponíveis e diretório lido dos ficheiros de origem.');
 
 function send(request, response, status, body, headers = {}) {
   response.writeHead(status, headers);
@@ -67,6 +71,37 @@ async function handle(request, response) {
       return sendJson(request, response, 200, payload);
     } catch {
       return sendJson(request, response, 502, { error: 'Não foi possível consultar o YouTube agora.' });
+    }
+  }
+
+  if (url.pathname === '/api/meetings') {
+    try {
+      return sendJson(request, response, 200, await publicData.meetings());
+    } catch (error) {
+      return sendJson(request, response, error.status || 502, { error: 'Não foi possível carregar a programação.' }, 'no-store');
+    }
+  }
+
+  if (url.pathname === '/api/directory') {
+    try {
+      return sendJson(request, response, 200, await publicData.directory());
+    } catch {
+      return sendJson(request, response, 502, { error: 'Não foi possível carregar o diretório.' }, 'no-store');
+    }
+  }
+
+  // A feed a phone's calendar can subscribe to, and re-read on its own when the
+  // team changes a meeting.
+  if (url.pathname === '/calendario.ics') {
+    try {
+      const { meetings } = await publicData.meetings();
+      return send(request, response, 200, buildCalendar(meetings), {
+        'Content-Type': 'text/calendar; charset=utf-8',
+        'Content-Disposition': 'inline; filename="reunioes-elias-istn-sj.ics"',
+        'Cache-Control': 'no-cache'
+      });
+    } catch (error) {
+      return send(request, response, error.status || 502, 'Programação indisponível.', { 'Content-Type': 'text/plain; charset=utf-8' });
     }
   }
 
