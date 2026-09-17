@@ -39,8 +39,14 @@ export async function signIn(email, password) {
   return session;
 }
 
+// Where the confirmation email's link brings the person back. Without it,
+// Supabase uses the project's Site URL, which is http://localhost:3000 until
+// someone changes it — so the link opened a page that does not exist. Supabase
+// only honours an address listed in its Redirect URLs (see DEPLOY.md).
+export const authReturnUrl = () => `${location.origin}/perfil`;
+
 export async function register(email, password) {
-  const result = await auth('signup', { email, password });
+  const result = await auth(`signup?redirect_to=${encodeURIComponent(authReturnUrl())}`, { email, password });
   // Supabase devolve sessão imediata quando a confirmação de email está desligada.
   if (result?.access_token) { writeSession(result); return result; }
   return null;
@@ -63,7 +69,7 @@ export async function availableProviders() {
 export async function signInWithProvider(provider) {
   const { supabaseUrl } = await backendConfig();
   if (!supabaseUrl) throw new Error('As contas ainda não estão configuradas neste servidor.');
-  const back = encodeURIComponent(`${location.origin}/`);
+  const back = encodeURIComponent(authReturnUrl());
   location.href = `${supabaseUrl}/auth/v1/authorize?provider=${encodeURIComponent(provider)}&redirect_to=${back}`;
 }
 
@@ -77,6 +83,9 @@ export async function finishSocialSignIn() {
   const accessToken = params.get('access_token');
   if (!accessToken && !error) return null;
   history.replaceState(null, '', location.pathname + location.search);
+  if (params.get('error_code') === 'otp_expired') {
+    throw new Error('Este link de confirmação já foi usado ou expirou. Entre com o seu email e palavra-passe.');
+  }
   if (error) throw new Error(decodeURIComponent(error.replace(/\+/g, ' ')));
 
   const { supabaseUrl, supabaseKey } = await backendConfig();
@@ -87,7 +96,8 @@ export async function finishSocialSignIn() {
   const user = await response.json();
   const session = { access_token: accessToken, refresh_token: params.get('refresh_token'), user };
   writeSession(session);
-  return session;
+  // "signup" when the person arrived from the confirmation email.
+  return { ...session, arrivedFrom: params.get('type') || 'provider' };
 }
 
 async function rest(path, options = {}, session = readSession()) {

@@ -60,6 +60,8 @@ não invente funções nem presuma equivalências que não existem.
 ## Consequências para a aplicação
 
 - Usar **igreja**, nunca «congregação», em texto visível ao utilizador.
+- Nunca chamar **ministério** à igreja. «Ministério» é individual: é o de uma
+  pessoa. Os canais do YouTube são «Canais do YouTube», não «do ministério».
 - O diretório ainda não distingue igreja de casa de oração. Enquanto não o
   fizer, não deve afirmar que um registo é uma igreja.
 - Os nomes dos responsáveis nos dados trazem abreviaturas de função (`Bp.`,

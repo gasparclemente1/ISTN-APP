@@ -3,7 +3,7 @@ import { createServer } from 'node:http';
 import { createGzip, gzipSync } from 'node:zlib';
 import { resolvePublicPath, isTextType } from './lib/static.mjs';
 import { securityHeaders } from './lib/security.mjs';
-import { supabaseConfig } from './lib/supabase.mjs';
+import { createProviderLookup, supabaseConfig } from './lib/supabase.mjs';
 import { latestVideos } from './lib/youtube.mjs';
 import { createPublicData } from './lib/public-data.mjs';
 import { buildCalendar } from './src/calendar.js';
@@ -15,6 +15,7 @@ loadEnvFile(root);
 const port = Number(process.env.PORT || 4173);
 const config = supabaseConfig();
 const publicData = createPublicData({ config, root });
+const signInProviders = createProviderLookup(config);
 if (!publicData.configured) console.warn('SUPABASE_URL/SUPABASE_PUBLISHABLE_KEY em falta: reuniões indisponíveis e diretório lido dos ficheiros de origem.');
 
 function send(request, response, status, body, headers = {}) {
@@ -119,7 +120,7 @@ async function handle(request, response) {
   // what protects the data. It comes from the environment so that rotating it
   // does not require a commit.
   if (url.pathname === '/api/config') {
-    return sendJson(request, response, 200, config, 'no-store');
+    return sendJson(request, response, 200, { ...config, providers: await signInProviders() }, 'no-store');
   }
 
   if (url.pathname === '/sw.js') {
