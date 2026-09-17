@@ -7,29 +7,13 @@ import { ISTN_COUNTRIES, countryList, countryName } from './countries.js';
 import { claimableRoles, isMinisterRole, roleLabel, verifiedSeal } from './roles.js';
 import { uploadPhoto } from './upload.js';
 import { safeUrl } from './html.js';
+import { icon } from './icons.js';
 
 const LANGUAGES = [
   ['pt', 'Português'], ['fr', 'Français'], ['en', 'English'], ['es', 'Español']
 ];
 
-// Line icons drawn to one grid, so the menu reads as a set.
-const ICONS = {
-  user: '<circle cx="12" cy="8" r="3.6"/><path d="M4.8 19.5c1.2-3.4 4-5.2 7.2-5.2s6 1.8 7.2 5.2"/>',
-  camera: '<path d="M4 8.5h3l1.6-2.3h6.8L17 8.5h3v10H4z"/><circle cx="12" cy="13.2" r="3.2"/>',
-  gender: '<circle cx="12" cy="9" r="4.2"/><path d="M12 13.2V20M9 17h6"/>',
-  phone: '<path d="M6.5 4h3l1.5 4-2 1.3a10 10 0 0 0 5.7 5.7L16 13l4 1.5v3A2 2 0 0 1 18 19.5C10.5 19 5 13.5 4.5 6A2 2 0 0 1 6.5 4z"/>',
-  globe: '<circle cx="12" cy="12" r="8"/><path d="M4 12h16M12 4c2.4 2.3 3.6 5 3.6 8s-1.2 5.7-3.6 8c-2.4-2.3-3.6-5-3.6-8s1.2-5.7 3.6-8z"/>',
-  pin: '<path d="M12 20.5s-6.2-5.6-6.2-10.6a6.2 6.2 0 0 1 12.4 0c0 5-6.2 10.6-6.2 10.6z"/><circle cx="12" cy="9.9" r="2.3"/>',
-  church: '<path d="M12 3v4M10 5h4M6.5 20.5V11L12 7l5.5 4v9.5M4 20.5h16"/><path d="M10.2 20.5v-4a1.8 1.8 0 0 1 3.6 0v4"/>',
-  badge: '<path d="M12 3.5l2.2 1.6 2.7-.2.9 2.6 2.2 1.6-.9 2.6.9 2.6-2.2 1.6-.9 2.6-2.7-.2L12 20.5l-2.2-1.6-2.7.2-.9-2.6-2.2-1.6.9-2.6-.9-2.6 2.2-1.6.9-2.6 2.7.2z"/><path d="M8.8 12.2l2.2 2.2 4.2-4.4"/>',
-  language: '<path d="M4 6h9M8.5 4v2M6 6c.6 3.6 3 6.4 6 8M11 6c-.8 3.8-3.4 6.8-7 8.5"/><path d="M13 20l3.5-9 3.5 9M14.2 17h4.6"/>',
-  bell: '<path d="M6.5 16.5V11a5.5 5.5 0 0 1 11 0v5.5l1.5 1.5H5z"/><path d="M10 20a2.2 2.2 0 0 0 4 0"/>',
-  mail: '<rect x="3.8" y="6" width="16.4" height="12" rx="2"/><path d="M4.5 7l7.5 6 7.5-6"/>',
-  logout: '<path d="M14 5H6.5v14H14"/><path d="M11 12h9M17 8.5l3.5 3.5-3.5 3.5"/>',
-  chevron: '<path d="M9.5 6l6 6-6 6"/>'
-};
-
-const svg = (name, size = 20) => `<svg class="ui-icon" viewBox="0 0 24 24" width="${size}" height="${size}" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICONS[name]}</svg>`;
+const svg = (name, size = 20) => icon(name, { size });
 
 const initials = (name = '') => name.trim().split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join('').toUpperCase() || '·';
 
@@ -46,7 +30,7 @@ function churchLabel(church, withContext = false) {
 // defaults, so they are never "missing".
 const COMPLETENESS = ['display_name', 'photo_url', 'gender', 'phone', 'country_code', 'city', 'home_church_id'];
 
-export function profileView({ state, escapeHtml, header, navigation }) {
+export function profileView({ state, escapeHtml, header, navigation, extraSection = '' }) {
   const profile = state.profile;
   const badge = badgeFor(profile);
   const churches = state.churchOptions || [];
@@ -80,7 +64,7 @@ export function profileView({ state, escapeHtml, header, navigation }) {
     </button>
   </li>`;
 
-  return `${header({ title: 'Perfil', back: 'home' })}<main class="page-content profile-page">
+  return `${header({ title: 'Perfil', back: 'home' })}<main id="conteudo" class="page-content profile-page" tabindex="-1">
     <section class="profile-card">
       <label class="profile-avatar ${state.uploading ? 'is-busy' : ''}" aria-label="Alterar fotografia">
         ${safeUrl(profile.photo_url) ? `<img src="${escapeHtml(safeUrl(profile.photo_url))}" alt="" />` : `<span class="profile-initials">${escapeHtml(initials(profile.display_name))}</span>`}
@@ -134,6 +118,8 @@ export function profileView({ state, escapeHtml, header, navigation }) {
         </li>
       </ul>
     </section>
+
+    ${extraSection}
 
     <section class="menu-group">
       <h2 class="menu-heading">Conta</h2>

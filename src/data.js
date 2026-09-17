@@ -29,7 +29,7 @@ export function backendConfig() {
 // room that is not the meeting. The server says so with an error instead.
 export async function loadMeetings() {
   const response = await fetch('/api/meetings');
-  if (!response.ok) throw new Error('Não foi possível carregar as reuniões.');
+  if (!response.ok) throw Object.assign(new Error('Não foi possível carregar as reuniões.'), { status: response.status });
   return (await response.json()).meetings;
 }
 

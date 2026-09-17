@@ -74,7 +74,9 @@ async function rest(path, options = {}, retry = true) {
     const detail = await response.json().catch(() => null);
     throw new Error(detail?.message || `A base de dados respondeu ${response.status}.`);
   }
-  return response.status === 204 ? null : response.json();
+  // return=minimal answers 201 with an empty body, which is not JSON.
+  const text = await response.text();
+  return text ? JSON.parse(text) : null;
 }
 
 // ------------------------------------------------------------------ dados --

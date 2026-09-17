@@ -7,6 +7,7 @@ import { supabaseConfig } from './lib/supabase.mjs';
 import { latestVideos } from './lib/youtube.mjs';
 import { createPublicData } from './lib/public-data.mjs';
 import { buildCalendar } from './src/calendar.js';
+import { serviceWorkerScript } from './lib/service-worker.mjs';
 
 const root = process.cwd();
 const port = Number(process.env.PORT || 4173);
@@ -110,6 +111,10 @@ async function handle(request, response) {
   // does not require a commit.
   if (url.pathname === '/api/config') {
     return sendJson(request, response, 200, config, 'no-store');
+  }
+
+  if (url.pathname === '/sw.js') {
+    return send(request, response, 200, serviceWorkerScript(root), { 'Content-Type': 'text/javascript; charset=utf-8', 'Cache-Control': 'no-cache' });
   }
 
   const resolved = resolvePublicPath(root, url.pathname);
