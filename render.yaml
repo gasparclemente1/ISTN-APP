@@ -1,3 +1,6 @@
+# Render blueprint. Every push to main is built and deployed.
+# Before merging a change that adds a file under supabase/migrations, run that
+# migration in the Supabase SQL editor — see DEPLOY.md.
 services:
   - type: web
     name: elias-istn-sj
@@ -5,7 +8,17 @@ services:
     plan: free
     region: frankfurt
     branch: main
-    buildCommand: npm run check
+    buildCommand: npm run check && npm test
     startCommand: npm start
-    healthCheckPath: /
+    healthCheckPath: /healthz
     autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: "20"
+      # Set in the Render dashboard, never in this file.
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_PUBLISHABLE_KEY
+        sync: false
+      - key: SUPABASE_OAUTH_PROVIDERS
+        sync: false

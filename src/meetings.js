@@ -24,6 +24,13 @@ export function zonedDateParts(date, timeZone) {
   return { year: Number(parts.year), month: Number(parts.month), day: Number(parts.day) };
 }
 
+// The wall clock in `timeZone` at `date`, down to the minute.
+export function zonedDateTimeParts(date, timeZone) {
+  const parts = Object.fromEntries(new Intl.DateTimeFormat('en-US', { timeZone, hour12: false, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
+    .formatToParts(date).map((part) => [part.type, part.value]));
+  return { year: Number(parts.year), month: Number(parts.month), day: Number(parts.day), hour: Number(parts.hour) % 24, minute: Number(parts.minute) };
+}
+
 const atUtc = (year, month, day) => new Date(Date.UTC(year, month - 1, day));
 
 // The last given weekday of a month, e.g. the last Saturday of March.
@@ -97,6 +104,17 @@ export function upcomingMeetings(meetings, timeZone, now = new Date()) {
     .map((meeting) => nextOccurrence(meeting, timeZone, now))
     .filter(Boolean)
     .sort((a, b) => a.start - b.start);
+}
+
+// Meetings with no fixed start that fall on today's date, such as the general
+// live on Tuesdays, which begins after the ministers' live. They cannot be
+// counted down to, but on their day the app should still say they happen.
+export function untimedMeetingsOn(meetings, timeZone, now = new Date()) {
+  const today = zonedDateParts(now, timeZone);
+  const key = Date.UTC(today.year, today.month - 1, today.day);
+  return (meetings || [])
+    .filter((meeting) => meeting.active !== false && !parseTime(meeting.start_time) && meeting.time_note)
+    .filter((meeting) => candidateDates(meeting, today).some((date) => date.getTime() === key));
 }
 
 export function nextMeeting(meetings, timeZone, now = new Date()) {

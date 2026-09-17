@@ -93,6 +93,9 @@ export async function finishSocialSignIn() {
 
 async function rest(path, options = {}, session = readSession()) {
   const { supabaseUrl, supabaseKey } = await backendConfig();
+  // Without a project there is nothing to ask; a relative /rest/v1 request would
+  // only reach this server and fail with a confusing 404.
+  if (!supabaseUrl) throw new Error('As contas ainda não estão configuradas neste servidor.');
   const response = await fetch(`${supabaseUrl}/rest/v1/${path}`, {
     ...options,
     headers: {
@@ -102,8 +105,10 @@ async function rest(path, options = {}, session = readSession()) {
       ...options.headers
     }
   });
-  if (!response.ok) throw new Error(`A base de dados respondeu ${response.status}.`);
-  return response.status === 204 ? null : response.json();
+  if (!response.ok) throw Object.assign(new Error(`A base de dados respondeu ${response.status}.`), { status: response.status });
+  // return=minimal answers 201 with an empty body, which is not JSON.
+  const text = await response.text();
+  return text ? JSON.parse(text) : null;
 }
 
 // Reads the member's row, creating it on first sign-in. The badge is read from
@@ -132,6 +137,41 @@ export async function saveProfile(changes, session = readSession()) {
     method: 'PATCH',
     headers: { Prefer: 'return=representation' },
     body: JSON.stringify(changes)
+  }, session);
+  return rows?.[0] || null;
+}
+
+// Saved teachings follow the account across devices. The device keeps its own
+// copy too (src/prefs.js), so they still work signed out or offline.
+export async function loadFavorites(session = readSession()) {
+  const rows = await rest('favorites?select=teaching_id', {}, session);
+  return rows.map((row) => row.teaching_id);
+}
+
+export async function addFavorite(teachingId, session = readSession()) {
+  await rest('favorites?on_conflict=user_id,teaching_id', {
+    method: 'POST',
+    headers: { Prefer: 'resolution=ignore-duplicates,return=minimal' },
+    body: JSON.stringify({ user_id: session.user.id, teaching_id: teachingId })
+  }, session);
+}
+
+export async function removeFavorite(teachingId, session = readSession()) {
+  await rest(`favorites?user_id=eq.${session.user.id}&teaching_id=eq.${encodeURIComponent(teachingId)}`, { method: 'DELETE' }, session);
+}
+
+// A verified servant's own number in the directory. Private unless they turn
+// it on here; the database lets nobody else turn it on (migration 007).
+export async function loadServoContact(servoId, session = readSession()) {
+  const rows = await rest(`servo_contacts?select=phone,phone_public&servo_id=eq.${servoId}`, {}, session);
+  return rows[0] || null;
+}
+
+export async function saveServoContact(servoId, changes, session = readSession()) {
+  const rows = await rest('servo_contacts?on_conflict=servo_id', {
+    method: 'POST',
+    headers: { Prefer: 'resolution=merge-duplicates,return=representation' },
+    body: JSON.stringify({ servo_id: servoId, ...changes })
   }, session);
   return rows?.[0] || null;
 }

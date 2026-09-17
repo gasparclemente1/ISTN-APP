@@ -2,33 +2,18 @@
 // below, each row opening a sheet that edits one thing. One field per sheet
 // keeps every save small, and nobody has to scroll a long form to change a
 // phone number.
-import { badgeFor, saveProfile, signOut } from './account.js';
+import { badgeFor, saveProfile, saveServoContact, signOut } from './account.js';
 import { ISTN_COUNTRIES, countryList, countryName } from './countries.js';
 import { claimableRoles, isMinisterRole, roleLabel, verifiedSeal } from './roles.js';
 import { uploadPhoto } from './upload.js';
+import { safeUrl } from './html.js';
+import { icon } from './icons.js';
 
 const LANGUAGES = [
   ['pt', 'Português'], ['fr', 'Français'], ['en', 'English'], ['es', 'Español']
 ];
 
-// Line icons drawn to one grid, so the menu reads as a set.
-const ICONS = {
-  user: '<circle cx="12" cy="8" r="3.6"/><path d="M4.8 19.5c1.2-3.4 4-5.2 7.2-5.2s6 1.8 7.2 5.2"/>',
-  camera: '<path d="M4 8.5h3l1.6-2.3h6.8L17 8.5h3v10H4z"/><circle cx="12" cy="13.2" r="3.2"/>',
-  gender: '<circle cx="12" cy="9" r="4.2"/><path d="M12 13.2V20M9 17h6"/>',
-  phone: '<path d="M6.5 4h3l1.5 4-2 1.3a10 10 0 0 0 5.7 5.7L16 13l4 1.5v3A2 2 0 0 1 18 19.5C10.5 19 5 13.5 4.5 6A2 2 0 0 1 6.5 4z"/>',
-  globe: '<circle cx="12" cy="12" r="8"/><path d="M4 12h16M12 4c2.4 2.3 3.6 5 3.6 8s-1.2 5.7-3.6 8c-2.4-2.3-3.6-5-3.6-8s1.2-5.7 3.6-8z"/>',
-  pin: '<path d="M12 20.5s-6.2-5.6-6.2-10.6a6.2 6.2 0 0 1 12.4 0c0 5-6.2 10.6-6.2 10.6z"/><circle cx="12" cy="9.9" r="2.3"/>',
-  church: '<path d="M12 3v4M10 5h4M6.5 20.5V11L12 7l5.5 4v9.5M4 20.5h16"/><path d="M10.2 20.5v-4a1.8 1.8 0 0 1 3.6 0v4"/>',
-  badge: '<path d="M12 3.5l2.2 1.6 2.7-.2.9 2.6 2.2 1.6-.9 2.6.9 2.6-2.2 1.6-.9 2.6-2.7-.2L12 20.5l-2.2-1.6-2.7.2-.9-2.6-2.2-1.6.9-2.6-.9-2.6 2.2-1.6.9-2.6 2.7.2z"/><path d="M8.8 12.2l2.2 2.2 4.2-4.4"/>',
-  language: '<path d="M4 6h9M8.5 4v2M6 6c.6 3.6 3 6.4 6 8M11 6c-.8 3.8-3.4 6.8-7 8.5"/><path d="M13 20l3.5-9 3.5 9M14.2 17h4.6"/>',
-  bell: '<path d="M6.5 16.5V11a5.5 5.5 0 0 1 11 0v5.5l1.5 1.5H5z"/><path d="M10 20a2.2 2.2 0 0 0 4 0"/>',
-  mail: '<rect x="3.8" y="6" width="16.4" height="12" rx="2"/><path d="M4.5 7l7.5 6 7.5-6"/>',
-  logout: '<path d="M14 5H6.5v14H14"/><path d="M11 12h9M17 8.5l3.5 3.5-3.5 3.5"/>',
-  chevron: '<path d="M9.5 6l6 6-6 6"/>'
-};
-
-const svg = (name, size = 20) => `<svg class="ui-icon" viewBox="0 0 24 24" width="${size}" height="${size}" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICONS[name]}</svg>`;
+const svg = (name, size = 20) => icon(name, { size });
 
 const initials = (name = '') => name.trim().split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join('').toUpperCase() || '·';
 
@@ -45,7 +30,7 @@ function churchLabel(church, withContext = false) {
 // defaults, so they are never "missing".
 const COMPLETENESS = ['display_name', 'photo_url', 'gender', 'phone', 'country_code', 'city', 'home_church_id'];
 
-export function profileView({ state, escapeHtml, header, navigation }) {
+export function profileView({ state, escapeHtml, header, navigation, extraSection = '' }) {
   const profile = state.profile;
   const badge = badgeFor(profile);
   const churches = state.churchOptions || [];
@@ -79,10 +64,10 @@ export function profileView({ state, escapeHtml, header, navigation }) {
     </button>
   </li>`;
 
-  return `${header({ title: 'Perfil', back: 'home' })}<main class="page-content profile-page">
+  return `${header({ title: 'Perfil', back: 'home' })}<main id="conteudo" class="page-content profile-page" tabindex="-1">
     <section class="profile-card">
       <label class="profile-avatar ${state.uploading ? 'is-busy' : ''}" aria-label="Alterar fotografia">
-        ${profile.photo_url ? `<img src="${escapeHtml(profile.photo_url)}" alt="" />` : `<span class="profile-initials">${escapeHtml(initials(profile.display_name))}</span>`}
+        ${safeUrl(profile.photo_url) ? `<img src="${escapeHtml(safeUrl(profile.photo_url))}" alt="" />` : `<span class="profile-initials">${escapeHtml(initials(profile.display_name))}</span>`}
         <span class="profile-avatar-action">${state.uploading ? '<i class="loader"></i>' : svg('camera', 16)}</span>
         <input type="file" accept="image/jpeg,image/png,image/webp" data-profile-photo ${state.uploading ? 'disabled' : ''} />
       </label>
@@ -117,7 +102,11 @@ export function profileView({ state, escapeHtml, header, navigation }) {
       <h2 class="menu-heading">Serviço na ISTN</h2>
       <ul class="menu-list">
         ${row('service', 'badge', 'Função', serviceValue, 'blue')}
+        ${claim === 'aprovado' && profile.servo_id ? phoneVisibilityRow({ state, escapeHtml }) : ''}
       </ul>
+      ${claim === 'aprovado' && profile.servo_id ? `<p class="menu-footnote">${state.servoContact?.phone_public
+        ? `O seu número (${escapeHtml(state.servoContact.phone || profile.phone || '')}) aparece junto do seu nome na página da igreja.`
+        : 'O seu número está privado: só a equipa ISTN-SJ o vê. A escolha é sua.'}</p>` : ''}
     </section>
 
     <section class="menu-group">
@@ -134,6 +123,8 @@ export function profileView({ state, escapeHtml, header, navigation }) {
       </ul>
     </section>
 
+    ${extraSection}
+
     <section class="menu-group">
       <h2 class="menu-heading">Conta</h2>
       <ul class="menu-list">
@@ -149,6 +140,20 @@ export function profileView({ state, escapeHtml, header, navigation }) {
       </ul>
     </section>
   </main>${state.profileSheet ? sheetView({ state, escapeHtml }) : ''}${navigation()}`;
+}
+
+// Whether a verified servant's number shows in the public directory. The
+// default is private, and only the servant can change it.
+function phoneVisibilityRow({ state }) {
+  const phone = state.servoContact?.phone || state.profile.phone;
+  const on = Boolean(state.servoContact?.phone_public);
+  return `<li><div class="menu-row is-static">
+    <span class="menu-icon tone-blue">${svg('phone')}</span>
+    <span class="menu-label">Mostrar o meu número</span>
+    ${phone
+      ? `<button class="switch" role="switch" aria-checked="${on}" aria-label="Mostrar o meu número no diretório" data-servo-phone-toggle ${state.servoContactLoading ? 'disabled' : ''}><i></i></button>`
+      : '<span class="menu-value empty">Indique primeiro o telefone</span>'}
+  </div></li>`;
 }
 
 // ------------------------------------------------------------ as folhas ----
@@ -374,6 +379,12 @@ export function bindProfile({ state, render, showToast }) {
       language: { language: values.language || 'pt' }
     }[key];
     if (key === 'display_name' && !changes.display_name) { showToast('O nome não pode ficar vazio.'); return; }
+    // A servant who chose to show their number shows the one they just gave.
+    if (key === 'phone' && state.servoContact?.phone_public && changes.phone && state.profile.servo_id) {
+      saveServoContact(state.profile.servo_id, { phone: changes.phone }, state.session)
+        .then((contact) => { if (contact) state.servoContact = contact; })
+        .catch(() => showToast('O telefone foi guardado, mas o do diretório não foi atualizado.'));
+    }
     if (changes) save(changes, 'Guardado.');
   });
 
@@ -389,6 +400,21 @@ export function bindProfile({ state, render, showToast }) {
       .then((profile) => { state.profile = profile || state.profile; })
       .catch((error) => { toggle.setAttribute('aria-checked', String(!next)); showToast(error.message); });
   }));
+
+  document.querySelector('[data-servo-phone-toggle]')?.addEventListener('click', async (event) => {
+    const toggle = event.currentTarget;
+    const next = toggle.getAttribute('aria-checked') !== 'true';
+    const phone = state.servoContact?.phone || state.profile.phone;
+    toggle.setAttribute('aria-checked', String(next));
+    try {
+      state.servoContact = await saveServoContact(state.profile.servo_id, { phone, phone_public: next }, state.session) || state.servoContact;
+      showToast(next ? 'O seu número passa a aparecer no diretório.' : 'O seu número deixou de aparecer no diretório.');
+    } catch (error) {
+      toggle.setAttribute('aria-checked', String(!next));
+      showToast(error.message);
+    }
+    render();
+  });
 
   document.querySelector('[data-profile-photo]')?.addEventListener('change', async (event) => {
     const file = event.target.files?.[0];

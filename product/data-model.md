@@ -51,7 +51,7 @@ tratadas; nenhuma imagem deve entrar sem passar por
 
 ---
 
-## Horário de culto — `church_services` · **falta**
+## Horário de culto — `church_services` · existe
 
 Uma igreja pode ter culto ao sábado **e** ao domingo. Hoje há um par de campos
 únicos, que só sabe guardar um.
@@ -63,6 +63,10 @@ Uma igreja pode ter culto ao sábado **e** ao domingo. Hoje há um par de campos
 | `weekday` | Domingo é 0. |
 | `start_time` | Hora **local do lugar**, não de Luanda. |
 | `label` | Opcional: «Culto dos servos», «Vigília». |
+
+O painel grava a lista inteira com `replace_church_services` (migração 008), numa
+só transação: se a gravação falhar, os horários anteriores ficam. Uma linha sem
+hora («Domingo, hora por saber») é guardada, não descartada.
 
 Substitui `service_day` e `service_time_local`, que devem ser migrados antes de
 saírem.
@@ -91,7 +95,7 @@ aquelas são presenciais, de cada lugar.
 
 ---
 
-## Servo — `servos` · **falta**
+## Servo — `servos` · existe
 
 | Campo | Tipo | Notas |
 | --- | --- | --- |
@@ -100,7 +104,7 @@ aquelas são presenciais, de cada lugar.
 | `gender` | text | `masculino` ou `feminino`. |
 | `role` | text | `apostolo`, `bispo`, `bispo_auxiliar`, `pastor`, `pastor_auxiliar`, `discipulo`, `obreiro`, `futuro_obreiro`, `dona`, `obreira`, `futura_obreira`. |
 | `is_minister` | boolean | **Coluna gerada.** Verdadeira de discípulo para cima. |
-| `phone` | text | |
+| `phone` | text | **Em `servo_contacts`** desde a migração 007. Privado por omissão: a equipa lê-o; o público só o vê se o próprio servo ligar «Mostrar o meu número» (`phone_public`) na sua conta verificada. A equipa não pode tornar um número público, e um número mudado pela equipa volta a ser privado. |
 | `church_id` | uuid | Onde serve. |
 | `photo_url` | text | |
 | `created_at` | timestamptz | |
@@ -222,6 +226,9 @@ obreiro. São três identidades distintas — `admin_profiles`, `servos`,
 ---
 
 ## Registo de alterações — `audit_log` · existe
+
+A equipa central consulta-o no separador **Histórico** do painel. As linhas de
+`app_users` não aparecem ali, pela mesma razão de privacidade descrita acima.
 
 Escrito por gatilho, não por código da aplicação, para que nenhum caminho de
 edição o consiga contornar. Guarda tabela, registo, ação, autor, momento, e a

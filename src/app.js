@@ -1,513 +1,343 @@
-import { APP_CONFIG, countryNames, loadDirectory, loadLatestVideos, loadMeetings, loadTeachingLibrary, toWhatsApp } from './data.js';
-import { DEFAULT_DURATION_MINUTES, nextMeeting, nextOccurrence, recurrenceLabel, zonedDateParts } from './meetings.js';
-import { availableProviders, finishSocialSignIn, loadChurchOptions, loadProfile, readSession, register, signIn, signInWithProvider } from './account.js';
-import { bindProfile, profileView } from './profile.js';
-import { verifiedSeal } from './roles.js';
-
-// Confirmed with the ISTN-SJ team: every announced time is Luanda time.
-const TIME_ZONE = 'Africa/Luanda';
+// The public app: state, data loading, routing and interaction. Pages are drawn
+// by the modules in ./views from the state kept here.
+import { APP_CONFIG, backendConfig, loadDirectory, loadLatestVideos, loadMeetings, loadTeachingLibrary } from './data.js';
+import { addFavorite, availableProviders, finishSocialSignIn, loadChurchOptions, loadFavorites, loadProfile, readSession, register, removeFavorite, saveProfile, signIn, signInWithProvider, signOut, loadServoContact } from './account.js';
+import { announce, copyText, debounce, renderInto, toast } from './dom.js';
+import { filterChurches } from './directory.js';
+import { filterTeachings } from './library.js';
+import { nextMeeting } from './meetings.js';
+import { prefs } from './prefs.js';
+import { registerServiceWorker } from './pwa.js';
+import { startRouter } from './router.js';
+import { churchPage, churchResults, churchesPage } from './views/churches.js';
+import { homePage } from './views/home.js';
+import { liveStatus, livePage } from './views/live.js';
+import { bindProfile, profilePage } from './views/profile.js';
+import { TIME_ZONE } from './views/shared.js';
+import { sourcePage, teachingResults, teachingsPage } from './views/teachings.js';
 
 const app = document.querySelector('#app');
-const state = { page: 'home', query: '', category: 'Todas', year: 'Todos', book: 'Todos', sort: 'recent', teachingPage: 1, teachingLibrary: null, directory: null, selectedChurch: null, selectedSource: null, country: 'Todos', latestVideos: {}, videosLoading: true, meetings: null, meetingsError: false, session: null, profile: null, authMode: 'entrar', churchOptions: null, providers: null, uploading: false, profileSheet: null, sheetGender: null, sheetChurch: null, profileSaving: false };
-const TEACHING_CATEGORIES = ['Todas', 'Cultos', 'Cultos dos servos', 'Lives', 'Especiais'];
-const BOOK_SPELLING_FIXES = { 'Galátas': 'Gálatas', 'Exôdo': 'Êxodo', '1Timóteo': '1 Timóteo' };
-const icon = (name) => ({ home: '⌂', teachings: '◫', live: '◉', churches: '⌖', profile: '◌', search: '⌕', arrow: '→', play: '▶', back: '←', calendar: '◷', pin: '⌖', user: '♙', check: '✓', phone: '☎', external: '↗', bell: '♧', globe: '◎', share: '⤴' }[name] || '•');
 
-function escapeHtml(value = '') { return String(value).replace(/[&<>'"]/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[char])); }
-function link(url) { return url ? `target="_blank" rel="noreferrer" href="${url}"` : ''; }
+const state = {
+  route: { name: 'home', params: {}, search: new URLSearchParams() },
+  teachings: null, teachingsError: false,
+  teachingFilters: { query: '', category: 'Todas', year: '', book: '', sort: 'recent', savedOnly: false, page: 1 },
+  directory: null, directoryError: false,
+  churchFilters: { query: '', country: '', region: '' },
+  meetings: null, meetingsError: false,
+  latestVideos: {}, videosLoading: true,
+  accountsAvailable: false, authMode: 'entrar', authBusy: false, providers: null,
+  session: null, profile: null, churchOptions: null, servoContact: null,
+  uploading: false, profileSheet: null, sheetGender: null, sheetChurch: null, profileSaving: false
+};
 
-function header({ back = false, title = '', action = '' } = {}) {
-  return `<header class="topbar">
-    <button class="brand" data-page="home" aria-label="Página inicial"><span class="brand-sun">✦</span><span>ELIAS <small>ISTN-SJ</small></span></button>
-    ${title ? `<div class="page-title">${back ? `<button class="icon-button" data-page="${back}" aria-label="Voltar">${icon('back')}</button>` : ''}<strong>${title}</strong></div>` : ''}
-    ${action}
-  </header>`;
-}
+// ------------------------------------------------------------- desenho ----
 
-function navigation() {
-  const items = [['home', 'home', 'Início'], ['teachings', 'teachings', 'Lives'], ['live', 'live', 'Ao vivo'], ['churches', 'churches', 'Igrejas'], ['profile', 'profile', 'Perfil']];
-  return `<nav class="bottom-nav" aria-label="Navegação principal">${items.map(([page, name, label]) => `<button class="nav-item ${state.page === page ? 'active' : ''}" data-page="${page}"><span>${icon(name)}</span><small>${label}</small></button>`).join('')}</nav>`;
-}
-
-function sourceCard(source, featured = false) {
-  return `<article class="source-card ${featured ? 'featured-source' : ''}" data-source="${source.id}" tabindex="0" role="button">
-    <img src="${source.image}" alt="" loading="lazy" />
-    <div class="source-card-overlay"><span class="platform">${escapeHtml(source.platform)}</span><h3>${escapeHtml(source.title)}</h3><p>${escapeHtml(source.type)} · Abrir fonte externa ${icon('arrow')}</p></div>
-  </article>`;
-}
-
-function recentVideoCard(video) {
-  const date = video.publishedAt ? new Intl.DateTimeFormat('pt-PT', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(video.publishedAt)) : '';
-  return `<a class="recent-video" ${link(video.url)}><img src="${escapeHtml(video.thumbnail)}" alt="" loading="lazy" /><span class="recent-video-play">${icon('play')}</span><span class="recent-video-copy"><small>${escapeHtml(video.meta || date)}</small><strong><span>${escapeHtml(video.title)}</span></strong><em>Ver no YouTube ${icon('external')}</em></span></a>`;
-}
-
-function formatTeachingDate(value) {
-  return new Intl.DateTimeFormat('pt-PT', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(`${value}T00:00:00`));
-}
-
-function teachingYear(publishedAt) { return publishedAt ? publishedAt.slice(0, 4) : null; }
-
-function teachingCategory(service = '') {
-  const value = service.trim().toLowerCase();
-  if (value.startsWith('live')) return 'Lives';
-  if (value.includes('servos')) return 'Cultos dos servos';
-  if (value.startsWith('culto')) return 'Cultos';
-  return 'Especiais';
-}
-
-function biblicalBook(reference) {
-  if (!reference) return null;
-  const match = reference.trim().match(/^((?:\d\s*)?[^\d]+)/);
-  if (!match) return null;
-  const book = match[1].replace(/\s+/g, ' ').trim();
-  return BOOK_SPELLING_FIXES[book] || book;
-}
-
-function youtubeThumbnail(url) {
-  try {
-    const parsed = new URL(url);
-    const id = parsed.hostname.includes('youtu.be') ? parsed.pathname.slice(1) : parsed.searchParams.get('v');
-    return id ? `https://i3.ytimg.com/vi/${id}/hqdefault.jpg` : '';
-  } catch { return ''; }
-}
-
-function teachingCard(teaching) {
-  const thumbnail = youtubeThumbnail(teaching.url);
-  const timeRange = teaching.startsAt && teaching.endsAt ? `Mensagem: ${teaching.startsAt.slice(0, 5)} – ${teaching.endsAt.slice(0, 5)}` : '';
-  return `<article class="archive-teaching"><a class="archive-teaching-link" ${link(teaching.url)}>${thumbnail ? `<img src="${thumbnail}" alt="" loading="lazy" />` : '<span class="archive-teaching-image">▶</span>'}<span class="archive-teaching-body"><small>${escapeHtml(teaching.service || 'Youtube')} · ${formatTeachingDate(teaching.publishedAt)}</small><strong><span>${escapeHtml(teaching.title)}</span></strong>${teaching.biblicalReference ? `<em>${escapeHtml(teaching.biblicalReference)}</em>` : ''}${timeRange ? `<i>${timeRange}</i>` : ''}<b>Abrir no YouTube ${icon('external')}</b></span></a><button class="archive-share" data-share="${escapeHtml(teaching.id)}" aria-label="Partilhar ${escapeHtml(teaching.title)}" title="Partilhar">${icon('share')}</button></article>`;
-}
-
-async function shareTeaching(teaching) {
-  const label = `${teaching.title}${teaching.biblicalReference ? ` (${teaching.biblicalReference})` : ''}`;
-  if (navigator.share) {
-    try { await navigator.share({ title: teaching.title, text: label, url: teaching.url }); return; }
-    catch (error) { if (error.name === 'AbortError') return; }
-  }
-  window.open(`https://wa.me/?text=${encodeURIComponent(`${label}\n${teaching.url}`)}`, '_blank', 'noreferrer');
-}
-
-function teachingArchive() {
-  if (!state.teachingLibrary) return `<section class="teaching-archive"><div class="video-feed-empty"><span><i class="loader"></i></span><p>A carregar o acervo de pregações…</p></div></section>`;
-  const library = state.teachingLibrary;
-  const years = ['Todos', ...[...new Set(library.map((teaching) => teachingYear(teaching.publishedAt)).filter(Boolean))].sort((a, b) => b.localeCompare(a))];
-  const books = ['Todos', ...[...new Set(library.map((teaching) => biblicalBook(teaching.biblicalReference)).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'pt'))];
-  const query = state.query.trim().toLowerCase();
-  const matching = library.filter((teaching) => {
-    const searchable = [teaching.title, teaching.biblicalReference, teaching.service, teaching.description].filter(Boolean).join(' ').toLowerCase();
-    return (state.category === 'Todas' || teachingCategory(teaching.service) === state.category)
-      && (state.year === 'Todos' || teachingYear(teaching.publishedAt) === state.year)
-      && (state.book === 'Todos' || biblicalBook(teaching.biblicalReference) === state.book)
-      && (!query || searchable.includes(query));
-  });
-  const sorted = [...matching].sort((a, b) => state.sort === 'oldest' ? a.publishedAt.localeCompare(b.publishedAt) : b.publishedAt.localeCompare(a.publishedAt));
-  const limit = state.teachingPage * 24;
-  let lastYear = null;
-  const cardsHtml = sorted.slice(0, limit).map((teaching) => {
-    const year = teachingYear(teaching.publishedAt);
-    const heading = year !== lastYear ? `<div class="archive-year-heading"><span>${year}</span></div>` : '';
-    lastYear = year;
-    return `${heading}${teachingCard(teaching)}`;
-  }).join('');
-  const categoryChips = TEACHING_CATEGORIES.map((category) => {
-    const total = category === 'Todas' ? library.length : library.filter((teaching) => teachingCategory(teaching.service) === category).length;
-    return `<button class="category-chip ${state.category === category ? 'selected' : ''}" data-category="${escapeHtml(category)}"><strong>${escapeHtml(category)}</strong><small>${total}</small></button>`;
-  }).join('');
-  const activeFilters = [state.category !== 'Todas' && state.category, state.year !== 'Todos' && `Ano ${state.year}`, state.book !== 'Todos' && state.book, query && `“${state.query.trim()}”`].filter(Boolean);
-  return `<section class="teaching-archive">
-    <div class="category-chips" role="group" aria-label="Filtrar por tipo de encontro">${categoryChips}</div>
-    <div class="archive-controls">
-      <label class="archive-select"><span>Ano</span><select id="archive-year-filter">${years.map((year) => `<option value="${escapeHtml(year)}" ${state.year === year ? 'selected' : ''}>${escapeHtml(year)}</option>`).join('')}</select></label>
-      <label class="archive-select"><span>Livro bíblico</span><select id="archive-book-filter">${books.map((book) => `<option value="${escapeHtml(book)}" ${state.book === book ? 'selected' : ''}>${escapeHtml(book)}</option>`).join('')}</select></label>
-      <div class="archive-sort" role="group" aria-label="Ordenar pregações"><button class="filter ${state.sort !== 'oldest' ? 'selected' : ''}" data-sort="recent">Mais recentes</button><button class="filter ${state.sort === 'oldest' ? 'selected' : ''}" data-sort="oldest">Mais antigas</button></div>
-    </div>
-    <div class="archive-count"><p><strong>${matching.length}</strong> ${matching.length === 1 ? 'pregação encontrada' : 'pregações encontradas'}${activeFilters.length ? ` · ${escapeHtml(activeFilters.join(' · '))}` : ''}</p>${activeFilters.length ? '<button class="text-button" data-clear-filters>Limpar filtros</button>' : ''}</div>
-    ${matching.length ? `<div class="archive-grid">${cardsHtml}</div>${matching.length > limit ? `<button class="button button-outline archive-more" data-show-more>Mostrar mais pregações (${matching.length - limit})</button>` : ''}` : `<div class="empty-state"><span>⌕</span><h2>Nenhuma pregação encontrada</h2><p>Tente outro tema, referência ou retire os filtros.</p></div>`}
-  </section>`;
-}
-
-function latestVideosSection() {
-  const sourceList = APP_CONFIG.sources.filter((source) => source.channelId);
-  if (!sourceList.length) return '';
-  const groups = sourceList.map((source) => ({ source, videos: state.latestVideos[source.channelId]?.videos || [] }));
-  const hasVideos = groups.some((group) => group.videos.length);
-  const badge = state.videosLoading ? 'A atualizar…' : hasVideos ? 'Feed público' : 'Indisponível';
-  return `<section class="latest-videos"><div class="latest-videos-heading"><div><span class="eyebrow">ATUALIZADO PELO YOUTUBE</span><h2>Últimos vídeos publicados</h2></div><span class="fresh-indicator ${hasVideos || state.videosLoading ? '' : 'is-offline'}">${badge}</span></div>${hasVideos
-    ? groups.map(({ source, videos }) => `<div class="video-channel-group"><div class="video-channel-title"><span>${escapeHtml(source.title)}</span><a ${link(source.url)}>Abrir canal ${icon('external')}</a></div>${videos.length ? `<div class="recent-videos-row">${videos.slice(0, 3).map(recentVideoCard).join('')}</div>` : `<div class="video-feed-empty"><span>⌁</span><p>Sem vídeos deste canal agora.</p></div>`}</div>`).join('')
-    : `<div class="video-feed-empty"><span>${state.videosLoading ? '<i class="loader"></i>' : '⌁'}</span><p>${state.videosLoading ? 'A carregar os últimos vídeos…' : 'O YouTube não está a responder agora. Abra os canais diretamente:'}</p>${state.videosLoading ? '' : `<div class="video-feed-links">${sourceList.map((source) => `<a class="button button-outline" ${link(source.url)}>${escapeHtml(source.title)} ${icon('external')}</a>`).join('')}</div>`}</div>`}</section>`;
-}
-
-const userZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-const showBothZones = () => userZone && userZone !== TIME_ZONE;
-
-function formatInZone(date, timeZone) {
-  return new Intl.DateTimeFormat('pt-PT', { timeZone, hour: '2-digit', minute: '2-digit' }).format(date);
-}
-
-// Only returns a countdown inside 24h; beyond that the weekday label already says it.
-function countdownLabel(start, now = new Date()) {
-  const minutes = Math.max(0, Math.round((start - now) / 60000));
-  if (minutes < 60) return `Começa em ${minutes} min`;
-  const hours = Math.floor(minutes / 60);
-  return hours < 24 ? `Começa em ${hours}h ${String(minutes % 60).padStart(2, '0')}min` : '';
-}
-
-function relativeDayLabel(start, now = new Date()) {
-  const startDay = zonedDateParts(start, TIME_ZONE);
-  const today = zonedDateParts(now, TIME_ZONE);
-  const diff = Math.round((Date.UTC(startDay.year, startDay.month - 1, startDay.day) - Date.UTC(today.year, today.month - 1, today.day)) / 86400000);
-  if (diff === 0) return 'HOJE';
-  if (diff === 1) return 'AMANHÃ';
-  return new Intl.DateTimeFormat('pt-PT', { timeZone: TIME_ZONE, weekday: 'long' }).format(start).toUpperCase();
-}
-
-const WEEKDAY_CODES = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'];
-
-function icsStamp(date) {
-  return `${date.toISOString().replace(/[-:]/g, '').split('.')[0]}Z`;
-}
-
-// RFC 5545 caps a content line at 75 octets; continuations start with a space.
-// Measured in UTF-8 bytes so accented characters are never split mid-sequence.
-function foldIcsLine(line) {
-  const encoder = new TextEncoder();
-  if (encoder.encode(line).length <= 75) return line;
-  const parts = [];
-  let current = '';
-  let bytes = 0;
-  for (const char of line) {
-    const size = encoder.encode(char).length;
-    if (bytes + size > (parts.length ? 74 : 75)) { parts.push(current); current = ''; bytes = 0; }
-    current += char;
-    bytes += size;
-  }
-  if (current) parts.push(current);
-  return parts.join('\r\n ');
-}
-// One recurring calendar entry per meeting that has a fixed start time, each
-// with a 15-minute alarm. Times are emitted in UTC, which is exact because
-// Angola has no daylight saving.
-function buildReminderCalendar(meetings) {
-  const now = new Date();
-  const events = meetings
-    .map((meeting) => ({ meeting, occurrence: nextOccurrence(meeting, TIME_ZONE, now) }))
-    .filter(({ occurrence }) => occurrence)
-    .map(({ meeting, occurrence }, index) => {
-      const start = occurrence.start;
-      const end = new Date(start.getTime() + DEFAULT_DURATION_MINUTES * 60000);
-      const rule = meeting.recurrence === 'weekly'
-        ? `RRULE:FREQ=WEEKLY;BYDAY=${(meeting.weekdays || []).map((weekday) => WEEKDAY_CODES[weekday]).join(',')}`
-        : meeting.recurrence === 'monthly_last'
-          ? `RRULE:FREQ=MONTHLY;BYDAY=-1${WEEKDAY_CODES[(meeting.weekdays || [])[0]]}`
-          : meeting.recurrence === 'yearly'
-            ? 'RRULE:FREQ=YEARLY'
-            : '';
-      return [
-        'BEGIN:VEVENT',
-        `UID:elias-istn-sj-${index}-${start.getTime()}@istn-sj`,
-        `DTSTAMP:${icsStamp(now)}`,
-        `DTSTART:${icsStamp(start)}`,
-        `DTEND:${icsStamp(end)}`,
-        ...(rule ? [rule] : []),
-        `SUMMARY:${meeting.title}`,
-        `DESCRIPTION:Hora de Luanda: ${String(meeting.start_time).slice(0, 5)}.${meeting.zoom_meeting_id ? ` ID da reunião ${meeting.zoom_meeting_id}` : ''}`,
-        ...(meeting.zoom_url ? [`URL:${meeting.zoom_url}`] : []),
-        'BEGIN:VALARM',
-        'TRIGGER:-PT15M',
-        'ACTION:DISPLAY',
-        'DESCRIPTION:A reunião começa em 15 minutos',
-        'END:VALARM',
-        'END:VEVENT'
-      ];
-    });
-  const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//ISTN-SJ//ELIAS//PT', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH', ...events.flat(), 'END:VCALENDAR'];
-  return lines.map(foldIcsLine).join('\r\n');
-}
-
-function downloadReminder() {
-  if (!state.meetings?.length) { showToast('A programação ainda não carregou.'); return; }
-  const blob = new Blob([buildReminderCalendar(state.meetings)], { type: 'text/calendar;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement('a');
-  anchor.href = url;
-  anchor.download = 'reunioes-elias-istn-sj.ics';
-  document.body.append(anchor);
-  anchor.click();
-  anchor.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
-  showToast('Abra o ficheiro para adicionar os lembretes ao seu calendário.');
-}
-
-function liveCard(compact = false) {
-  const wrapper = (inner) => `<section class="live-card ${compact ? 'compact' : ''}">${inner}</section>`;
-  if (state.meetingsError) return wrapper(`<div class="live-kicker"><span class="live-dot"></span> PRÓXIMA REUNIÃO</div><p class="live-note">Não foi possível carregar a programação. <button class="text-button" data-action="retry-meetings">Tentar de novo</button></p>`);
-  if (!state.meetings) return wrapper('<div class="live-kicker"><span class="live-dot"></span> PRÓXIMA REUNIÃO</div><p class="live-note">A carregar a programação…</p>');
-  const next = nextMeeting(state.meetings, TIME_ZONE);
-  if (!next) return wrapper('<div class="live-kicker"><span class="live-dot"></span> PRÓXIMA REUNIÃO</div><p class="live-note">Sem reuniões com hora marcada.</p>');
-  const status = next.isLive ? 'A reunião já começou.' : countdownLabel(next.start);
-  return wrapper(`<div class="live-kicker"><span class="live-dot"></span> ${next.isLive ? 'A DECORRER AGORA' : 'PRÓXIMA REUNIÃO'}</div>
-    <h2>${escapeHtml(next.meeting.title)}</h2>
-    <p class="live-time"><strong>${formatInZone(next.start, TIME_ZONE)}</strong> <span>${relativeDayLabel(next.start)} · horário de Luanda${showBothZones() ? `<br>${formatInZone(next.start, userZone)} no seu fuso` : ''}</span></p>
-    ${status ? `<p class="live-countdown">${status}</p>` : ''}
-    <div class="live-actions">
-      <button class="button button-light" data-page="live">Ver reunião <span>${icon('arrow')}</span></button>
-      <button class="text-button" data-action="reminder">${icon('bell')} Lembrar-me</button>
-    </div>`);
-}
-
-function meetingRow(meeting) {
-  const occurrence = nextOccurrence(meeting, TIME_ZONE);
-  return `<li>
-    <span class="schedule-day">${escapeHtml(meeting.title)}<b>${escapeHtml(recurrenceLabel(meeting))}</b></span>
-    <span class="schedule-time">${meeting.start_time ? escapeHtml(String(meeting.start_time).slice(0, 5)) : `<em>${escapeHtml(meeting.time_note || 'A confirmar')}</em>`}${occurrence ? `<small>${relativeDayLabel(occurrence.start)}</small>` : ''}</span>
-  </li>`;
-}
-
-function live() {
-  const head = header({ title: 'Ao vivo', back: 'home' });
-  const hero = `<section class="live-hero"><span class="live-kicker"><span class="live-dot"></span> PROGRAMAÇÃO</span><h1>Reuniões que nos aproximam.</h1><p>Acompanhe o próximo encontro e entre diretamente pelo Zoom.</p></section>`;
-  if (state.meetingsError) return `${head}<main class="page-content live-page">${hero}<div class="video-feed-empty"><span>⌁</span><p>Não foi possível carregar a programação. <button class="text-button" data-action="retry-meetings">Tentar de novo</button></p></div></main>${navigation()}`;
-  if (!state.meetings) return `${head}<main class="page-content live-page">${hero}<div class="video-feed-empty"><span><i class="loader"></i></span><p>A carregar a programação…</p></div></main>${navigation()}`;
-
-  const now = new Date();
-  const next = nextMeeting(state.meetings, TIME_ZONE, now);
-  const room = next?.meeting;
-  const gerais = state.meetings.filter((meeting) => meeting.kind === 'geral');
-  const especiais = state.meetings.filter((meeting) => meeting.kind !== 'geral');
-
-  return `${head}<main class="page-content live-page">
-    ${hero}
-    ${next ? `<section class="live-detail-card ${next.isLive ? 'is-live' : ''}">
-      <div class="live-date"><span>${relativeDayLabel(next.start, now)}</span><strong>${formatInZone(next.start, TIME_ZONE)}</strong><small>Luanda</small></div>
-      <div><span class="eyebrow">${next.isLive ? 'A DECORRER AGORA' : 'PRÓXIMA REUNIÃO'}</span><h2>${escapeHtml(next.meeting.title)}</h2><p>${[next.isLive ? 'A reunião já começou.' : countdownLabel(next.start, now), showBothZones() ? `${formatInZone(next.start, userZone)} no seu fuso` : ''].filter(Boolean).join(' · ')}</p></div>
-    </section>` : ''}
-    <div class="timezone-row"><span>${icon('calendar')}</span><p>Agora em Luanda: <strong>${formatInZone(now, TIME_ZONE)}</strong>${showBothZones() ? ` · No seu fuso (${escapeHtml(userZone)}): <strong>${formatInZone(now, userZone)}</strong>` : ''}</p></div>
-    <section class="join-panel">
-      <h2>Entrar na reunião</h2>
-      <p>${room ? escapeHtml(room.title) : 'Sem reunião marcada.'}</p>
-      ${room?.zoom_url
-        ? `<a class="button button-gold full-width" ${link(room.zoom_url)}>Entrar no Zoom ${icon('external')}</a>
-           <dl class="meeting-credentials">
-             <div><dt>ID da reunião</dt><dd>${escapeHtml(room.zoom_meeting_id || '—')}</dd></div>
-             <div><dt>Senha de acesso</dt><dd>${escapeHtml(room.zoom_passcode || '—')}</dd></div>
-           </dl>`
-        : '<p class="live-note">A sala desta reunião ainda não foi publicada pela equipa.</p>'}
-      <button class="button button-outline full-width" data-action="reminder">${icon('bell')} Adicionar lembretes ao calendário</button>
-      <a class="text-button external-link" ${link(APP_CONFIG.sources[0].url)}>Ver transmissões no YouTube ${icon('external')}</a>
-    </section>
-    ${gerais.length ? `<section class="weekly-schedule">
-      <div class="section-heading"><div><span class="eyebrow">REUNIÕES GERAIS</span><h2>Todas as semanas</h2></div><span class="zone-tag">Hora de Luanda</span></div>
-      <ul class="schedule-list">${gerais.map(meetingRow).join('')}</ul>
-    </section>` : ''}
-    ${especiais.length ? `<section class="weekly-schedule">
-      <div class="section-heading"><div><span class="eyebrow">REUNIÕES ESPECIAIS</span><h2>Encontros próprios</h2></div></div>
-      <ul class="schedule-list">${especiais.map(meetingRow).join('')}</ul>
-    </section>` : ''}
-    <section class="recording-state"><span class="round-icon">${icon('play')}</span><div><span class="eyebrow">APÓS A REUNIÃO</span><h2>Gravação pendente</h2><p>Quando associada pela equipa, a gravação aparecerá no arquivo.</p></div></section>
-  </main>${navigation()}`;
-}
-
-function home() {
-  return `${header({ action: '<button class="icon-button" data-page="teachings" aria-label="Pesquisar ensinos">⌕</button>' })}
-  <main>
-    <section class="hero"><div class="eyebrow">BEM-VINDO À ELIAS</div><h1>Acompanhe os ensinos.<br><em>Encontre a sua ISTN.</em></h1><p>Um lugar para conteúdos do Profeta Elias, reuniões e comunidades ISTN-SJ.</p><div class="hero-actions"><button class="button button-gold" data-page="teachings">Explorar ensinos ${icon('arrow')}</button><button class="link-button" data-page="churches">Encontrar uma igreja</button></div></section>
-    <section class="content-section featured-section"><div class="section-heading"><div><span class="eyebrow">EM DESTAQUE</span><h2>Continue a acompanhar</h2></div><button class="link-button" data-page="teachings">Ver todos</button></div>${sourceCard(APP_CONFIG.sources[0], true)}</section>
-    <section class="content-section">${liveCard(true)}</section>
-    <section class="content-section">${latestVideosSection()}</section>
-    <section class="content-section"><div class="section-heading"><div><span class="eyebrow">BIBLIOTECA</span><h2>Fontes de ensino</h2></div><button class="link-button" data-page="teachings">Explorar</button></div><div class="horizontal-scroll">${APP_CONFIG.sources.slice(1).map((source) => sourceCard(source)).join('')}</div></section>
-    ${state.profile ? '' : `<section class="join-invite">
-      <span class="round-icon">${icon('user')}</span>
-      <div>
-        <span class="eyebrow">A SUA CONTA</span>
-        <h2>Leve as suas preferências consigo.</h2>
-        <p>As suas preferências passam a acompanhá-lo em qualquer telemóvel. E se serve na ISTN, pode pedir o selo de verificação.</p>
-      </div>
-      <button class="button button-dark" data-page="profile">Entrar ou registar-se</button>
-    </section>`}
-    <section class="find-istn">
-      <img class="find-istn-photo" src="/design/assets/photos/congregacao-istn-640.webp" srcset="/design/assets/photos/congregacao-istn-640.webp 640w, /design/assets/photos/congregacao-istn-1280.webp 1280w" sizes="(min-width: 760px) 700px, 100vw" alt="Membros da ISTN-SJ reunidos com o Profeta Elias" loading="lazy" />
-      <span class="round-icon">${icon('globe')}</span>
-      <div><span class="eyebrow">ISTN GLOBAL</span><h2>A sua comunidade pode estar mais perto.</h2><p>Procure por país, região ou localidade.</p></div>
-      <button class="button button-dark" data-page="churches">Encontrar ISTN</button>
-    </section>
-  </main>${navigation()}`;
-}
-
-function teachings() {
-  const total = state.teachingLibrary?.length || 0;
-  return `${header({ title: 'Lives', back: 'home' })}<main class="page-content">
-    <section class="page-intro"><span class="eyebrow">ACERVO</span><h1>Todas as pregações num só lugar.</h1><p>${total ? `${total} pregações organizadas por tipo de encontro, ano e livro bíblico.` : 'Pregações organizadas por tipo de encontro, ano e livro bíblico.'} Os vídeos abrem no YouTube.</p></section>
-    <label class="search-box"><span>${icon('search')}</span><input id="teaching-search" value="${escapeHtml(state.query)}" placeholder="Pesquisar tema, título ou referência bíblica" autocomplete="off" /></label>
-    ${teachingArchive()}
-    <aside class="verification-note"><span>${icon('check')}</span><p><strong>Conteúdo com cuidado editorial.</strong> Referências bíblicas, resumos e informações do ministério só aparecem quando forem fornecidos e verificados.</p></aside>
-  </main>${navigation()}`;
-}
-
-function sourceDetail() {
-  const source = APP_CONFIG.sources.find((item) => item.id === state.selectedSource) || APP_CONFIG.sources[0];
-  return `${header({ title: 'Fonte de ensino', back: 'teachings' })}<main class="detail-page">
-    <img class="detail-image" src="${source.image}" alt="" />
-    <section class="detail-copy"><span class="platform">${escapeHtml(source.platform)}</span><h1>${escapeHtml(source.title)}</h1><p class="source-type">${escapeHtml(source.type)} · Fonte externa</p><p>${escapeHtml(source.description || 'Este espaço organiza o acesso ao conteúdo disponível na plataforma de origem.')} Não há resumo ou referência atribuída nesta publicação porque esses dados não foram fornecidos para verificação.</p><a class="button button-dark full-width" ${link(source.url)}>Abrir no ${escapeHtml(source.platform)} <span>${icon('external')}</span></a></section>
-    <section class="source-facts"><div><span>Origem</span><strong>${escapeHtml(source.platform)}</strong></div><div><span>Estado editorial</span><strong>Fonte a confirmar</strong></div></section>
-    <section class="detail-related"><span class="eyebrow">CONTINUE A EXPLORAR</span><h2>Outras fontes</h2><div class="horizontal-scroll">${APP_CONFIG.sources.filter((item) => item.id !== source.id).map((item) => sourceCard(item)).join('')}</div></section>
-  </main>${navigation()}`;
-}
-
-function statusBadge(status = 'needs_review') { return `<span class="status-badge ${status}">${status === 'verified' ? 'Verificado' : 'A confirmar'}</span>`; }
-function churchCard(record, index) {
-  const country = countryNames[record.country_code] || record.country || 'Comunidade online';
-  const place = record.locality || record.country;
-  return `<article class="church-card" data-church="${index}" tabindex="0" role="button"><div class="church-card-top"><span class="church-kind">${record.modality === 'online' ? 'Comunidade online' : 'Local presencial'}</span>${statusBadge(record.verification_status)}</div><h3>ISTN — ${escapeHtml(place)}</h3><p>${icon('pin')} ${escapeHtml(record.region ? `${record.region}, ${country}` : country)}</p>${record.service_day ? `<p>${icon('calendar')} ${escapeHtml(record.service_day)}, ${escapeHtml(record.service_time_local)} (hora local)</p>` : '<p>Horário a confirmar com o responsável</p>'}<div class="church-leader">${icon('user')} ${escapeHtml(record.leader_name || record.contact)}</div><span class="card-arrow">${icon('arrow')}</span></article>`;
-}
-
-function churches() {
-  const directory = state.directory;
-  if (!directory) return `${header({ title: 'Igrejas', back: 'home' })}<main class="page-content"><div class="loading-state"><span class="loader"></span><p>A carregar diretório ISTN…</p></div></main>${navigation()}`;
-  const physical = directory.physical.map((item) => ({ ...item, category: 'physical' }));
-  const online = directory.online.map((item) => ({ ...item, category: 'online' }));
-  const items = [...physical, ...online].filter((record) => state.country === 'Todos' || (record.country_code ? countryNames[record.country_code] === state.country : record.country === state.country));
-  const countries = ['Todos', ...new Set([...physical.map((item) => countryNames[item.country_code]), ...online.map((item) => item.country)].filter(Boolean))];
-  state.directoryItems = items;
-  return `${header({ title: 'Igrejas', back: 'home' })}<main class="page-content">
-    <section class="page-intro"><span class="eyebrow">ISTN GLOBAL</span><h1>Encontre a sua comunidade.</h1><p>Use os registos disponíveis para entrar em contacto. Moradas e horários devem ser confirmados com o responsável.</p></section>
-    <label class="search-box"><span>${icon('search')}</span><input id="church-search" placeholder="Pesquisar país, região ou localidade" autocomplete="off" /></label>
-    <div class="country-select"><label for="country-filter">País</label><select id="country-filter">${countries.map((country) => `<option ${state.country === country ? 'selected' : ''}>${escapeHtml(country)}</option>`).join('')}</select></div>
-    <div class="directory-summary"><strong>${items.length}</strong><span>registos operacionais</span><small>Inclui igrejas, casas de oração e comunidades online.</small></div>
-    <div id="church-list" class="church-list">${items.map((record, index) => churchCard(record, index)).join('')}</div>
-    <aside class="verification-note warning"><span>!</span><p><strong>Dados sujeitos a confirmação.</strong> Esta listagem vem de anúncios operacionais. Não combinámos registos semelhantes nem corrigimos nomes, telefones ou localidades.</p></aside>
-  </main>${navigation()}`;
-}
-
-function churchDetail() {
-  const record = state.selectedChurch;
-  const country = countryNames[record.country_code] || record.country;
-  const leader = record.leader_name || record.contact;
-  const phone = record.leader_phone || record.phone;
-  return `${header({ title: 'Comunidade ISTN', back: 'churches' })}<main class="detail-page church-detail">
-    <section class="church-detail-head"><span class="round-icon">${record.modality === 'online' ? icon('globe') : icon('pin')}</span><div><span class="church-kind">${record.modality === 'online' ? 'COMUNIDADE ONLINE' : 'LOCAL PRESENCIAL'}</span><h1>ISTN — ${escapeHtml(record.locality || country)}</h1><p>${escapeHtml(record.region ? `${record.region}, ${country}` : country)}</p></div></section>
-    ${statusBadge(record.verification_status)}
-    <section class="info-list">
-      <div><span>${icon('calendar')}</span><p><small>REUNIÃO</small><strong>${record.service_day ? `${record.service_day}, ${record.service_time_local} (hora local)` : 'Horário a confirmar'}</strong></p></div>
-      <div><span>${icon('user')}</span><p><small>RESPONSÁVEL</small><strong>${escapeHtml(leader)}</strong></p></div>
-      <div><span>${icon('phone')}</span><p><small>CONTACTO</small><strong>${escapeHtml(phone)}</strong></p></div>
-    </section>
-    <a class="button button-whatsapp full-width" ${link(toWhatsApp(phone))}>Contactar por WhatsApp <span>${icon('external')}</span></a>
-    <aside class="verification-note warning"><span>!</span><p><strong>Confirme antes de se deslocar.</strong> ${escapeHtml(record.source || record.note || 'Este contacto é um registo operacional a confirmar pela equipa local.')}</p></aside>
-  </main>${navigation()}`;
-}
-
-const listaDeNomes = (providers) => providers.map((provider) => provider.name)
-  .reduce((texto, nome, indice, todos) => indice === 0 ? nome : `${texto}${indice === todos.length - 1 ? ' ou ' : ', '}${nome}`, '');
-
-function profile() {
-  ensureChurchOptions();
-  const head = header({ title: 'Perfil', back: 'home' });
-  if (!state.profile) {
-    const registar = state.authMode === 'registar';
-    return `${head}<main class="page-content">
-      <section class="profile-hero"><span class="round-icon">${icon('user')}</span><h1>${registar ? 'Criar conta' : 'Entrar'}</h1><p>Não precisa de conta para explorar a aplicação. A conta guarda as suas preferências em mais do que um telemóvel e permite pedir o selo de servo.</p></section>
-      <form id="account-form" class="account-card">
-        ${state.providers?.length ? `<p class="account-note">Com email e palavra-passe, ou por ${escapeHtml(listaDeNomes(state.providers))} — a conta é a mesma em qualquer dos casos.</p>` : ''}
-        <label>Email<input type="email" name="email" autocomplete="username" required /></label>
-        <label>Palavra-passe<input type="password" name="password" autocomplete="${registar ? 'new-password' : 'current-password'}" required minlength="6" /></label>
-        <button class="button button-gold full-width" type="submit">${registar ? 'Criar conta' : 'Entrar'}</button>
-      </form>
-      ${state.providers?.length ? `<div class="account-providers">
-        ${state.providers.map((provider) => `<button class="button button-outline full-width" data-provider="${provider.id}">${escapeHtml(provider.label)}</button>`).join('')}
-      </div>` : ''}
-      <button class="text-button account-switch" data-action="switch-auth">${registar ? 'Já tenho conta — entrar' : 'Ainda não tenho conta — registar'}</button>
-    </main>${navigation()}`;
-  }
-
-  return profileView({ state, escapeHtml, header, navigation });
-}
+const PAGES = {
+  home: () => homePage(state),
+  teachings: () => teachingsPage(state),
+  source: () => sourcePage(state, state.route.params.id),
+  live: () => livePage(state),
+  churches: () => churchesPage(state),
+  church: () => churchPage(state, state.route.params.id),
+  profile: () => profilePage(state)
+};
 
 function render() {
-  const pages = { home, teachings, sourceDetail, live, churches, churchDetail, profile };
-  app.innerHTML = pages[state.page]();
-  bindPage();
+  renderInto(app, (PAGES[state.route.name] || PAGES.home)());
+  if (state.route.name === 'profile' && state.profile) bindProfile({ state, render, showToast: (message) => toast(message) });
 }
 
-function showToast(message) { const toast = document.createElement('div'); toast.className = 'toast'; toast.textContent = message; document.body.append(toast); setTimeout(() => toast.remove(), 3200); }
-function go(page) { state.page = page; window.scrollTo({ top: 0, behavior: 'instant' }); render(); }
+// Data arriving after the page is drawn redraws it only if the page uses it.
+const USES = {
+  teachings: ['teachings'],
+  directory: ['home', 'churches', 'church', 'profile'],
+  meetings: ['home', 'live'],
+  videos: ['home', 'live', 'source'],
+  account: ['home', 'profile']
+};
+const renderIfShowing = (kind) => { if (USES[kind].includes(state.route.name)) render(); };
 
-// The church list is only needed once a member is signed in, and is needed
-// however they got there — navigating to the profile, signing in while already
-// on it, or returning with a restored session.
-function ensureChurchOptions() {
-  if (!state.profile || state.churchOptions) return;
-  state.churchOptions = [];
-  loadChurchOptions().then((churches) => { state.churchOptions = churches; render(); }).catch(() => {});
-}
-function bindPage() {
-  app.querySelectorAll('[data-page]').forEach((element) => element.addEventListener('click', () => go(element.dataset.page)));
-  app.querySelectorAll('[data-source]').forEach((element) => { const open = () => { state.selectedSource = element.dataset.source; go('sourceDetail'); }; element.addEventListener('click', open); element.addEventListener('keydown', (event) => { if (event.key === 'Enter') open(); }); });
-  document.querySelectorAll('[data-provider]').forEach((element) => element.addEventListener('click', () => {
-    signInWithProvider(element.dataset.provider).catch((error) => showToast(error.message));
-  }));
-
-  document.querySelector('[data-action="switch-auth"]')?.addEventListener('click', () => {
-    state.authMode = state.authMode === 'registar' ? 'entrar' : 'registar'; render();
-  });
-
-  document.querySelector('#account-form')?.addEventListener('submit', async (event) => {
-    event.preventDefault();
-    const { email, password } = Object.fromEntries(new FormData(event.target).entries());
-    try {
-      const session = state.authMode === 'registar' ? await register(email, password) : await signIn(email, password);
-      if (!session) { showToast('Conta criada. Confirme o email antes de entrar.'); state.authMode = 'entrar'; render(); return; }
-      state.session = session;
-      state.profile = await loadProfile(session);
-      ensureChurchOptions();
-      render();
-      showToast('Sessão iniciada.');
-    } catch (error) { showToast(error.message); }
-  });
-
-  if (state.page === 'profile' && state.profile) bindProfile({ state, render, showToast });
-
-  app.querySelectorAll('[data-action="reminder"]').forEach((element) => element.addEventListener('click', downloadReminder));
-  app.querySelectorAll('[data-action="retry-meetings"]').forEach((element) => element.addEventListener('click', refreshMeetings));
-  app.querySelectorAll('[data-share]').forEach((element) => element.addEventListener('click', () => {
-    const teaching = state.teachingLibrary?.find((item) => item.id === element.dataset.share);
-    if (teaching) shareTeaching(teaching);
-  }));
-  app.querySelectorAll('[data-action="preferences"]').forEach((element) => element.addEventListener('click', () => showToast('As preferências serão guardadas numa próxima versão.')));
-  const teachingSearch = document.querySelector('#teaching-search'); if (teachingSearch) teachingSearch.addEventListener('input', (event) => { state.query = event.target.value; state.teachingPage = 1; render(); document.querySelector('#teaching-search')?.focus(); });
-  app.querySelectorAll('[data-category]').forEach((element) => element.addEventListener('click', () => { state.category = element.dataset.category; state.teachingPage = 1; render(); }));
-  app.querySelectorAll('[data-clear-filters]').forEach((element) => element.addEventListener('click', () => { Object.assign(state, { category: 'Todas', year: 'Todos', book: 'Todos', query: '', teachingPage: 1 }); render(); }));
-  app.querySelectorAll('[data-sort]').forEach((element) => element.addEventListener('click', () => { state.sort = element.dataset.sort; state.teachingPage = 1; render(); }));
-  const archiveYearFilter = document.querySelector('#archive-year-filter'); if (archiveYearFilter) archiveYearFilter.addEventListener('change', (event) => { state.year = event.target.value; state.teachingPage = 1; render(); });
-  const archiveBookFilter = document.querySelector('#archive-book-filter'); if (archiveBookFilter) archiveBookFilter.addEventListener('change', (event) => { state.book = event.target.value; state.teachingPage = 1; render(); });
-  app.querySelectorAll('[data-show-more]').forEach((element) => element.addEventListener('click', () => { state.teachingPage += 1; render(); }));
-  const countryFilter = document.querySelector('#country-filter'); if (countryFilter) countryFilter.addEventListener('change', (event) => { state.country = event.target.value; render(); });
-  const churchSearch = document.querySelector('#church-search'); if (churchSearch) churchSearch.addEventListener('input', (event) => { const text = event.target.value.toLowerCase(); const cards = document.querySelectorAll('.church-card'); cards.forEach((card) => { const item = state.directoryItems[Number(card.dataset.church)]; card.hidden = !JSON.stringify(item).toLowerCase().includes(text); }); });
-  app.querySelectorAll('[data-church]').forEach((element) => { const open = () => { state.selectedChurch = state.directoryItems[Number(element.dataset.church)]; go('churchDetail'); }; element.addEventListener('click', open); element.addEventListener('keydown', (event) => { if (event.key === 'Enter') open(); }); });
+function pageTitle(route) {
+  if (route.name === 'church') {
+    const church = state.directory?.churches.find((item) => item.id === route.params.id);
+    if (church) return `ISTN — ${church.name} · ELIAS`;
+  }
+  return route.name === 'home' ? 'ELIAS — ISTN-SJ' : `${route.title} · ELIAS`;
 }
 
-loadDirectory().then((directory) => { state.directory = directory; render(); }).catch(() => { state.directory = { physical: [], online: [] }; render(); showToast('Não foi possível carregar o diretório neste momento.'); });
+function onRoute(route, { scrollY, navigated }) {
+  state.route = route;
+  if (route.name === 'teachings' && route.search.get('guardadas') === '1') {
+    state.teachingFilters = { ...state.teachingFilters, savedOnly: true, page: 1 };
+  }
+  if (route.name === 'profile') ensureChurchOptions();
+  render();
+  document.title = pageTitle(route);
+  window.scrollTo(0, scrollY);
+  // After a navigation, move focus to the new page so a screen reader starts
+  // reading it, without scrolling away from the restored position.
+  if (navigated) app.querySelector('main')?.focus({ preventScroll: true });
+}
+
+// --------------------------------------------------------------- dados ----
+
+function refreshTeachings() {
+  state.teachingsError = false;
+  return loadTeachingLibrary()
+    .then((teachings) => { state.teachings = teachings; })
+    .catch(() => { state.teachingsError = true; })
+    .finally(() => renderIfShowing('teachings'));
+}
+
+function refreshDirectory() {
+  state.directoryError = false;
+  return loadDirectory()
+    .then((directory) => { state.directory = directory; syncMyChurchFromProfile(); })
+    .catch(() => { state.directoryError = true; })
+    .finally(() => { renderIfShowing('directory'); if (state.route.name === 'church') document.title = pageTitle(state.route); });
+}
+
 function refreshMeetings() {
   state.meetingsError = false;
   return loadMeetings()
     .then((meetings) => { state.meetings = meetings; })
-    .catch(() => { state.meetingsError = true; })
-    .finally(render);
+    .catch((error) => { state.meetingsError = error?.status === 503 ? 'indisponivel' : 'rede'; })
+    .finally(() => renderIfShowing('meetings'));
 }
+
+function refreshVideos() {
+  // allSettled, not all: one channel failing must not discard the other's videos.
+  return Promise.allSettled(APP_CONFIG.sources.filter((source) => source.channelId)
+    .map(async (source) => [source.channelId, await loadLatestVideos(source.channelId)]))
+    .then((results) => { state.latestVideos = Object.fromEntries(results.filter((result) => result.status === 'fulfilled').map((result) => result.value)); })
+    .finally(() => { state.videosLoading = false; renderIfShowing('videos'); });
+}
+
+// ------------------------------------------------------------- conta -----
+
+function ensureChurchOptions() {
+  if (!state.profile || state.churchOptions) return;
+  state.churchOptions = [];
+  loadChurchOptions().then((churches) => { state.churchOptions = churches; renderIfShowing('account'); }).catch(() => {});
+}
+
+// A member's church in the account and "A minha ISTN" on the device are the
+// same choice; the account wins when both exist.
+function syncMyChurchFromProfile() {
+  const homeId = state.profile?.home_church_id;
+  if (!homeId || !state.directory) return;
+  const church = state.directory.churches.find((item) => item.dbId === homeId);
+  if (church && prefs.myChurch !== church.id) prefs.setMyChurch(church.id);
+}
+
+async function afterSignIn(session) {
+  state.session = session;
+  state.profile = await loadProfile(session);
+  state.servoContact = null;
+  if (state.profile?.servo_claim_status === 'aprovado' && state.profile.servo_id) {
+    loadServoContact(state.profile.servo_id, session)
+      .then((contact) => { state.servoContact = contact; renderIfShowing('account'); })
+      .catch(() => {});
+  }
+  syncMyChurchFromProfile();
+  ensureChurchOptions();
+  // Saved teachings from before signing in join the account, and the account's
+  // join this device.
+  loadFavorites(session).then((ids) => {
+    const local = [...prefs.favorites].filter((id) => !ids.includes(id));
+    prefs.addFavorites(ids);
+    local.forEach((id) => addFavorite(id, session).catch(() => {}));
+  }).catch(() => {});
+}
+
+async function startAccount() {
+  const config = await backendConfig();
+  state.accountsAvailable = Boolean(config.supabaseUrl && config.supabaseKey);
+  if (!state.accountsAvailable) { renderIfShowing('account'); return; }
+  availableProviders().then((providers) => { state.providers = providers; renderIfShowing('account'); }).catch(() => {});
+  let social = null;
+  try {
+    social = await finishSocialSignIn();
+  } catch (error) {
+    // Coming back from Google or Facebook with an error is worth saying.
+    toast(error.message);
+  }
+  const session = social || readSession();
+  if (session) {
+    try {
+      await afterSignIn(session);
+      if (social) {
+        toast('Sessão iniciada.');
+        window.history.replaceState(null, '', '/perfil');
+        onRoute({ name: 'profile', params: {}, search: new URLSearchParams(), title: 'Perfil' }, { scrollY: 0, navigated: true });
+        return;
+      }
+    } catch (error) {
+      // A session the server no longer accepts is forgotten quietly: the app
+      // works signed out, and the profile page offers to sign in again. Offline,
+      // the session is kept for when the connection returns.
+      if (error?.status === 401 || error?.status === 403) signOut();
+      state.session = null;
+      state.profile = null;
+    }
+  }
+  renderIfShowing('account');
+}
+
+// ----------------------------------------------------------- interação ----
+
+async function shareTeaching(teaching) {
+  const text = `${teaching.title}${teaching.biblicalReference ? ` (${teaching.biblicalReference})` : ''}`;
+  if (navigator.share) {
+    try { await navigator.share({ title: teaching.title, text, url: teaching.url }); return; }
+    catch (error) { if (error?.name === 'AbortError') return; }
+  }
+  window.open(`https://wa.me/?text=${encodeURIComponent(`${text}\n${teaching.url}`)}`, '_blank', 'noopener,noreferrer');
+}
+
+function updateTeachingResults({ announceCount = false } = {}) {
+  const region = app.querySelector('#teaching-results');
+  if (!region || !state.teachings) return;
+  renderInto(region, teachingResults(state));
+  if (announceCount) {
+    const count = filterTeachings(state.teachings, state.teachingFilters, prefs.favorites).length;
+    announce(count === 1 ? '1 pregação encontrada' : `${count} pregações encontradas`);
+  }
+}
+
+function updateChurchResults({ announceCount = false } = {}) {
+  const region = app.querySelector('#church-results');
+  if (!region || !state.directory) return;
+  renderInto(region, churchResults(state));
+  if (announceCount) {
+    const count = filterChurches(state.directory.churches, state.churchFilters).length;
+    announce(count === 1 ? '1 registo encontrado' : `${count} registos encontrados`);
+  }
+}
+
+// The list follows the typing quickly; the spoken count waits for a pause.
+const announceTeachings = debounce(() => updateTeachingResults({ announceCount: true }), 700);
+const announceChurches = debounce(() => updateChurchResults({ announceCount: true }), 700);
+const searchTeachings = debounce(() => { updateTeachingResults(); announceTeachings(); }, 140);
+const searchChurches = debounce(() => { updateChurchResults(); announceChurches(); }, 140);
+
+const setTeachingFilters = (changes) => { state.teachingFilters = { ...state.teachingFilters, ...changes, page: 1 }; render(); };
+
+const actions = {
+  'retry-meetings': refreshMeetings,
+  'retry-directory': refreshDirectory,
+  'retry-teachings': refreshTeachings,
+
+  category: (element) => setTeachingFilters({ category: element.dataset.value, savedOnly: false }),
+  'saved-only': () => setTeachingFilters({ savedOnly: !state.teachingFilters.savedOnly }),
+  sort: (element) => setTeachingFilters({ sort: element.dataset.value }),
+  'clear-teaching-filters': () => setTeachingFilters({ query: '', category: 'Todas', year: '', book: '', savedOnly: false }),
+  'show-more': () => { state.teachingFilters.page += 1; updateTeachingResults(); },
+
+  favorite(element) {
+    const id = element.dataset.id;
+    const saved = prefs.toggleFavorite(id);
+    if (state.session) (saved ? addFavorite : removeFavorite)(id, state.session).catch(() => {});
+    element.setAttribute('aria-pressed', String(saved));
+    element.classList.toggle('is-on', saved);
+    announce(saved ? 'Pregação guardada.' : 'Pregação removida das guardadas.');
+    if (state.teachingFilters.savedOnly) updateTeachingResults();
+    const count = app.querySelector('[data-action="saved-only"] small');
+    if (count) count.textContent = prefs.favorites.size;
+  },
+  share(element) {
+    const teaching = state.teachings?.find((item) => item.id === element.dataset.id);
+    if (teaching) shareTeaching(teaching);
+  },
+  async copy(element) {
+    const copied = await copyText(element.dataset.value);
+    toast(copied ? `${element.dataset.label} copiado.` : 'Não foi possível copiar. Selecione o texto e copie à mão.');
+  },
+
+  'clear-church-filters': () => { state.churchFilters = { query: '', country: '', region: '' }; render(); },
+  'my-church': (element) => {
+    const id = element.dataset.id;
+    const next = prefs.myChurch === id ? null : id;
+    const church = state.directory?.churches.find((item) => item.id === id);
+    prefs.setMyChurch(next);
+    if (state.session && church?.dbId && state.directory?.source === 'supabase') {
+      saveProfile({ home_church_id: next ? church.dbId : null }, state.session)
+        .then((profile) => { if (profile) state.profile = profile; })
+        .catch(() => toast('Guardado neste dispositivo. Não foi possível atualizar a conta.'));
+    }
+    render();
+    toast(next ? 'Guardada como a sua ISTN.' : 'Deixou de ser a sua ISTN.');
+  },
+
+  'switch-auth': () => { state.authMode = state.authMode === 'registar' ? 'entrar' : 'registar'; render(); },
+  provider: (element) => signInWithProvider(element.dataset.provider).catch((error) => toast(error.message))
+};
+
+app.addEventListener('click', (event) => {
+  const element = event.target.closest('[data-action]');
+  if (!element || !app.contains(element) || !actions[element.dataset.action]) return;
+  event.preventDefault();
+  actions[element.dataset.action](element);
+});
+
+app.addEventListener('input', (event) => {
+  if (event.target.id === 'teaching-search') {
+    state.teachingFilters = { ...state.teachingFilters, query: event.target.value, page: 1 };
+    searchTeachings();
+  } else if (event.target.id === 'church-search') {
+    state.churchFilters = { ...state.churchFilters, query: event.target.value };
+    searchChurches();
+  }
+});
+
+app.addEventListener('change', (event) => {
+  const { id, value } = event.target;
+  if (id === 'year-filter') setTeachingFilters({ year: value });
+  else if (id === 'book-filter') setTeachingFilters({ book: value });
+  else if (id === 'country-filter') { state.churchFilters = { ...state.churchFilters, country: value, region: '' }; render(); }
+  else if (id === 'region-filter') { state.churchFilters = { ...state.churchFilters, region: value }; render(); }
+});
+
+app.addEventListener('submit', async (event) => {
+  if (event.target.id !== 'account-form') return;
+  event.preventDefault();
+  const { email, password } = Object.fromEntries(new FormData(event.target).entries());
+  state.authBusy = true; render();
+  try {
+    const session = state.authMode === 'registar' ? await register(email, password) : await signIn(email, password);
+    if (!session) { toast('Conta criada. Confirme o email antes de entrar.'); state.authMode = 'entrar'; return; }
+    await afterSignIn(session);
+    toast('Sessão iniciada.');
+  } catch (error) {
+    toast(error.message);
+  } finally {
+    state.authBusy = false; render();
+  }
+});
+
+// Keeps "Começa em 12 min" true without redrawing the page every tick; the
+// page is redrawn only when the next meeting itself changes or goes live.
+let lastMeetingKey = '';
+setInterval(() => {
+  if (!state.meetings || !['home', 'live'].includes(state.route.name)) return;
+  const now = new Date();
+  const next = nextMeeting(state.meetings, TIME_ZONE, now);
+  const key = next ? `${next.start.getTime()}:${next.isLive}` : 'none';
+  if (lastMeetingKey && key !== lastMeetingKey) { lastMeetingKey = key; render(); return; }
+  lastMeetingKey = key;
+  if (next) app.querySelectorAll('[data-countdown]').forEach((element) => { element.textContent = liveStatus(next, now); });
+}, 20000);
+
+prefs.subscribe(() => { if (state.route.name === 'home') render(); });
+
+registerServiceWorker({
+  onUpdate: (reload) => toast('Há uma nova versão da aplicação.', { actionLabel: 'Atualizar', onAction: reload, duration: 0 })
+});
+
+startRouter(onRoute);
 refreshMeetings();
-availableProviders().then((providers) => { state.providers = providers; render(); }).catch(() => {});
-finishSocialSignIn()
-  .catch((error) => { showToast(error.message); return null; })
-  .then((social) => {
-    const session = social || readSession();
-    if (!session) return;
-    state.session = session;
-    if (social) state.page = 'profile';
-    return loadProfile(session)
-      .then((profile) => { state.profile = profile; ensureChurchOptions(); render(); })
-      .catch(() => { state.session = null; });
-  });
-loadTeachingLibrary().then((teachings) => { state.teachingLibrary = teachings; render(); }).catch(() => { showToast('Não foi possível carregar o acervo Youtube.'); });
-// allSettled, not all: one channel failing must not discard the other's videos.
-Promise.allSettled(APP_CONFIG.sources.filter((source) => source.channelId).map(async (source) => [source.channelId, await loadLatestVideos(source.channelId)]))
-  .then((results) => { state.latestVideos = Object.fromEntries(results.filter((result) => result.status === 'fulfilled').map((result) => result.value)); })
-  .finally(() => { state.videosLoading = false; render(); });
-render();
+refreshDirectory();
+refreshTeachings();
+refreshVideos();
+startAccount();
