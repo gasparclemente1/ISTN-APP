@@ -11,6 +11,8 @@ test('lê KEY=valor, ignora comentários e aspas', () => {
 test('o id do projeto vira o endereço do Supabase', () => {
   assert.equal(supabaseConfig({ SUPABASE_URL: 'abcdefghijkl' }).supabaseUrl, 'https://abcdefghijkl.supabase.co');
   assert.equal(supabaseConfig({ SUPABASE_URL: 'https://x.supabase.co/' }).supabaseUrl, 'https://x.supabase.co');
-  assert.deepEqual(supabaseConfig({ SUPABASE_OAUTH_PROVIDERS: 'google, ,zoom' }).providers, ['google', 'zoom']);
+  // Só o Google: outros fornecedores listados são ignorados.
+  assert.deepEqual(supabaseConfig({ SUPABASE_OAUTH_PROVIDERS: 'Google, ,zoom,facebook' }).providers, ['google']);
+  assert.deepEqual(supabaseConfig({ SUPABASE_OAUTH_PROVIDERS: 'facebook' }).providers, []);
   assert.equal(supabaseConfig({}).supabaseUrl, '');
 });

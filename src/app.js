@@ -160,7 +160,7 @@ async function startAccount() {
   try {
     social = await finishSocialSignIn();
   } catch (error) {
-    // Coming back from Google or Facebook with an error is worth saying.
+    // Coming back from Google with an error is worth saying.
     toast(error.message);
   }
   const session = social || readSession();
