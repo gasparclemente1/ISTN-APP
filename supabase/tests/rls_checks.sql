@@ -37,11 +37,9 @@ set role anon;
 set request.jwt.claim.sub = '';
 
 do $$ begin
-  begin
-    perform 1 from public.servo_contacts;
-    raise exception 'FALHOU: um visitante anónimo leu servo_contacts';
-  exception when insufficient_privilege then null;
-  end;
+  if (select count(*) from public.servo_contacts) > 0 then
+    raise exception 'FALHOU: um visitante anónimo leu números que nenhum servo escolheu mostrar';
+  end if;
 
   if exists (select 1 from information_schema.columns
               where table_schema = 'public' and table_name = 'servos' and column_name = 'phone') then
@@ -170,4 +168,68 @@ begin
   end;
 end $$;
 
+reset role;
+
+-- ------------------------------------------ visibilidade do número do servo --
+
+-- The central team may correct a number but not publish it.
+set role authenticated;
+set request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000c1';
+do $$ begin
+  update public.servo_contacts set phone_public = true where servo_id = '00000000-0000-0000-0000-00000000005a';
+  if (select phone_public from public.servo_contacts where servo_id = '00000000-0000-0000-0000-00000000005a') then
+    raise exception 'FALHOU: a equipa central tornou público o número de um servo';
+  end if;
+  insert into public.servo_contacts (servo_id, phone, phone_public) values ('00000000-0000-0000-0000-00000000005c', '+244 900 000 003', true);
+  if (select phone_public from public.servo_contacts where servo_id = '00000000-0000-0000-0000-00000000005c') then
+    raise exception 'FALHOU: um número criado pela equipa nasceu público';
+  end if;
+end $$;
+reset role;
+
+-- A member who is not that servant cannot change it.
+set role authenticated;
+set request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000a1';
+do $$
+declare changed integer;
+begin
+  update public.servo_contacts set phone_public = true;
+  get diagnostics changed = row_count;
+  if changed > 0 then raise exception 'FALHOU: um membro mudou a visibilidade do número de outra pessoa'; end if;
+end $$;
+reset role;
+
+-- The approved servant chooses to show their number.
+set role authenticated;
+set request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000a2';
+do $$
+declare mine uuid := (select servo_id from public.app_users where id = '00000000-0000-0000-0000-0000000000a2');
+begin
+  update public.servo_contacts set phone_public = true where servo_id = mine;
+  if not (select phone_public from public.servo_contacts where servo_id = mine) then
+    raise exception 'FALHOU: o próprio servo não conseguiu tornar o seu número visível';
+  end if;
+end $$;
+reset role;
+
+set role anon;
+set request.jwt.claim.sub = '';
+do $$ begin
+  if (select count(*) from public.servo_contacts) <> 1 or (select phone from public.servo_contacts) <> '+244 900 000 009' then
+    raise exception 'FALHOU: o público devia ver só o número que o servo escolheu mostrar';
+  end if;
+end $$;
+reset role;
+
+-- If the team changes that number, it goes back to private.
+set role authenticated;
+set request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000c1';
+do $$
+declare mine uuid := (select servo_id from public.app_users where id = '00000000-0000-0000-0000-0000000000a2');
+begin
+  update public.servo_contacts set phone = '+244 900 000 010' where servo_id = mine;
+  if (select phone_public from public.servo_contacts where servo_id = mine) then
+    raise exception 'FALHOU: um número mudado pela equipa continuou público';
+  end if;
+end $$;
 reset role;

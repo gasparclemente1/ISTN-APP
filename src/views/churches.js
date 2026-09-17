@@ -103,7 +103,7 @@ export function churchPage(state, id) {
       ${church.address ? infoRow('pin', 'Morada', `<strong>${escapeHtml(church.address)}</strong><a class="text-button" ${externalLinkAttrs(mapUrl)}>${icon('navigation', { size: 16 })}Como chegar${externalHint}</a>`) : ''}
       ${infoRow('user', 'Responsável', `<strong>${escapeHtml(church.leaderName || 'A confirmar')}</strong>`)}
       ${infoRow('phone', 'Contacto', phone ? `<a class="strong-link" href="${escapeHtml(safeUrl(`tel:${phone.replace(/[^\d+]/g, '')}`, { schemes: ['tel:'] }))}">${escapeHtml(phone)}</a>` : '<strong>A confirmar</strong>')}
-      ${church.servants.length ? infoRow('users', 'Servos', `<ul class="servant-list">${church.servants.map((servant) => `<li><strong>${escapeHtml(servant.name)}</strong><span>${escapeHtml(servant.roleLabel)}</span></li>`).join('')}</ul>`) : ''}
+      ${church.servants.length ? infoRow('users', 'Servos', `<ul class="servant-list">${church.servants.map((servant) => `<li><strong>${escapeHtml(servant.name)}</strong><span>${escapeHtml(servant.roleLabel)}</span>${servant.phone ? `<a class="strong-link" href="${escapeHtml(safeUrl(`tel:${servant.phone.replace(/[^\d+]/g, '')}`, { schemes: ['tel:'] }))}">${escapeHtml(servant.phone)}</a>` : ''}</li>`).join('')}</ul>`) : ''}
     </section>
 
     <div class="action-stack">

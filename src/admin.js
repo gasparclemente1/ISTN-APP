@@ -110,10 +110,10 @@ async function loadClaims() {
 async function loadServos() {
   const [servos, contacts] = await Promise.all([
     rest('servos?select=*&order=role.asc,full_name.asc'),
-    rest('servo_contacts?select=servo_id,phone').catch(() => [])
+    rest('servo_contacts?select=servo_id,phone,phone_public').catch(() => [])
   ]);
-  const phones = new Map(contacts.map((contact) => [contact.servo_id, contact.phone]));
-  state.servos = servos.map((servo) => ({ ...servo, phone: phones.get(servo.id) ?? servo.phone ?? null }));
+  const byServo = new Map(contacts.map((contact) => [contact.servo_id, contact]));
+  state.servos = servos.map((servo) => ({ ...servo, phone: byServo.get(servo.id)?.phone ?? servo.phone ?? null, phone_public: Boolean(byServo.get(servo.id)?.phone_public) }));
 }
 
 async function saveServoPhone(servoId, phone) {
@@ -411,8 +411,9 @@ function servoEditor() {
       </select></label>
     </div>
     <p class="admin-hint" id="servo-minister-hint"></p>
+    <p class="admin-hint">Só o próprio servo, na sua conta verificada, decide se o número aparece no diretório. Se mudar o número aqui, ele volta a ficar privado até o servo escolher de novo.</p>
     <div class="admin-row">
-      <label>Contacto <small>(só a equipa vê)</small><input type="tel" name="phone" value="${escapeHtml(servo.phone || '')}" /></label>
+      <label>Contacto <small>(${servo.phone_public ? 'visível no diretório, por escolha do servo' : 'privado'})</small><input type="tel" name="phone" value="${escapeHtml(servo.phone || '')}" /></label>
       <label>Igreja onde serve<select name="church_id">
         <option value="">— sem igreja —</option>
         ${igrejas.map((church) => `<option value="${church.id}" ${servo.church_id === church.id ? 'selected' : ''}>${escapeHtml(church.locality || church.country || church.record_id)}</option>`).join('')}

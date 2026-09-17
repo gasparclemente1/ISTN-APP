@@ -2,7 +2,7 @@
 // below, each row opening a sheet that edits one thing. One field per sheet
 // keeps every save small, and nobody has to scroll a long form to change a
 // phone number.
-import { badgeFor, saveProfile, signOut } from './account.js';
+import { badgeFor, saveProfile, saveServoContact, signOut } from './account.js';
 import { ISTN_COUNTRIES, countryList, countryName } from './countries.js';
 import { claimableRoles, isMinisterRole, roleLabel, verifiedSeal } from './roles.js';
 import { uploadPhoto } from './upload.js';
@@ -102,7 +102,11 @@ export function profileView({ state, escapeHtml, header, navigation, extraSectio
       <h2 class="menu-heading">Serviço na ISTN</h2>
       <ul class="menu-list">
         ${row('service', 'badge', 'Função', serviceValue, 'blue')}
+        ${claim === 'aprovado' && profile.servo_id ? phoneVisibilityRow({ state, escapeHtml }) : ''}
       </ul>
+      ${claim === 'aprovado' && profile.servo_id ? `<p class="menu-footnote">${state.servoContact?.phone_public
+        ? `O seu número (${escapeHtml(state.servoContact.phone || profile.phone || '')}) aparece junto do seu nome na página da igreja.`
+        : 'O seu número está privado: só a equipa ISTN-SJ o vê. A escolha é sua.'}</p>` : ''}
     </section>
 
     <section class="menu-group">
@@ -136,6 +140,20 @@ export function profileView({ state, escapeHtml, header, navigation, extraSectio
       </ul>
     </section>
   </main>${state.profileSheet ? sheetView({ state, escapeHtml }) : ''}${navigation()}`;
+}
+
+// Whether a verified servant's number shows in the public directory. The
+// default is private, and only the servant can change it.
+function phoneVisibilityRow({ state }) {
+  const phone = state.servoContact?.phone || state.profile.phone;
+  const on = Boolean(state.servoContact?.phone_public);
+  return `<li><div class="menu-row is-static">
+    <span class="menu-icon tone-blue">${svg('phone')}</span>
+    <span class="menu-label">Mostrar o meu número</span>
+    ${phone
+      ? `<button class="switch" role="switch" aria-checked="${on}" aria-label="Mostrar o meu número no diretório" data-servo-phone-toggle ${state.servoContactLoading ? 'disabled' : ''}><i></i></button>`
+      : '<span class="menu-value empty">Indique primeiro o telefone</span>'}
+  </div></li>`;
 }
 
 // ------------------------------------------------------------ as folhas ----
@@ -361,6 +379,12 @@ export function bindProfile({ state, render, showToast }) {
       language: { language: values.language || 'pt' }
     }[key];
     if (key === 'display_name' && !changes.display_name) { showToast('O nome não pode ficar vazio.'); return; }
+    // A servant who chose to show their number shows the one they just gave.
+    if (key === 'phone' && state.servoContact?.phone_public && changes.phone && state.profile.servo_id) {
+      saveServoContact(state.profile.servo_id, { phone: changes.phone }, state.session)
+        .then((contact) => { if (contact) state.servoContact = contact; })
+        .catch(() => showToast('O telefone foi guardado, mas o do diretório não foi atualizado.'));
+    }
     if (changes) save(changes, 'Guardado.');
   });
 
@@ -376,6 +400,21 @@ export function bindProfile({ state, render, showToast }) {
       .then((profile) => { state.profile = profile || state.profile; })
       .catch((error) => { toggle.setAttribute('aria-checked', String(!next)); showToast(error.message); });
   }));
+
+  document.querySelector('[data-servo-phone-toggle]')?.addEventListener('click', async (event) => {
+    const toggle = event.currentTarget;
+    const next = toggle.getAttribute('aria-checked') !== 'true';
+    const phone = state.servoContact?.phone || state.profile.phone;
+    toggle.setAttribute('aria-checked', String(next));
+    try {
+      state.servoContact = await saveServoContact(state.profile.servo_id, { phone, phone_public: next }, state.session) || state.servoContact;
+      showToast(next ? 'O seu número passa a aparecer no diretório.' : 'O seu número deixou de aparecer no diretório.');
+    } catch (error) {
+      toggle.setAttribute('aria-checked', String(!next));
+      showToast(error.message);
+    }
+    render();
+  });
 
   document.querySelector('[data-profile-photo]')?.addEventListener('change', async (event) => {
     const file = event.target.files?.[0];

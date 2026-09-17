@@ -6,8 +6,13 @@
 -- needed them — it shows the church's contact, not each servant's.
 --
 -- Row level security decides which rows, not which columns, so the number moves
--- to its own table that only the team can read: the central team for everyone,
--- a local editor for the servants of their own church.
+-- to its own table. It is private unless the servant chooses otherwise:
+-- - the team reads it (the central team every number, a local editor those of
+--   their own church) to do its work;
+-- - the public reads it only where phone_public is true;
+-- - phone_public is the servant's own choice, made from their verified account.
+--   The team can correct a number but can never publish it, and a number the
+--   team changes goes back to private, since the choice was about the old one.
 --
 -- The second part is defence in depth for the app's links. The panel already
 -- refuses anything but https, but a value written some other way (the SQL
@@ -18,10 +23,17 @@ begin;
 -- ------------------------------------------------------ contacto dos servos --
 
 create table if not exists public.servo_contacts (
-  servo_id   uuid primary key references public.servos(id) on delete cascade,
-  phone      text,
-  updated_at timestamptz not null default now()
+  servo_id     uuid primary key references public.servos(id) on delete cascade,
+  phone        text,
+  phone_public boolean not null default false,
+  updated_at   timestamptz not null default now()
 );
+
+alter table public.servo_contacts
+  add column if not exists phone_public boolean not null default false;
+
+comment on column public.servo_contacts.phone_public is
+  'Se o número aparece no diretório público. Só o próprio servo o decide, a partir da sua conta verificada.';
 
 -- Copied across before the column goes, in the same transaction, so no number
 -- is lost if anything below fails.
@@ -51,10 +63,54 @@ create trigger servo_contacts_audit
   after insert or update or delete on public.servo_contacts
   for each row execute function public.record_audit();
 
+-- The account linked to this servant, once the team approved the claim.
+create or replace function public.is_servant_self(p_servo uuid)
+returns boolean language sql stable security definer set search_path = public as $$
+  select exists (
+    select 1 from public.app_users
+     where id = auth.uid() and servo_id = p_servo and servo_claim_status = 'aprovado'
+  );
+$$;
+
+-- Nobody but the servant may turn visibility on; a number changed by anyone
+-- else is private again until the servant says otherwise.
+create or replace function public.protect_phone_visibility()
+returns trigger language plpgsql security definer set search_path = public as $$
+begin
+  if public.is_servant_self(new.servo_id) then
+    return new;
+  end if;
+  if tg_op = 'INSERT' then
+    new.phone_public := false;
+  elsif new.phone is distinct from old.phone then
+    new.phone_public := false;
+  else
+    new.phone_public := old.phone_public;
+  end if;
+  return new;
+end $$;
+
+drop trigger if exists servo_contacts_protect on public.servo_contacts;
+create trigger servo_contacts_protect
+  before insert or update on public.servo_contacts
+  for each row execute function public.protect_phone_visibility();
+
 alter table public.servo_contacts enable row level security;
 revoke all on public.servo_contacts from anon;
+grant select on public.servo_contacts to anon;
 
--- Deliberately no public read policy.
+-- Anyone may read a number its servant chose to show, and only that.
+drop policy if exists servo_contacts_public_read on public.servo_contacts;
+create policy servo_contacts_public_read on public.servo_contacts
+  for select using (phone_public);
+
+-- The servant reads and writes their own number and its visibility.
+drop policy if exists servo_contacts_self on public.servo_contacts;
+create policy servo_contacts_self on public.servo_contacts
+  for all to authenticated
+  using (public.is_servant_self(servo_id))
+  with check (public.is_servant_self(servo_id));
+
 drop policy if exists servo_contacts_team on public.servo_contacts;
 create policy servo_contacts_team on public.servo_contacts
   for all to authenticated

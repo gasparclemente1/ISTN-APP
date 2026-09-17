@@ -70,3 +70,15 @@ test('diretório: se só os servos falharem, as igrejas continuam a vir da base 
   assert.equal(result.source, 'supabase');
   assert.deepEqual(result.churches[0].servants, []);
 });
+
+test('diretório: só mostra o número de um servo que escolheu torná-lo visível', async () => {
+  const { calls, fetchJson } = fakeSupabase({
+    churches: [{ id: 'u1', modality: 'physical', country_code: 'AO', locality: 'Kifica' }],
+    servos: [{ id: 's1', church_id: 'u1', full_name: 'Rufino Boaz', role: 'bispo' }, { id: 's2', church_id: 'u1', full_name: 'Maria Boaz', role: 'dona' }],
+    // A real database would return only the public row; a wrong one is ignored too.
+    servo_contacts: [{ servo_id: 's1', phone: '+244 900 000 001', phone_public: true }, { servo_id: 's2', phone: '+244 900 000 002', phone_public: false }]
+  });
+  const { churches } = await createPublicData({ config, fetchJson, readLocal }).directory();
+  assert.deepEqual(churches[0].servants.map((servant) => servant.phone), ['+244 900 000 001', null]);
+  assert.ok(calls.some((call) => call.url.includes('servo_contacts') && call.url.includes('phone_public=eq.true')));
+});

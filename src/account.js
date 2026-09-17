@@ -160,6 +160,22 @@ export async function removeFavorite(teachingId, session = readSession()) {
   await rest(`favorites?user_id=eq.${session.user.id}&teaching_id=eq.${encodeURIComponent(teachingId)}`, { method: 'DELETE' }, session);
 }
 
+// A verified servant's own number in the directory. Private unless they turn
+// it on here; the database lets nobody else turn it on (migration 007).
+export async function loadServoContact(servoId, session = readSession()) {
+  const rows = await rest(`servo_contacts?select=phone,phone_public&servo_id=eq.${servoId}`, {}, session);
+  return rows[0] || null;
+}
+
+export async function saveServoContact(servoId, changes, session = readSession()) {
+  const rows = await rest('servo_contacts?on_conflict=servo_id', {
+    method: 'POST',
+    headers: { Prefer: 'resolution=merge-duplicates,return=representation' },
+    body: JSON.stringify({ servo_id: servoId, ...changes })
+  }, session);
+  return rows?.[0] || null;
+}
+
 export async function requestServantBadge(note, session = readSession()) {
   return saveProfile({ servo_claim_status: 'pendente', servo_claim_note: note || null }, session);
 }

@@ -104,7 +104,7 @@ aquelas são presenciais, de cada lugar.
 | `gender` | text | `masculino` ou `feminino`. |
 | `role` | text | `apostolo`, `bispo`, `bispo_auxiliar`, `pastor`, `pastor_auxiliar`, `discipulo`, `obreiro`, `futuro_obreiro`, `dona`, `obreira`, `futura_obreira`. |
 | `is_minister` | boolean | **Coluna gerada.** Verdadeira de discípulo para cima. |
-| `phone` | text | **Em `servo_contacts`** desde a migração 007: só a equipa o lê. |
+| `phone` | text | **Em `servo_contacts`** desde a migração 007. Privado por omissão: a equipa lê-o; o público só o vê se o próprio servo ligar «Mostrar o meu número» (`phone_public`) na sua conta verificada. A equipa não pode tornar um número público, e um número mudado pela equipa volta a ser privado. |
 | `church_id` | uuid | Onde serve. |
 | `photo_url` | text | |
 | `created_at` | timestamptz | |

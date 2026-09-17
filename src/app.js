@@ -1,7 +1,7 @@
 // The public app: state, data loading, routing and interaction. Pages are drawn
 // by the modules in ./views from the state kept here.
 import { APP_CONFIG, backendConfig, loadDirectory, loadLatestVideos, loadMeetings, loadTeachingLibrary } from './data.js';
-import { addFavorite, availableProviders, finishSocialSignIn, loadChurchOptions, loadFavorites, loadProfile, readSession, register, removeFavorite, saveProfile, signIn, signInWithProvider, signOut } from './account.js';
+import { addFavorite, availableProviders, finishSocialSignIn, loadChurchOptions, loadFavorites, loadProfile, readSession, register, removeFavorite, saveProfile, signIn, signInWithProvider, signOut, loadServoContact } from './account.js';
 import { announce, copyText, debounce, renderInto, toast } from './dom.js';
 import { filterChurches } from './directory.js';
 import { filterTeachings } from './library.js';
@@ -27,7 +27,7 @@ const state = {
   meetings: null, meetingsError: false,
   latestVideos: {}, videosLoading: true,
   accountsAvailable: false, authMode: 'entrar', authBusy: false, providers: null,
-  session: null, profile: null, churchOptions: null,
+  session: null, profile: null, churchOptions: null, servoContact: null,
   uploading: false, profileSheet: null, sheetGender: null, sheetChurch: null, profileSaving: false
 };
 
@@ -134,6 +134,12 @@ function syncMyChurchFromProfile() {
 async function afterSignIn(session) {
   state.session = session;
   state.profile = await loadProfile(session);
+  state.servoContact = null;
+  if (state.profile?.servo_claim_status === 'aprovado' && state.profile.servo_id) {
+    loadServoContact(state.profile.servo_id, session)
+      .then((contact) => { state.servoContact = contact; renderIfShowing('account'); })
+      .catch(() => {});
+  }
   syncMyChurchFromProfile();
   ensureChurchOptions();
   // Saved teachings from before signing in join the account, and the account's

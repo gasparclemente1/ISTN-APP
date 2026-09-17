@@ -41,7 +41,7 @@ As migrações podem ser corridas mais do que uma vez sem estragar nada; o
 `npm run test:db` confirma isso em cada alteração.
 
 **Migrações 007 e 008 (esta entrega).** A 007 move os telefones dos servos para
-`servo_contacts`, e a 008 cria `replace_church_services`. Entre correr as
+`servo_contacts`, todos privados até cada servo escolher mostrá-lo, e a 008 cria `replace_church_services`. Entre correr as
 migrações e o Render terminar de publicar, o painel antigo não consegue gravar
 o telefone de um servo. Convém fazê-lo fora das horas das reuniões.
 

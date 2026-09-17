@@ -33,6 +33,7 @@ Anotar para cada linha: ✅ funciona · ⚠️ funciona com problema (descrever)
 | 22 | Aumentar o tamanho do texto do sistema ao máximo | O texto cresce; nada fica cortado nem sobreposto | | |
 | 23 | **Perfil** → criar conta → confirmar email → entrar | Entra; as pregações guardadas e a igreja escolhida continuam lá | | |
 | 24 | Entrar com Google (se ativo) | Volta à aplicação já com sessão iniciada, na página Perfil | | |
+| 24a | Com uma conta de servo verificado: **Perfil → Mostrar o meu número**, ligar | Em até um minuto, o número aparece junto do nome na página da igreja; ao desligar, desaparece | | |
 | 25 | Depois de uma nova publicação, abrir a aplicação instalada | Aparece «Há uma nova versão» com o botão **Atualizar**; depois de tocar, tudo funciona | | |
 
 ## Painel (computador e telemóvel)
@@ -45,4 +46,5 @@ Anotar para cada linha: ✅ funciona · ⚠️ funciona com problema (descrever)
 | P4 | Carregar uma fotografia a meio de uma edição | A fotografia muda; os outros campos escritos mantêm-se | |
 | P5 | Mudar a hora de uma reunião | Em menos de um minuto, «Ao vivo» mostra a nova hora; o calendário subscrito atualiza-se nas horas seguintes | |
 | P6 | Abrir **Histórico** | A alteração do P5 aparece com o nome de quem a fez e a hora antiga → nova | |
+| P6a | Abrir um servo no separador Servos | O contacto diz «privado» ou «visível no diretório, por escolha do servo»; não há forma de o tornar público a partir do painel | |
 | P7 | Entrar com uma conta de editor local | Só vê a sua igreja e os seus servos; não vê Reuniões, Pedidos nem Histórico | |

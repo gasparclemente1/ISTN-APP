@@ -64,7 +64,7 @@ export function normalizeChurch(row, servants = []) {
     services,
     servants: servants
       .filter((servo) => servo.church_id === row.id && servo.active !== false)
-      .map((servo) => ({ name: servantName(servo), role: servo.role, roleLabel: roleLabel(servo.role), photoUrl: servo.photo_url || null }))
+      .map((servo) => ({ name: servantName(servo), role: servo.role, roleLabel: roleLabel(servo.role), photoUrl: servo.photo_url || null, phone: servo.phone || null }))
   };
 }
 
