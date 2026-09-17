@@ -12,8 +12,11 @@ npm test`) e publicado.
    público da aplicação (por exemplo `https://elias-istn-sj.onrender.com`) e
    acrescentar o mesmo endereço às *Redirect URLs*. Sem isto, entrar com Google
    devolve um erro.
-3. **Authentication → Providers**: ativar **Google** (além de email). Desativar
-   Facebook e Zoom, se estiverem ativos: a aplicação só oferece o Google.
+3. **Authentication → Providers**: ativar **Google** (além de email), com o
+   *Client ID* e o *Client Secret* do Google Cloud. O botão «Continuar com
+   Google» aparece sozinho, em até 5 minutos, assim que o Google estiver ativo
+   aqui. Desativar Facebook e Zoom, se estiverem ativos: a aplicação só oferece
+   o Google.
 4. Criar as contas da equipa em **Authentication → Users** e, para cada uma, uma
    linha em `admin_profiles` (`role` = `central`, ou `local` com o `church_id`
    da igreja que essa pessoa edita).
@@ -25,7 +28,8 @@ npm test`) e publicado.
    - `SUPABASE_URL` — o endereço do projeto, ou só o id;
    - `SUPABASE_PUBLISHABLE_KEY` — a chave pública (*anon*). **Nunca** a
      `service_role`;
-   - `SUPABASE_OAUTH_PROVIDERS` — `google`. Qualquer outro valor é ignorado.
+   - `SUPABASE_OAUTH_PROVIDERS` — opcional. Só é usado se o servidor não
+     conseguir ler as definições do Supabase; nesse caso, `google`.
 3. O HTTPS é dado pelo Render. O servidor envia `Strict-Transport-Security`
    quando o pedido chega por HTTPS.
 

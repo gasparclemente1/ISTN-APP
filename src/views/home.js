@@ -47,7 +47,7 @@ export function homePage(state) {
     ${myChurchCard(state)}
     ${latestVideosSection(state)}
     <section class="content-section">
-      ${sectionHeading('Biblioteca', 'Canais do ministério', '<a class="link-button" href="/ensinos">Todas as pregações</a>')}
+      ${sectionHeading('Biblioteca', 'Canais do YouTube', '<a class="link-button" href="/ensinos">Todas as pregações</a>')}
       ${savedLink()}
       <div class="source-grid">${APP_CONFIG.sources.map(sourceCard).join('')}</div>
     </section>
