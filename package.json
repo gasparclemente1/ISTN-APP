@@ -12,6 +12,7 @@
     "check": "node scripts/check.mjs",
     "test": "node tests/run.mjs",
     "test:db": "sh scripts/test_database.sh",
-    "import-youtube-library": "python3 scripts/import_youtube_library.py"
+    "import-youtube-library": "python3 scripts/import_youtube_library.py",
+    "report:editorial": "node scripts/editorial_report.mjs"
   }
 }

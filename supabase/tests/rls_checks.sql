@@ -87,6 +87,38 @@ reset role;
 set role authenticated;
 set request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000e1';
 
+do $$
+declare
+  own uuid := (select id from public.churches where record_id = 'source_record_001');
+  other uuid := (select id from public.churches where record_id = 'source_record_002');
+  before_other integer := (select count(*) from public.church_services where church_id = (select id from public.churches where record_id = 'source_record_002'));
+begin
+  perform public.replace_church_services(own, '[{"weekday":0,"start_time":"09:00","label":null},{"weekday":6,"start_time":null,"label":"Culto dos servos"}]');
+  if (select count(*) from public.church_services where church_id = own) <> 2 then
+    raise exception 'FALHOU: o editor local não conseguiu substituir os horários da sua igreja';
+  end if;
+
+  -- Two identical rows: the call fails and the two saved above stay.
+  begin
+    perform public.replace_church_services(own, '[{"weekday":0,"start_time":"09:00"},{"weekday":0,"start_time":"09:00"}]');
+    raise exception 'FALHOU: horários repetidos foram aceites';
+  exception when unique_violation then null;
+  end;
+  if (select count(*) from public.church_services where church_id = own) <> 2 then
+    raise exception 'FALHOU: uma gravação falhada apagou os horários que já existiam';
+  end if;
+
+  begin
+    perform public.replace_church_services(other, '[{"weekday":0,"start_time":"10:00"}]');
+    raise exception 'FALHOU: o editor local substituiu os horários de outra igreja';
+  exception when insufficient_privilege then null;
+  end;
+end $$;
+
+reset role;
+set role authenticated;
+set request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000e1';
+
 do $$ begin
   if (select count(*) from public.servo_contacts) <> 1 then
     raise exception 'FALHOU: o editor local devia ver só o contacto do servo da sua igreja';
@@ -101,6 +133,12 @@ do $$ begin
 end $$;
 
 reset role;
+
+do $$ begin
+  if (select count(*) from public.church_services where church_id = (select id from public.churches where record_id = 'source_record_002')) = 0 then
+    raise exception 'FALHOU: a tentativa recusada apagou os horários de outra igreja';
+  end if;
+end $$;
 
 -- ------------------------------------------------------- equipa central ----
 
