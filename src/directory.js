@@ -86,10 +86,20 @@ export function rowsFromSourceRecords(physical = [], online = []) {
   ];
 }
 
+// Country first, then the places inside it by name: the directory is read by
+// someone looking for their own town, not by region code.
 export function sortChurches(churches) {
-  return [...churches].sort((a, b) => collator.compare(a.country, b.country)
-    || collator.compare(a.region || '', b.region || '')
-    || collator.compare(a.name, b.name));
+  return [...churches].sort((a, b) => collator.compare(a.country, b.country) || collator.compare(a.name, b.name));
+}
+
+// [[country, churches]], countries alphabetical, churches alphabetical within.
+export function groupByCountry(churches) {
+  const groups = new Map();
+  sortChurches(churches).forEach((church) => {
+    if (!groups.has(church.country)) groups.set(church.country, []);
+    groups.get(church.country).push(church);
+  });
+  return [...groups.entries()].sort(([a], [b]) => collator.compare(a, b));
 }
 
 export function countriesIn(churches) {

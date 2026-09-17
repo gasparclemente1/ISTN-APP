@@ -16,6 +16,20 @@ export const ROLES = [
   { id: 'futura_obreira', label: 'Futura Obreira',  short: 'Fut. Obr.',gender: 'feminino'  }
 ];
 
+// The abbreviation is added by the app, so a stored name must never carry one:
+// "Bp. Rufino Boaz" would otherwise be shown as "Bp. Bp. Rufino Boaz", and a
+// promotion would leave the wrong rank written into the name.
+const RANK_WORDS = ['ap', 'apostolo', 'apóstolo', 'bp', 'bispo', 'pr', 'p.r', 'pastor', 'disc', 'discipulo', 'discípulo',
+  'obr', 'obreiro', 'obreira', 'dona', 'aux', 'auxiliar', 'fut', 'futuro', 'futura', 'past', 'rev', 'reverendo'];
+
+// The rank word a name starts with, or null. "Bp." and "Bispo" both count.
+export function rankPrefixOf(name) {
+  const first = String(name ?? '').trim().split(/\s+/)[0] || '';
+  const word = first.replace(/\.$/, '').toLowerCase();
+  if (!word || !/\s/.test(String(name ?? '').trim())) return null;
+  return RANK_WORDS.includes(word) ? first : null;
+}
+
 export const MINISTER_ROLES = ['apostolo', 'bispo', 'bispo_auxiliar', 'pastor', 'pastor_auxiliar', 'discipulo'];
 
 const byId = (role) => ROLES.find((item) => item.id === role);

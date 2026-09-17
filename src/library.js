@@ -3,7 +3,9 @@
 import { bookOf } from './bible.js';
 import { collator, matchesQuery } from './text.js';
 
-export const CATEGORIES = ['Todas', 'Cultos', 'Cultos dos servos', 'Lives', 'Especiais'];
+// Alphabetical after "Todas", like every other filter list. Only the biblical
+// books keep their own order.
+export const CATEGORIES = ['Todas', 'Cultos', 'Cultos dos servos', 'Especiais', 'Lives'];
 
 export function categoryOf(service = '') {
   const value = String(service || '').trim().toLowerCase();

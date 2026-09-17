@@ -38,6 +38,9 @@ and `lib/`, and Supabase for data, accounts and photographs.
 - **Ensinos** — 379 recorded messages, searchable without accents, filtered by
   type, year, biblical book (in canonical order) and saved items; each opens on
   YouTube at the minute the message starts, when known.
+- **Anúncios** — announcements from the team, highlighted or not, with images,
+  reactions from any account and comments from verified servants; who may
+  publish is a right the central team grants in the panel.
 - **Ao vivo** — next meeting, Zoom link with copyable ID and passcode, the week
   ahead, monthly and yearly meetings, a calendar feed (`/calendario.ics`) that
   follows the team's edits, and the latest recordings.

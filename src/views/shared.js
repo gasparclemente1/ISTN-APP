@@ -1,7 +1,7 @@
 // Pieces every page is built from: the top bar, the bottom navigation, and the
 // loading, error and empty states — each worded so the reader knows what
 // happened and what they can do about it.
-import { escapeHtml } from '../html.js';
+import { escapeHtml, safeUrl } from '../html.js';
 import { icon } from '../icons.js';
 import { pathFor } from '../router.js';
 import { zonedDateParts } from '../meetings.js';
@@ -13,8 +13,23 @@ export const userZone = (() => {
 })();
 export const showBothZones = () => Boolean(userZone) && userZone !== TIME_ZONE;
 
+// Set before each render, so the top bar can show who is signed in without
+// every view having to pass the profile down.
+let account = null;
+export function setAccount(next) { account = next; }
+
+function accountAvatar() {
+  if (!account) return '';
+  const initials = String(account.display_name || '?').trim().split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join('').toUpperCase() || '·';
+  const photo = safeUrl(account.photo_url);
+  return `<a class="topbar-avatar" href="/perfil" aria-label="A sua conta: ${escapeHtml(account.display_name || 'sem nome')}">${photo
+    ? `<img src="${escapeHtml(photo)}" alt="" />`
+    : `<span>${escapeHtml(initials)}</span>`}</a>`;
+}
+
 const NAV = [
   ['home', 'home', 'Início'],
+  ['posts', 'megaphone', 'Anúncios'],
   ['teachings', 'book', 'Ensinos'],
   ['live', 'live', 'Ao vivo'],
   ['churches', 'church', 'Igrejas'],
@@ -22,7 +37,7 @@ const NAV = [
 ];
 
 // Which tab a page belongs to: a church's detail lives under Igrejas.
-const SECTION = { source: 'teachings', church: 'churches' };
+const SECTION = { source: 'teachings', church: 'churches', post: 'posts' };
 
 export function header({ title = '', back = '', action = '' } = {}) {
   const backPath = back ? pathFor(back) : '';
@@ -30,7 +45,7 @@ export function header({ title = '', back = '', action = '' } = {}) {
   <header class="topbar ${title ? 'has-title' : ''}">
     <a class="brand" href="/" aria-label="ELIAS · ISTN-SJ — página inicial"><span class="brand-sun">${icon('sun', { size: 16 })}</span><span class="brand-name">ELIAS <small>ISTN-SJ</small></span></a>
     ${title ? `<div class="page-title">${backPath ? `<a class="icon-button" href="${backPath}" aria-label="Voltar">${icon('arrowLeft', { size: 22 })}</a>` : ''}<span>${escapeHtml(title)}</span></div>` : ''}
-    <div class="topbar-action">${action}</div>
+    <div class="topbar-action">${action}${accountAvatar()}</div>
   </header>`;
 }
 

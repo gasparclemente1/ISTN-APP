@@ -1,5 +1,5 @@
 // "Igrejas": the directory of places, and each place's page.
-import { countriesIn, filterChurches, placeKindLabel, regionsIn, serviceLabel } from '../directory.js';
+import { countriesIn, filterChurches, groupByCountry, placeKindLabel, regionsIn, serviceLabel } from '../directory.js';
 import { escapeHtml, externalLinkAttrs, safeUrl, whatsAppUrl } from '../html.js';
 import { icon } from '../icons.js';
 import { prefs } from '../prefs.js';
@@ -15,8 +15,8 @@ function churchCard(church) {
   const mine = prefs.myChurch === church.id;
   return `<li><a class="church-card" href="/igrejas/${escapeHtml(church.id)}">
     <span class="church-card-top"><span class="kind">${escapeHtml(placeKindLabel(church))}</span>${mine ? `<span class="mine-tag">${icon('heart', { size: 12 })}A minha ISTN</span>` : ''}${statusBadge(church.verificationStatus)}</span>
-    <h2>ISTN — ${escapeHtml(church.name)}</h2>
-    <span class="card-line">${icon(church.modality === 'online' ? 'globe' : 'pin', { size: 16 })}${escapeHtml(where(church) || 'Localização a confirmar')}</span>
+    <h3>ISTN — ${escapeHtml(church.name)}</h3>
+    ${church.region ? `<span class="card-line">${icon(church.modality === 'online' ? 'globe' : 'pin', { size: 16 })}${escapeHtml(church.region)}</span>` : ''}
     ${church.services.length
       ? church.services.map((service) => `<span class="card-line">${icon('clock', { size: 16 })}${escapeHtml(serviceLabel(service))}</span>`).join('')
       : `<span class="card-line muted">${icon('clock', { size: 16 })}Horário a confirmar com o responsável</span>`}
@@ -40,7 +40,10 @@ export function churchResults(state) {
       action: '<button class="button button-outline" type="button" data-action="clear-church-filters">Limpar filtros</button>'
     });
   }
-  return `${summary}<ul class="church-list">${matching.map(churchCard).join('')}</ul>`;
+  return summary + groupByCountry(matching).map(([country, churches]) => `<section class="country-group">
+    <h2 class="country-heading">${escapeHtml(country || 'País a confirmar')}<small>${churches.length}</small></h2>
+    <ul class="church-list">${churches.map(churchCard).join('')}</ul>
+  </section>`).join('');
 }
 
 function filterFields(state) {

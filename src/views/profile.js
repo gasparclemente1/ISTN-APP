@@ -45,6 +45,7 @@ function accountForm(state) {
   return `<form id="account-form" class="account-card">
       <h2>${register ? 'Criar conta' : 'Entrar'}</h2>
       ${state.providers?.length ? `<p class="account-note">Com email e palavra-passe, ou por ${escapeHtml(listOfNames(state.providers))} — a conta é a mesma em qualquer dos casos.</p>` : ''}
+      ${register ? '<label>Nome<input type="text" name="display_name" autocomplete="name" required maxlength="80" placeholder="Como quer ser chamado" /></label>' : ''}
       <label>Email<input type="email" name="email" autocomplete="username" required inputmode="email" /></label>
       <label>Palavra-passe<input type="password" name="password" autocomplete="${register ? 'new-password' : 'current-password'}" required minlength="6" /></label>
       <button class="button button-gold full-width" type="submit" ${state.authBusy ? 'disabled' : ''}>${state.authBusy ? 'Um momento…' : register ? 'Criar conta' : 'Entrar'}</button>

@@ -4,6 +4,7 @@ import { badgeTier, isMinisterRole, quietCheck, roleLabel, rolesForGender, serva
 import { countryName } from './countries.js';
 import { escapeHtml, safeUrl } from './html.js';
 import { renderInto } from './dom.js';
+import { PUBLISH_SCOPES, authorName, formatPostDate } from './posts.js';
 import { normalizeChurch, sharedPhones } from './directory.js';
 
 const root = document.querySelector('#admin');
@@ -14,7 +15,8 @@ const state = {
   view: 'meetings', meetings: null, churches: null, claims: null,
   query: '', filter: 'todas', editing: null, meeting: null, servo: null, uploading: false,
   servos: null, services: null, busy: false,
-  audit: null, auditNames: {}, auditTable: '', auditHasMore: false
+  audit: null, auditNames: {}, auditTable: '', auditHasMore: false,
+  posts: null, postComments: null, postAuthors: null, publishers: null
 };
 
 function readSession() {
@@ -149,6 +151,25 @@ async function loadAudit({ more = false } = {}) {
   }
 }
 
+// Announcements, the comments on them, and who was granted the right to
+// publish. A local editor sees and moderates only their own church's.
+async function loadFeed() {
+  const [posts, comments, authors] = await Promise.all([
+    rest('posts?select=id,title,body,church_id,highlighted,highlight_until,hidden,published_at,author_id&order=published_at.desc&limit=100'),
+    rest('post_comments?select=id,post_id,author_id,body,hidden,created_at&order=created_at.desc&limit=100'),
+    rest('post_authors?select=id,display_name,photo_url,servo_role,verified').catch(() => [])
+  ]);
+  state.posts = posts;
+  state.postComments = comments;
+  state.postAuthors = new Map((authors || []).map((author) => [author.id, author]));
+}
+
+async function loadPublishers() {
+  state.publishers = isCentral()
+    ? await rest('app_users?select=id,display_name,publish_scope,home_church_id,servo_id&servo_claim_status=eq.aprovado&order=display_name.asc')
+    : [];
+}
+
 const isCentral = () => state.profile?.role === 'central';
 
 // ----------------------------------------------------------------- vistas --
@@ -172,7 +193,7 @@ function loginView() {
 function shell(content) {
   const role = isCentral() ? 'Equipa central' : 'Editor local';
   const pending = state.claims?.length || 0;
-  const tabs = [['meetings', 'Reuniões'], ['churches', 'Diretório'], ['servos', 'Servos'], ['claims', 'Pedidos'], ['history', 'Histórico']]
+  const tabs = [['meetings', 'Reuniões'], ['churches', 'Diretório'], ['servos', 'Servos'], ['posts', 'Anúncios'], ['claims', 'Pedidos'], ['history', 'Histórico']]
     .filter(([id]) => !['meetings', 'claims', 'history'].includes(id) || isCentral())
     .map(([id, label]) => `<button class="admin-tab ${state.view === id ? 'selected' : ''}" data-view="${id}">${label}${id === 'claims' && pending ? `<span class="tab-count">${pending}</span>` : ''}</button>`).join('');
   return `<header class="admin-bar">
@@ -360,6 +381,59 @@ function historyView() {
   </div>`;
 }
 
+function feedView() {
+  if (!state.posts) return '<p class="admin-empty">A carregar…</p>';
+  const authorOf = (id) => authorName(state.postAuthors?.get(id)) || 'Sem nome';
+  const scopeOf = (post) => (post.church_id ? churchLabel(post.church_id) : 'Toda a ISTN');
+  const comments = (state.postComments || []).filter((comment) => state.posts.some((post) => post.id === comment.post_id));
+
+  return `<div class="admin-card">
+    <h2>Anúncios</h2>
+    <p class="admin-hint">Publicados na aplicação. Esconder retira um anúncio da aplicação sem o apagar — e pode ser revertido.</p>
+    <ul class="admin-list">${state.posts.map((post) => `<li>
+      <div class="admin-row-wide">
+        <span>
+          <strong>${escapeHtml(post.title || post.body.slice(0, 60))}${post.hidden ? ' · escondido' : ''}</strong>
+          <small>${escapeHtml(authorOf(post.author_id))} · ${escapeHtml(scopeOf(post))} · ${escapeHtml(formatPostDate(post.published_at))}</small>
+        </span>
+        <span class="admin-row-actions">
+          ${post.highlighted ? '<span class="status-badge verified">Em destaque</span>' : ''}
+          <button class="text-button" type="button" data-post-highlight="${post.id}">${post.highlighted ? 'Retirar destaque' : 'Destacar'}</button>
+          <button class="text-button" type="button" data-post-hide="${post.id}">${post.hidden ? 'Repor' : 'Esconder'}</button>
+          <button class="text-button admin-danger" type="button" data-post-delete="${post.id}">Eliminar</button>
+        </span>
+      </div>
+    </li>`).join('') || '<li class="admin-empty">Ainda não há anúncios.</li>'}</ul>
+
+    <h3>Comentários</h3>
+    <p class="admin-hint">Só servos verificados podem comentar. Esconder um comentário deixa-o invisível na aplicação.</p>
+    <ul class="admin-list">${comments.map((comment) => `<li>
+      <div class="admin-row-wide">
+        <span>
+          <strong>${escapeHtml(authorOf(comment.author_id))}${comment.hidden ? ' · escondido' : ''}</strong>
+          <small>${escapeHtml(comment.body.slice(0, 90))} · ${escapeHtml(formatPostDate(comment.created_at))}</small>
+        </span>
+        <span class="admin-row-actions">
+          <button class="text-button" type="button" data-comment-hide="${comment.id}">${comment.hidden ? 'Repor' : 'Esconder'}</button>
+        </span>
+      </div>
+    </li>`).join('') || '<li class="admin-empty">Ainda não há comentários.</li>'}</ul>
+
+    ${isCentral() ? `<h3>Quem pode publicar</h3>
+    <p class="admin-hint">A equipa central e o Apóstolo publicam sempre; um editor local publica na sua igreja. Aqui dá-se o direito a servos verificados.</p>
+    <ul class="admin-list">${(state.publishers || []).map((person) => `<li>
+      <div class="admin-row-wide">
+        <span><strong>${escapeHtml(person.display_name || 'Sem nome')}</strong><small>${escapeHtml(churchLabel(person.home_church_id))}</small></span>
+        <label class="admin-inline"><span class="sr-only">Direito de publicar de ${escapeHtml(person.display_name || '')}</span>
+          <select data-publish-scope="${person.id}">
+            ${PUBLISH_SCOPES.map((scope) => `<option value="${scope.id}" ${(person.publish_scope || 'nenhum') === scope.id ? 'selected' : ''}>${scope.label}</option>`).join('')}
+          </select>
+        </label>
+      </div>
+    </li>`).join('') || '<li class="admin-empty">Ainda não há servos verificados com conta.</li>'}</ul>` : ''}
+  </div>`;
+}
+
 function servosView() {
   if (!state.servos) return '<p class="admin-empty">A carregar…</p>';
   const mine = isCentral() ? state.servos : state.servos.filter((servo) => servo.church_id === state.profile?.church_id);
@@ -538,6 +612,7 @@ function render() {
     : state.view === 'servos' ? servosView()
     : state.view === 'claims' ? claimsView()
     : state.view === 'history' ? historyView()
+    : state.view === 'posts' ? feedView()
     : churchesView();
   renderInto(root, shell(content) + (state.editing ? churchEditor() : '') + (state.meeting ? meetingEditor() : '') + (state.servo ? servoEditor() : ''));
   bind();
@@ -594,6 +669,53 @@ function bind() {
     state.view = element.dataset.view;
     render();
     if (state.view === 'history') guard(() => loadAudit());
+    if (state.view === 'posts') guard(async () => { await loadFeed(); if (isCentral()) await loadPublishers(); });
+  }));
+
+  root.querySelectorAll('[data-post-hide]').forEach((button) => button.addEventListener('click', () => {
+    const post = state.posts.find((item) => item.id === button.dataset.postHide);
+    guard(async () => {
+      await rest(`posts?id=eq.${post.id}`, { method: 'PATCH', headers: { Prefer: 'return=minimal' }, body: JSON.stringify({ hidden: !post.hidden }) });
+      await loadFeed();
+      toast(post.hidden ? 'Anúncio reposto.' : 'Anúncio escondido.');
+    });
+  }));
+
+  root.querySelectorAll('[data-post-highlight]').forEach((button) => button.addEventListener('click', () => {
+    const post = state.posts.find((item) => item.id === button.dataset.postHighlight);
+    guard(async () => {
+      await rest(`posts?id=eq.${post.id}`, { method: 'PATCH', headers: { Prefer: 'return=minimal' }, body: JSON.stringify({ highlighted: !post.highlighted }) });
+      await loadFeed();
+      toast(post.highlighted ? 'Destaque retirado.' : 'Anúncio destacado.');
+    });
+  }));
+
+  root.querySelectorAll('[data-post-delete]').forEach((button) => button.addEventListener('click', () => {
+    if (!confirm('Eliminar este anúncio? Esta ação não pode ser anulada. Esconder é reversível.')) return;
+    guard(async () => {
+      await rest(`posts?id=eq.${button.dataset.postDelete}`, { method: 'DELETE' });
+      await loadFeed();
+      toast('Anúncio eliminado.');
+    });
+  }));
+
+  root.querySelectorAll('[data-comment-hide]').forEach((button) => button.addEventListener('click', () => {
+    const comment = state.postComments.find((item) => item.id === button.dataset.commentHide);
+    guard(async () => {
+      await rest(`post_comments?id=eq.${comment.id}`, { method: 'PATCH', headers: { Prefer: 'return=minimal' }, body: JSON.stringify({ hidden: !comment.hidden }) });
+      await loadFeed();
+      toast(comment.hidden ? 'Comentário reposto.' : 'Comentário escondido.');
+    });
+  }));
+
+  root.querySelectorAll('[data-publish-scope]').forEach((select) => select.addEventListener('change', () => {
+    const id = select.dataset.publishScope;
+    guard(async () => {
+      const saved = await rest(`app_users?id=eq.${id}`, { method: 'PATCH', headers: { Prefer: 'return=representation' }, body: JSON.stringify({ publish_scope: select.value }) });
+      if (saved?.[0]?.publish_scope !== select.value) throw new Error('Não foi possível alterar o direito de publicar.');
+      await loadPublishers();
+      toast('Direito de publicar atualizado.');
+    });
   }));
   document.querySelector('#audit-table')?.addEventListener('change', (event) => {
     state.auditTable = event.target.value;

@@ -6,6 +6,7 @@ import { escapeHtml } from '../html.js';
 import { icon } from '../icons.js';
 import { prefs } from '../prefs.js';
 import { liveCard } from './live.js';
+import { highlightSection } from './posts.js';
 import { page, sectionHeading } from './shared.js';
 import { sourceCard } from './teachings.js';
 import { latestVideosSection } from './videos.js';
@@ -44,6 +45,7 @@ export function homePage(state) {
       </div>
     </section>
     <section class="content-section">${liveCard(state)}</section>
+    ${highlightSection(state)}
     ${myChurchCard(state)}
     ${latestVideosSection(state)}
     <section class="content-section">

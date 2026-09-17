@@ -236,11 +236,44 @@ linha completa antes e depois.
 
 ---
 
-## Anúncios — **falta**
+## Anúncios e publicações — `posts` · existe
 
-A especificação do painel pede anúncios globais da equipa central e anúncios
-locais de cada igreja. Um anúncio local pertence a um `church_id`; um global
-não pertence a nenhum.
+Um anúncio pertence a uma igreja (`church_id`) ou a toda a ISTN (`church_id`
+nulo). Pode ser **destacado**, com ou sem data de fim: `highlight_until` faz o
+destaque terminar sozinho, sem ninguém se lembrar de o retirar.
+
+| Campo | Notas |
+| --- | --- |
+| `author_id` | Escrito pelo gatilho a partir de quem está autenticado. Nunca vem do pedido. |
+| `church_id` | Nulo: toda a ISTN. |
+| `title` `body` | O título é opcional; o corpo não pode ficar vazio. |
+| `highlighted` `highlight_until` | Destaque, e até quando. |
+| `hidden` `hidden_by` `hidden_at` | Moderação. Esconder é reversível; eliminar não. |
+
+E ainda `post_images` (imagens, por ordem, só `https://`), `post_comments`
+(comentários, também com `hidden`) e `post_reactions` (uma reação por pessoa e
+por anúncio: `amem`, `gosto` ou `oracao`).
+
+### Quem pode o quê
+
+| Ação | Quem |
+| --- | --- |
+| Ler | Qualquer pessoa, com ou sem conta. |
+| Publicar | Equipa central e Apóstolo (toda a ISTN), editor local (a sua igreja), e contas a quem a equipa central der `app_users.publish_scope` = `igreja` ou `global`. |
+| Comentar | Só servos verificados (decisão da equipa). |
+| Reagir | Qualquer conta, na sua própria linha. |
+| Esconder / eliminar | O autor, no que é seu; a equipa central em tudo; o editor local na sua igreja. |
+
+`publish_scope` **só a equipa central escreve** — um gatilho devolve o valor
+anterior a quem tentar mudá-lo, incluindo na sua própria linha. Um anúncio
+escondido continua visível ao autor e a quem modera, para poder ser reposto.
+
+**A vista `post_authors`** mostra ao público apenas o nome, a fotografia, a
+função e o selo de quem escreveu. `app_users` continua privada: nem email, nem
+telefone, nem cidade, nem igreja.
+
+**Imagens** vão para o *bucket* `publicacoes`, cada pessoa na sua pasta, com no
+máximo 5 MB por ficheiro; o telemóvel reduz a imagem a 1600 px antes de enviar.
 
 ---
 
