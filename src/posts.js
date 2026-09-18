@@ -5,9 +5,9 @@ import { collator } from './text.js';
 import { roleShort } from './roles.js';
 
 export const REACTIONS = [
-  { kind: 'amem', label: 'Amém' },
-  { kind: 'gosto', label: 'Gosto' },
-  { kind: 'oracao', label: 'Oro por isso' }
+  { kind: 'amem', label: 'Amém', emoji: '🙌' },
+  { kind: 'gosto', label: 'Gosto', emoji: '❤️' },
+  { kind: 'oracao', label: 'Em oração', emoji: '🙏' }
 ];
 
 export const PUBLISH_SCOPES = [

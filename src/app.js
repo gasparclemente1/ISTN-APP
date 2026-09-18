@@ -34,7 +34,7 @@ const state = {
   churchFilters: { query: '', country: '', region: '' },
   meetings: null, meetingsError: false,
   posts: null, postsError: false, comments: {}, postAuthors: null, myReactions: {},
-  postDraft: null, postSaving: false, postUploading: false, commentSaving: false,
+  commentDrafts: {}, reactionSaving: {}, postDraft: null, postSaving: false, postUploading: false, commentSaving: false,
   latestVideos: {}, videosLoading: true,
   accountsAvailable: false, authMode: 'entrar', authBusy: false, providers: null,
   session: null, profile: null, churchOptions: null, servoContact: null,
@@ -56,9 +56,11 @@ const PAGES = {
 };
 
 function render() {
+  const composerWasOpen = Boolean(app.querySelector('#post-form'));
   setAccount(state.profile);
   state.myChurchDbId = myChurchDbId(state);
   renderInto(app, (PAGES[state.route.name] || PAGES.home)());
+  if (state.postDraft && !composerWasOpen) app.querySelector('#post-body')?.focus();
   if (state.route.name === 'profile' && state.profile) bindProfile({ state, render, showToast: (message) => toast(message) });
 }
 
@@ -95,6 +97,12 @@ function onRoute(route, { scrollY, navigated }) {
   // After a navigation, move focus to the new page so a screen reader starts
   // reading it, without scrolling away from the restored position.
   if (navigated) app.querySelector('main')?.focus({ preventScroll: true });
+  if (route.name === 'post' && route.search.get('comentarios') === '1') {
+    requestAnimationFrame(() => {
+      app.querySelector('.comments')?.scrollIntoView({ block: 'start' });
+      app.querySelector('#comment-body')?.focus({ preventScroll: true });
+    });
+  }
 }
 
 // --------------------------------------------------------------- dados ----
@@ -300,13 +308,27 @@ const actions = {
       .catch((error) => toast(error.message));
   },
   'drop-image': (element) => {
+    if (!state.postDraft || state.postUploading || state.postSaving) return;
     const index = Number(element.dataset.index);
     state.postDraft.images = state.postDraft.images.filter((image, position) => position !== index);
     render();
   },
-  react: (element) => {
+  'insert-emoji': (element) => {
+    const field = document.getElementById(element.dataset.target);
+    if (!field || field.disabled) return;
+    const emoji = element.dataset.emoji;
+    const start = field.selectionStart ?? field.value.length;
+    const end = field.selectionEnd ?? start;
+    if (field.value.length - (end - start) + emoji.length > field.maxLength) return;
+    field.setRangeText(emoji, start, end, 'end');
+    field.dispatchEvent(new Event('input', { bubbles: true }));
+    field.focus();
+  },
+  react: async (element) => {
     if (!state.session) { toast('Entre com a sua conta para reagir.'); return; }
     const id = element.dataset.id;
+    if (state.reactionSaving[id]) return;
+    state.reactionSaving[id] = true;
     const kind = state.myReactions[id] === element.dataset.kind ? '' : element.dataset.kind;
     const previous = state.myReactions[id] || '';
     state.myReactions = { ...state.myReactions, [id]: kind };
@@ -319,7 +341,21 @@ const actions = {
       post.reactionTotal = Math.max(0, post.reactionTotal + (kind ? 1 : 0) - (previous ? 1 : 0));
     }
     render();
-    setReaction(id, kind, state.session).catch((error) => { toast(error.message); refreshPosts(); });
+    try {
+      await setReaction(id, kind, state.session);
+      announce(kind ? 'Reação adicionada.' : 'Reação removida.');
+    } catch (error) {
+      state.myReactions[id] = previous;
+      if (post) {
+        if (kind) post.reactions[kind] = Math.max(0, (post.reactions[kind] || 0) - 1);
+        if (previous) post.reactions[previous] = (post.reactions[previous] || 0) + 1;
+        post.reactionTotal = Math.max(0, post.reactionTotal - (kind ? 1 : 0) + (previous ? 1 : 0));
+      }
+      toast(error.message);
+    } finally {
+      delete state.reactionSaving[id];
+      render();
+    }
   },
 
   category: (element) => setTeachingFilters({ category: element.dataset.value, savedOnly: false }),
@@ -374,6 +410,24 @@ app.addEventListener('click', (event) => {
   actions[element.dataset.action](element);
 });
 
+// Keep drafts in memory so asynchronous updates never discard typed text.
+function rememberPostDraft(form) {
+  if (!state.postDraft) return;
+  const values = Object.fromEntries(new FormData(form).entries());
+  Object.assign(state.postDraft, {
+    title: values.title || '', body: values.body || '', churchId: values.church_id || null,
+    highlighted: Boolean(values.highlighted), highlightUntil: values.highlight_until || ''
+  });
+}
+for (const eventName of ['input', 'change']) {
+  app.addEventListener(eventName, (event) => {
+    if (event.target.form?.id === 'post-form') rememberPostDraft(event.target.form);
+    if (event.target.form?.id === 'comment-form' && event.target.name === 'body') {
+      state.commentDrafts[event.target.form.dataset.id] = event.target.value;
+    }
+  });
+}
+
 app.addEventListener('input', (event) => {
   if (event.target.id === 'teaching-search') {
     state.teachingFilters = { ...state.teachingFilters, query: event.target.value, page: 1 };
@@ -394,25 +448,53 @@ app.addEventListener('change', (event) => {
 
 app.addEventListener('click', (event) => {
   const closer = event.target.closest('[data-sheet-close]');
-  if (!closer || !state.postDraft) return;
-  if (event.target === closer) { state.postDraft = null; render(); }
+  if (!closer || !state.postDraft || state.postUploading || state.postSaving) return;
+  if (event.target === closer || closer.tagName === 'BUTTON') { state.postDraft = null; render(); }
+});
+
+app.addEventListener('keydown', (event) => {
+  const dialog = app.querySelector('#post-form');
+  if (!dialog) return;
+  if (event.key === 'Escape' && !state.postUploading && !state.postSaving) {
+    event.preventDefault(); state.postDraft = null; render();
+    app.querySelector('[data-action="new-post"], [data-action="edit-post"]')?.focus();
+  }
+  if (event.key === 'Tab') {
+    const fields = [...dialog.querySelectorAll('button, input, textarea, select, summary')]
+      .filter((field) => !field.disabled && field.type !== 'hidden' && field.getClientRects().length);
+    const first = fields[0], last = fields[fields.length - 1];
+    if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+    else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+  }
 });
 
 app.addEventListener('change', async (event) => {
   if (!event.target.matches('[data-post-image]')) return;
-  const file = event.target.files?.[0];
-  if (!file) return;
+  const draft = state.postDraft;
+  if (!draft || state.postUploading || state.postSaving) return;
+  const files = [...(event.target.files || [])];
+  if (!files.length) return;
+  const room = Math.max(0, 8 - draft.images.length);
+  if (files.length > room) toast('Pode adicionar até 8 fotos por publicação.');
   state.postUploading = true; render();
   try {
-    const url = await uploadPhoto(file, '', state.session.user.id, state.session, { bucket: 'publicacoes', maxEdge: 1600 });
-    state.postDraft.images = [...(state.postDraft.images || []), { url }];
-  } catch (error) { toast(error.message); }
-  finally { state.postUploading = false; render(); }
+    for (const file of files.slice(0, room)) {
+      if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+        toast(`${file.name}: escolha uma foto JPG, PNG ou WebP.`); continue;
+      }
+      try {
+        const url = await uploadPhoto(file, '', state.session.user.id, state.session, { bucket: 'publicacoes', maxEdge: 1600 });
+        draft.images.push({ url });
+      } catch (error) { toast(`${file.name}: ${error.message}`); }
+      render();
+    }
+  } finally { state.postUploading = false; render(); }
 });
 
 app.addEventListener('submit', async (event) => {
   if (event.target.id === 'post-form') {
     event.preventDefault();
+    if (state.postSaving || state.postUploading || !state.postDraft) return;
     const values = Object.fromEntries(new FormData(event.target).entries());
     const body = (values.body || '').trim();
     if (!body) { toast('Escreva o anúncio.'); return; }
@@ -443,12 +525,14 @@ app.addEventListener('submit', async (event) => {
 
   if (event.target.id === 'comment-form') {
     event.preventDefault();
+    if (state.commentSaving) return;
     const postId = event.target.dataset.id;
     const body = (new FormData(event.target).get('body') || '').toString().trim();
     if (!body) return;
     state.commentSaving = true; render();
     try {
       await addComment(postId, body, state.session);
+      delete state.commentDrafts[postId];
       const [comments] = await Promise.all([loadComments(postId), refreshPosts({ fresh: true })]);
       state.comments = { ...state.comments, [postId]: comments };
       toast('Comentário publicado.');
