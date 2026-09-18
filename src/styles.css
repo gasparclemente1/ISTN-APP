@@ -522,11 +522,6 @@ button.menu-row:focus-visible { outline:3px solid var(--gold); outline-offset:-3
 .post-images figcaption { margin-top: 4px; font-size: .8rem; color: var(--muted); }
 .post-stats { display: flex; gap: 16px; margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line); font-size: .85rem; color: var(--muted); }
 .post-stats span { display: inline-flex; align-items: center; gap: 5px; }
-.reaction-row { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0 4px; }
-.reaction { display: inline-flex; align-items: center; gap: 7px; min-height: var(--tap); padding: 8px 14px; border: 1px solid var(--line); border-radius: 99px; background: var(--white); font-weight: 600; font-size: .9rem; color: var(--deep); }
-.reaction small { font: 500 .8rem "DM Mono", monospace; color: var(--muted); }
-.reaction.is-on { border-color: var(--deep); background: var(--deep); color: var(--white); }
-.reaction.is-on small { color: var(--gold); }
 .post-owner-actions { display: flex; gap: 16px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line); }
 .post-owner-actions .danger { color: #9b3434; }
 
@@ -577,13 +572,6 @@ button.menu-row:focus-visible { outline:3px solid var(--gold); outline-offset:-3
 .reaction-stack > span { display: grid; place-items: center; width: 24px; height: 24px; border: 2px solid white; border-radius: 50%; background: #f1f5f1; margin-right: -5px; }
 .reaction-stack > span:last-child { margin-right: 3px; }
 .post-interactions { border-top: 1px solid var(--line); padding-top: 8px; }
-.reaction-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; margin: 0; }
-.reaction { justify-content: center; gap: 6px; padding: 10px 4px; border-color: transparent; border-radius: 12px; font-size: .8rem; background: transparent; transition: background .16s, transform .16s; }
-.reaction-emoji { display: inline-block; font-size: 1.35rem; transition: transform .16s; }
-.reaction.is-on { border-color: #bfd8ca; background: #eaf4ed; color: var(--deep); }
-.reaction.is-on small { color: var(--teal); }
-.reaction small { font-size: .72rem; }
-.reaction:active .reaction-emoji { transform: scale(1.2); }
 .post-comment-link { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; margin-top: 6px; border-radius: 12px; background: #f5f7f4; color: var(--muted); font-size: .85rem; font-weight: 600; }
 .comments { scroll-margin-top: 80px; }
 .comments h2 { font: 700 1.2rem 'DM Sans', sans-serif; }
@@ -629,24 +617,46 @@ button.menu-row:focus-visible { outline:3px solid var(--gold); outline-offset:-3
 .post-composer .sheet-actions .button { min-height: 50px; }
 .post-interactions button:focus-visible, .emoji-tools button:focus-visible, .post-new:focus-visible, .post-comment-link:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
 @media (hover: hover) {
-  .reaction:hover, .emoji-tools button:hover, .post-comment-link:hover { background: #eaf2e9; }
-  .reaction:hover .reaction-emoji { transform: translateY(-2px) scale(1.12); }
+  .emoji-tools button:hover, .post-comment-link:hover { background: #eaf2e9; }
   .post-new:hover, .post-photo-pick:hover { border-color: var(--teal); }
 }
 @media (max-width: 400px) {
   .post-card, .post-full { padding: 15px; border-radius: 20px; }
   .post-pin { padding: 4px 6px; font-size: .65rem; }
-  .reaction { flex-wrap: wrap; gap: 4px; font-size: .74rem; }
-  .reaction-emoji { font-size: 1.15rem; }
   .post-new { padding: 14px; gap: 10px; }
   .post-new-prompt small { font-size: .73rem; }
   .comment-toolbar .emoji-tools button { width: 40px; }
 }
-@media (prefers-reduced-motion: reduce) {
-  .reaction, .reaction-emoji { transition: none; }
+
+/* Compact social reaction picker: small glyphs, comfortable touch targets. */
+.compact-interactions { display: flex; align-items: center; gap: 8px; padding-top: 4px; }
+.reaction-picker { position: relative; flex: 1; min-width: 0; }
+.reaction-trigger { display: flex; align-items: center; justify-content: center; gap: 6px; min-height: 40px; padding: 4px 6px; list-style: none; border-radius: 10px; color: var(--muted); font-size: .8rem; font-weight: 600; cursor: pointer; }
+.reaction-trigger::-webkit-details-marker { display: none; }
+.reaction-trigger > span { font-size: 16px; line-height: 1; }
+.reaction-trigger.is-on { color: var(--teal); background: #edf4ee; }
+.reaction-trigger.is-special { color: #755009; background: #fff5d7; }
+.compact-interactions .post-comment-link { flex: 1; min-width: 0; min-height: 40px; margin: 0; padding: 4px 6px; border: 0; background: transparent; font-size: .8rem; cursor: pointer; }
+.reaction-popover { position: absolute; left: 0; bottom: calc(100% + 7px); z-index: 20; width: min(264px, calc(100vw - 72px)); padding: 8px; border: 1px solid var(--line); border-radius: 18px; background: var(--white); box-shadow: 0 8px 30px #123c2c26; animation: reaction-picker-in .14s ease-out; }
+.reaction-options { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 3px; }
+.reaction-option { display: flex; align-items: center; justify-content: center; min-width: 0; min-height: 40px; padding: 4px; border: 1px solid transparent; border-radius: 12px; background: transparent; cursor: pointer; transition: background .12s, transform .12s; }
+.reaction-option > span:first-child { font-size: 21px; line-height: 1; }
+.reaction-option.is-on { border-color: #a7c6b1; background: #eaf3ed; }
+.reaction-option.is-special { grid-column: 1 / -1; gap: 7px; min-height: 34px; margin-top: 3px; background: #fff6dc; color: #755009; font-size: .76rem; font-weight: 700; }
+.reaction-option.is-special > span:first-child { font-size: 16px; }
+.reaction-option.is-special.is-on { border-color: #b88a27; background: #ffedb7; }
+.reaction-stack > span { width: 20px; height: 20px; font-size: 12px; }
+.reaction-stack > span.is-special { background: #fff0bd; color: #755009; }
+.legacy-reaction { width: 100%; margin-top: 5px; font-size: .75rem; }
+.reaction-trigger:focus-visible, .reaction-option:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
+@media (hover: hover) {
+  .reaction-trigger:hover, .compact-interactions .post-comment-link:hover { background: #edf3ee; }
+  .reaction-option:hover { background: #edf3ee; transform: translateY(-2px); }
+  .reaction-option.is-special:hover { background: #ffedb7; }
 }
-@media (max-width: 480px) {
-  .reaction { display: grid; grid-template-columns: auto auto; justify-content: center; align-content: center; column-gap: 5px; row-gap: 4px; }
-  .reaction-emoji { grid-column: 1 / -1; justify-self: center; font-size: 1.4rem; }
-  .reaction > span:nth-child(2) { white-space: nowrap; }
+@keyframes reaction-picker-in { from { opacity: 0; transform: translateY(5px) scale(.98); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .reaction-popover { animation: none; }
+  .reaction-option { transition: none; }
+  .reaction-option:hover { transform: none; }
 }

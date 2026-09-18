@@ -313,6 +313,10 @@ const actions = {
     state.postDraft.images = state.postDraft.images.filter((image, position) => position !== index);
     render();
   },
+  'focus-comment': () => {
+    app.querySelector('.comments')?.scrollIntoView({ block: 'start', behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' });
+    app.querySelector('#comment-body')?.focus({ preventScroll: true });
+  },
   'insert-emoji': (element) => {
     const field = document.getElementById(element.dataset.target);
     if (!field || field.disabled) return;
@@ -450,6 +454,25 @@ app.addEventListener('click', (event) => {
   const closer = event.target.closest('[data-sheet-close]');
   if (!closer || !state.postDraft || state.postUploading || state.postSaving) return;
   if (event.target === closer || closer.tagName === 'BUTTON') { state.postDraft = null; render(); }
+});
+
+// Native details provides click, touch and keyboard access to the compact picker.
+// Close it on an outside click or Escape, and keep only one picker open.
+app.addEventListener('toggle', (event) => {
+  if (!event.target.matches('[data-reaction-picker]') || !event.target.open) return;
+  app.querySelectorAll('[data-reaction-picker][open]').forEach((picker) => {
+    if (picker !== event.target) picker.open = false;
+  });
+}, true);
+document.addEventListener('click', (event) => {
+  app.querySelectorAll('[data-reaction-picker][open]').forEach((picker) => {
+    if (!picker.contains(event.target)) picker.open = false;
+  });
+});
+app.addEventListener('keydown', (event) => {
+  if (event.key !== 'Escape') return;
+  const picker = event.target.closest('[data-reaction-picker][open]');
+  if (picker) { event.preventDefault(); picker.open = false; picker.querySelector('summary').focus(); }
 });
 
 app.addEventListener('keydown', (event) => {

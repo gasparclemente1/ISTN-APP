@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { authorName, canComment, canPublish, formatPostDate, isHighlighted, normalizePost, publishScopeOf, sortPosts, visiblePosts } from '../src/posts.js';
+import { REACTIONS, reactionFor, authorName, canComment, canPublish, formatPostDate, isHighlighted, normalizePost, publishScopeOf, sortPosts, visiblePosts } from '../src/posts.js';
 
 const authors = new Map([['u1', { id: 'u1', display_name: 'Rufino Boaz', servo_role: 'bispo', verified: true }],
   ['u2', { id: 'u2', display_name: 'Membro Comum', servo_role: null, verified: false }]]);
@@ -80,4 +80,24 @@ test('as datas leem-se como as pessoas falam', () => {
   assert.equal(formatPostDate('2026-09-14T09:00:00Z', now), 'há 3 dias');
   assert.equal(formatPostDate('2026-08-01T09:00:00Z', now), '01/08/2026');
   assert.equal(formatPostDate('não é data', now), '');
+});
+
+
+test('as seis reações incluem os emojis pedidos e a opção especial', () => {
+  assert.deepEqual(REACTIONS.filter((reaction) => !reaction.special).map((reaction) => reaction.emoji), ['👍', '❤️', '🙏🏾', '🎉', '😭']);
+  assert.equal(REACTIONS.length, 6);
+  assert.equal(new Set(REACTIONS.map((reaction) => reaction.kind)).size, 6);
+  assert.equal(REACTIONS.find((reaction) => reaction.special).label, 'Elias é Deus');
+});
+
+test('reações antigas conservam o significado e entram nos totais com as novas', () => {
+  assert.equal(reactionFor('amem').label, 'Amém');
+  assert.equal(reactionFor('gosto').emoji, '❤️');
+  assert.equal(reactionFor('desconhecida'), null);
+  const reactions = ['amem', ...REACTIONS.map((reaction) => reaction.kind)]
+    .map((kind) => ({ post_id: 'p1', kind }));
+  const post = normalizePost({ id: 'p1' }, { reactions });
+  assert.equal(post.reactionTotal, 7);
+  assert.equal(post.reactions.elias_deus, 1);
+  assert.equal(post.reactions.amem, 1);
 });

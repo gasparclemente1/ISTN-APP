@@ -6,7 +6,7 @@
 import { escapeHtml, safeUrl } from '../html.js';
 import { icon } from '../icons.js';
 import { prefs } from '../prefs.js';
-import { REACTIONS, authorName, canComment, canPublish, formatPostDate, isHighlighted, publishScopeOf, visiblePosts } from '../posts.js';
+import { REACTIONS, reactionFor, authorName, canComment, canPublish, formatPostDate, isHighlighted, publishScopeOf, visiblePosts } from '../posts.js';
 import { verifiedSeal } from '../roles.js';
 import { emptyState, errorState, loadingState, page, sectionHeading } from './shared.js';
 
@@ -38,22 +38,33 @@ const bodyHtml = (text) => String(text || '').split(/\n{2,}/).map((block) => `<p
 
 function reactionRow(state, post, { compact = true } = {}) {
   const mine = state.myReactions?.[post.id] || '';
+  const selected = reactionFor(mine);
   const total = post.reactionTotal;
-  const busy = state.reactionSaving?.[post.id];
-  const active = REACTIONS.filter((reaction) => post.reactions[reaction.kind] > 0);
+  const busy = Boolean(state.reactionSaving?.[post.id]);
+  const id = escapeHtml(post.id);
+  const active = Object.entries(post.reactions).filter(([, count]) => count > 0)
+    .sort((a, b) => b[1] - a[1]).map(([kind]) => reactionFor(kind)).filter(Boolean);
   return `<div class="post-stats">
-      <span><span class="reaction-stack" aria-hidden="true">${active.map((reaction) => `<span>${reaction.emoji}</span>`).join('')}</span>${total ? `${total} ${total === 1 ? 'reação' : 'reações'}` : 'Seja o primeiro a reagir'}</span>
+      <span><span class="reaction-stack" aria-hidden="true">${active.slice(0, 3).map((reaction) => `<span class="${reaction.special ? 'is-special' : ''}" title="${reaction.label}">${reaction.emoji}</span>`).join('')}</span>${total ? `${total} ${total === 1 ? 'reação' : 'reações'}` : 'Seja o primeiro a reagir'}</span>
       <span>${post.commentCount} ${post.commentCount === 1 ? 'comentário' : 'comentários'}</span>
     </div>
-    <div class="post-interactions">
-      <div class="reaction-row" role="group" aria-label="Reagir à publicação" aria-busy="${Boolean(busy)}">
-        ${REACTIONS.map((reaction) => `<button class="reaction ${mine === reaction.kind ? 'is-on' : ''}" type="button"
-          data-action="react" data-id="${escapeHtml(post.id)}" data-kind="${reaction.kind}" data-focus-key="react:${escapeHtml(post.id)}:${reaction.kind}"
-          aria-label="${reaction.label}${mine === reaction.kind ? ', remover reação' : ''}" aria-pressed="${mine === reaction.kind}" ${busy ? 'disabled' : ''}>
-          <span class="reaction-emoji" aria-hidden="true">${reaction.emoji}</span><span>${reaction.label}</span><small>${post.reactions[reaction.kind] || ''}</small>
-        </button>`).join('')}
-      </div>
-      ${compact ? `<a class="post-comment-link" href="/anuncios/${escapeHtml(post.id)}?comentarios=1">${icon('message', { size: 18 })}Comentar</a>` : ''}
+    <div class="post-interactions compact-interactions">
+      <details class="reaction-picker" data-reaction-picker>
+        <summary class="reaction-trigger ${selected ? 'is-on' : ''} ${selected?.special ? 'is-special' : ''}" data-focus-key="reaction-trigger:${id}" aria-label="${selected ? `Reação atual: ${selected.label}. Alterar reação` : 'Escolher reação'}">
+          <span aria-hidden="true">${selected?.emoji || '👍'}</span>${selected?.label || 'Reagir'}
+        </summary>
+        <div class="reaction-popover" role="group" aria-label="Escolher reação" aria-busy="${busy}">
+          <div class="reaction-options">
+            ${REACTIONS.map((reaction) => `<button class="reaction-option ${reaction.special ? 'is-special' : ''} ${mine === reaction.kind ? 'is-on' : ''}" type="button"
+              data-action="react" data-id="${id}" data-kind="${reaction.kind}" data-focus-key="reaction-trigger:${id}"
+              aria-label="${reaction.label}${mine === reaction.kind ? ', remover reação' : ''}" title="${reaction.label}" aria-pressed="${mine === reaction.kind}" ${busy ? 'disabled' : ''}>
+              <span aria-hidden="true">${reaction.emoji}</span>${reaction.special ? `<span>${reaction.label}</span>` : ''}
+            </button>`).join('')}
+          </div>
+          ${selected && !REACTIONS.some((reaction) => reaction.kind === mine) ? `<button class="text-button legacy-reaction" type="button" data-action="react" data-id="${id}" data-kind="${escapeHtml(mine)}" data-focus-key="reaction-trigger:${id}" ${busy ? 'disabled' : ''}>Remover ${selected.label}</button>` : ''}
+        </div>
+      </details>
+      ${compact ? `<a class="post-comment-link" href="/anuncios/${id}?comentarios=1">${icon('message', { size: 16 })}Comentar</a>` : '<button class="post-comment-link" type="button" data-action="focus-comment">' + icon('message', { size: 16 }) + 'Comentar</button>'}
     </div>`;
 }
 
