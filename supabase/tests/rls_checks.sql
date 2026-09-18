@@ -319,6 +319,21 @@ set request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000a4';
 do $$ begin
   insert into public.post_reactions (post_id, user_id)
   select id, auth.uid() from public.posts where title = 'Vigília';
+  -- Every new picker option must persist, replace and preserve one-per-person.
+  update public.post_reactions set kind = 'curtir' where user_id = auth.uid();
+  update public.post_reactions set kind = 'gosto' where user_id = auth.uid();
+  update public.post_reactions set kind = 'oracao' where user_id = auth.uid();
+  update public.post_reactions set kind = 'celebrar' where user_id = auth.uid();
+  update public.post_reactions set kind = 'emocionado' where user_id = auth.uid();
+  update public.post_reactions set kind = 'elias_deus' where user_id = auth.uid();
+  if (select count(*) from public.post_reactions where user_id = auth.uid() and kind = 'elias_deus') <> 1 then
+    raise exception 'FALHOU: a reação especial não foi guardada';
+  end if;
+  begin
+    update public.post_reactions set kind = 'invalida' where user_id = auth.uid();
+    raise exception 'FALHOU: aceitou uma reação desconhecida';
+  exception when check_violation then null;
+  end;
   begin
     insert into public.post_comments (post_id, body)
     select id, 'Também quero comentar' from public.posts where title = 'Vigília';

@@ -5,10 +5,18 @@ import { collator } from './text.js';
 import { roleShort } from './roles.js';
 
 export const REACTIONS = [
-  { kind: 'amem', label: 'Amém', emoji: '🙌' },
-  { kind: 'gosto', label: 'Gosto', emoji: '❤️' },
-  { kind: 'oracao', label: 'Em oração', emoji: '🙏' }
+  { kind: 'curtir', label: 'Gosto', emoji: '👍' },
+  { kind: 'gosto', label: 'Amei', emoji: '❤️' },
+  { kind: 'oracao', label: 'Em oração', emoji: '🙏🏾' },
+  { kind: 'celebrar', label: 'Celebrar', emoji: '🎉' },
+  { kind: 'emocionado', label: 'Emocionado', emoji: '😭' },
+  { kind: 'elias_deus', label: 'Elias é Deus', emoji: '✦', special: true }
 ];
+
+// Preserve the meaning of historical reactions, including Amém which is no
+// longer offered in the picker. Existing heart reactions keep their stored key.
+export const reactionFor = (kind) => REACTIONS.find((reaction) => reaction.kind === kind)
+  || (kind === 'amem' ? { kind: 'amem', label: 'Amém', emoji: '🙌' } : null);
 
 export const PUBLISH_SCOPES = [
   { id: 'nenhum', label: 'Não publica' },
