@@ -39,16 +39,28 @@ const bodyHtml = (text) => String(text || '').split(/\n{2,}/).map((block) => `<p
 function reactionRow(state, post, { compact = true } = {}) {
   const mine = state.myReactions?.[post.id] || '';
   const total = post.reactionTotal;
-  if (compact) {
-    return `<div class="post-stats">
-      <span>${icon('heart', { size: 16 })}${total} ${total === 1 ? 'reação' : 'reações'}</span>
-      <span>${icon('message', { size: 16 })}${post.commentCount} ${post.commentCount === 1 ? 'comentário' : 'comentários'}</span>
+  const busy = state.reactionSaving?.[post.id];
+  const active = REACTIONS.filter((reaction) => post.reactions[reaction.kind] > 0);
+  return `<div class="post-stats">
+      <span><span class="reaction-stack" aria-hidden="true">${active.map((reaction) => `<span>${reaction.emoji}</span>`).join('')}</span>${total ? `${total} ${total === 1 ? 'reação' : 'reações'}` : 'Seja o primeiro a reagir'}</span>
+      <span>${post.commentCount} ${post.commentCount === 1 ? 'comentário' : 'comentários'}</span>
+    </div>
+    <div class="post-interactions">
+      <div class="reaction-row" role="group" aria-label="Reagir à publicação" aria-busy="${Boolean(busy)}">
+        ${REACTIONS.map((reaction) => `<button class="reaction ${mine === reaction.kind ? 'is-on' : ''}" type="button"
+          data-action="react" data-id="${escapeHtml(post.id)}" data-kind="${reaction.kind}" data-focus-key="react:${escapeHtml(post.id)}:${reaction.kind}"
+          aria-label="${reaction.label}${mine === reaction.kind ? ', remover reação' : ''}" aria-pressed="${mine === reaction.kind}" ${busy ? 'disabled' : ''}>
+          <span class="reaction-emoji" aria-hidden="true">${reaction.emoji}</span><span>${reaction.label}</span><small>${post.reactions[reaction.kind] || ''}</small>
+        </button>`).join('')}
+      </div>
+      ${compact ? `<a class="post-comment-link" href="/anuncios/${escapeHtml(post.id)}?comentarios=1">${icon('message', { size: 18 })}Comentar</a>` : ''}
     </div>`;
-  }
-  return `<div class="reaction-row" role="group" aria-label="Reagir">
-    ${REACTIONS.map((reaction) => `<button class="reaction ${mine === reaction.kind ? 'is-on' : ''}" type="button"
-      data-action="react" data-id="${escapeHtml(post.id)}" data-kind="${reaction.kind}" data-focus-key="react:${reaction.kind}"
-      aria-pressed="${mine === reaction.kind}">${escapeHtml(reaction.label)}<small>${post.reactions[reaction.kind] || 0}</small></button>`).join('')}
+}
+
+function emojiTools(target) {
+  return `<div class="emoji-tools" role="group" aria-label="Adicionar emoji">
+    <span>Uma palavra de carinho</span>
+    ${[['🙏', 'Oração'], ['❤️', 'Amor'], ['🙌', 'Gratidão'], ['🕊️', 'Paz'], ['😊', 'Alegria']].map(([emoji, label]) => `<button type="button" data-action="insert-emoji" data-target="${target}" data-emoji="${emoji}" aria-label="Adicionar emoji: ${label}" title="${label}">${emoji}</button>`).join('')}
   </div>`;
 }
 
@@ -67,7 +79,11 @@ function postCard(state, post) {
 
 function composerButton(state) {
   if (!canPublish(state.profile)) return '';
-  return `<button class="button button-gold full-width post-new" type="button" data-action="new-post">${icon('edit', { size: 18 })}Escrever um anúncio</button>`;
+  return `<button class="post-new" type="button" data-action="new-post">
+    <span class="post-avatar">${icon('edit', { size: 20 })}</span>
+    <span class="post-new-prompt">O que deseja partilhar?<small>Uma novidade, um convite, uma bênção.</small></span>
+    <span class="post-new-photo">${icon('camera', { size: 22 })}<span>Fotos</span></span>
+  </button>`;
 }
 
 export function composerSheet(state) {
@@ -77,28 +93,29 @@ export function composerSheet(state) {
   const churches = state.churchOptions || [];
   const home = state.profile?.home_church_id;
   return `<div class="sheet-backdrop" data-sheet-close>
-    <form class="sheet" id="post-form" role="dialog" aria-modal="true" aria-labelledby="post-sheet-title">
+    <form class="sheet post-composer" id="post-form" role="dialog" aria-modal="true" aria-labelledby="post-sheet-title">
       <span class="sheet-grip" aria-hidden="true"></span>
-      <h2 id="post-sheet-title">${draft.id ? 'Editar anúncio' : 'Novo anúncio'}</h2>
-      <label class="sheet-field">Título (opcional)<input type="text" name="title" value="${escapeHtml(draft.title || '')}" maxlength="120" /></label>
-      <label class="sheet-field">Anúncio<textarea name="body" rows="6" maxlength="4000" required placeholder="O que quer anunciar?">${escapeHtml(draft.body || '')}</textarea></label>
+      <div class="composer-heading"><div><span class="eyebrow">PARTILHAR COM A COMUNIDADE</span><h2 id="post-sheet-title">${draft.id ? 'Editar publicação' : 'Criar publicação'}</h2></div><button class="icon-button" type="button" data-sheet-close aria-label="Fechar" ${state.postUploading || state.postSaving ? 'disabled' : ''}>${icon('close')}</button></div>
+      <label class="sheet-field">Título (opcional)<input type="text" name="title" data-focus-key="post-title" placeholder="Dê um título à sua publicação" value="${escapeHtml(draft.title || '')}" maxlength="120" /></label>
+      <label class="sheet-field">Mensagem<textarea id="post-body" name="body" rows="5" maxlength="4000" required placeholder="Partilhe as novidades com a sua comunidade…">${escapeHtml(draft.body || '')}</textarea></label>
+      ${emojiTools('post-body')}
       ${scope === 'global'
         ? `<label class="sheet-field">Para quem<select name="church_id">
             <option value="">Toda a ISTN</option>
             ${churches.map((church) => `<option value="${church.id}" ${draft.churchId === church.id ? 'selected' : ''}>ISTN — ${escapeHtml(church.locality || church.country || '')}</option>`).join('')}
           </select></label>`
         : `<p class="sheet-hint">Este anúncio é publicado na sua igreja.</p><input type="hidden" name="church_id" value="${escapeHtml(home || '')}" />`}
-      <label class="sheet-check"><input type="checkbox" name="highlighted" ${draft.highlighted ? 'checked' : ''} /> Destacar este anúncio</label>
-      <label class="sheet-field">Destaque até (opcional)<input type="date" name="highlight_until" value="${escapeHtml(draft.highlightUntil || '')}" /></label>
+      <details class="post-options" ${draft.highlighted ? 'open' : ''}><summary>${icon('sun', { size: 18 })} Opções de destaque</summary><label class="sheet-check"><input type="checkbox" name="highlighted" ${draft.highlighted ? 'checked' : ''} /> Destacar este anúncio</label>
+      <label class="sheet-field">Destaque até (opcional)<input type="date" name="highlight_until" value="${escapeHtml(draft.highlightUntil || '')}" /></label></details>
       <div class="sheet-field">
-        <span>Imagens</span>
-        <div class="draft-images">${(draft.images || []).map((image, index) => `<figure><img src="${escapeHtml(safeUrl(image.url))}" alt="" /><button class="icon-button small" type="button" data-action="drop-image" data-index="${index}" aria-label="Remover imagem">${icon('close', { size: 16 })}</button></figure>`).join('')}</div>
-        <label class="photo-pick">${state.postUploading ? 'A carregar…' : 'Acrescentar imagem'}<input type="file" accept="image/jpeg,image/png,image/webp" data-post-image ${state.postUploading ? 'disabled' : ''} /></label>
-        <small>Cada imagem é reduzida antes de ser enviada.</small>
+        <span>Fotos da publicação <small>${(draft.images || []).length}/8</small></span>
+        <div class="draft-images">${(draft.images || []).map((image, index) => `<figure><img src="${escapeHtml(safeUrl(image.url))}" alt="" /><button class="icon-button small" type="button" data-action="drop-image" data-index="${index}" aria-label="Remover foto ${index + 1}" ${state.postUploading || state.postSaving ? 'disabled' : ''}>${icon('close', { size: 16 })}</button></figure>`).join('')}</div>
+        <label class="post-photo-pick">${icon('camera', { size: 28 })}<strong>${state.postUploading ? 'A adicionar as suas fotos…' : 'Adicionar fotos'}</strong><span>Escolha os momentos que deseja partilhar</span><input type="file" multiple accept="image/jpeg,image/png,image/webp" aria-label="Adicionar fotos" data-post-image ${state.postUploading || state.postSaving || draft.images.length >= 8 ? 'disabled' : ''} /></label>
+        <small role="status">${state.postUploading ? 'Aguarde até todas as fotos estarem prontas.' : 'Até 8 fotos · JPG, PNG ou WebP'}</small>
       </div>
       <div class="sheet-actions">
-        <button class="button button-gold full-width" type="submit" ${state.postSaving ? 'disabled' : ''}>${state.postSaving ? 'A publicar…' : draft.id ? 'Guardar' : 'Publicar'}</button>
-        <button class="text-button" type="button" data-sheet-close>Cancelar</button>
+        <button class="button button-gold full-width" type="submit" ${state.postSaving || state.postUploading ? 'disabled' : ''}>${state.postSaving ? 'A publicar…' : draft.id ? 'Guardar' : 'Publicar'}</button>
+        <button class="text-button" type="button" data-sheet-close ${state.postSaving || state.postUploading ? 'disabled' : ''}>Cancelar</button>
       </div>
     </form>
   </div>`;
@@ -124,7 +141,7 @@ export function postsPage(state) {
       ? `<div class="post-list">${list.map((post) => postCard(state, post)).join('')}</div>`
       : emptyState({ title: 'Ainda não há anúncios', text: 'Quando a equipa publicar algo, aparece aqui.' });
   }
-  const body = `<section class="page-intro"><span class="eyebrow">ISTN-SJ</span><h1>Anúncios.</h1><p>O que a equipa e a sua igreja anunciam. ${canPublish(state.profile) ? 'Pode publicar.' : 'Só quem a equipa autoriza pode publicar.'}</p></section>
+  const body = `<section class="page-intro"><span class="eyebrow">ISTN-SJ</span><h1>A nossa comunidade.</h1><p>Novidades, encontros e momentos que nos aproximam.</p></section>
     ${composerButton(state)}
     ${content}`;
   return page('posts', { title: 'Anúncios', back: 'home', body }) + composerSheet(state);
@@ -133,14 +150,15 @@ export function postsPage(state) {
 function commentList(state, post) {
   const comments = state.comments?.[post.id];
   if (!comments) return '<p class="hint">A carregar comentários…</p>';
-  if (!comments.length) return '<p class="hint">Ainda não há comentários.</p>';
+  if (!comments.length) return '<div class="comments-empty"><span aria-hidden="true">🕊️</span><strong>Uma conversa começa com carinho.</strong><p>Ainda não há comentários nesta publicação.</p></div>';
   return `<ul class="comment-list">${comments.map((comment) => {
     const author = state.postAuthors?.get(comment.author_id);
     const name = authorName(author);
-    return `<li>
+    const photo = safeUrl(author?.photo_url);
+    return `<li><span class="post-avatar comment-avatar">${photo ? `<img src="${escapeHtml(photo)}" alt="" loading="lazy" />` : escapeHtml((name || '·').slice(0, 1))}</span><div class="comment-content"><div class="comment-bubble">
       <strong>${escapeHtml(name)}${author?.verified ? verifiedSeal(author.servo_role) : ''}</strong>
-      <small>${escapeHtml(formatPostDate(comment.created_at))}</small>
-      <div>${bodyHtml(comment.body)}</div>
+      <div>${bodyHtml(comment.body)}</div></div>
+      <small>${escapeHtml(formatPostDate(comment.created_at))}</small></div>
     </li>`;
   }).join('')}</ul>`;
 }
@@ -149,9 +167,9 @@ function commentForm(state, post) {
   if (canComment(state.profile)) {
     return `<form id="comment-form" class="comment-form" data-id="${escapeHtml(post.id)}">
       <label class="sheet-field"><span class="sr-only">Comentar</span>
-        <textarea name="body" rows="3" maxlength="2000" required placeholder="Escrever um comentário…"></textarea>
+        <textarea id="comment-body" name="body" rows="2" maxlength="2000" required ${state.commentSaving ? 'disabled' : ''} placeholder="Deixe uma mensagem de carinho…">${escapeHtml(state.commentDrafts?.[post.id] || '')}</textarea>
       </label>
-      <button class="button button-dark" type="submit" ${state.commentSaving ? 'disabled' : ''}>${state.commentSaving ? 'A enviar…' : 'Comentar'}</button>
+      <div class="comment-toolbar">${emojiTools('comment-body')}<button class="button button-dark" type="submit" ${state.commentSaving ? 'disabled' : ''}>${state.commentSaving ? 'A enviar…' : 'Enviar'}${icon('arrowRight', { size: 18 })}</button></div>
     </form>`;
   }
   return `<p class="notice">${icon('info', { size: 18 })}<span>${state.profile
