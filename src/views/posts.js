@@ -50,8 +50,8 @@ function reactionRow(state, post, { compact = true } = {}) {
     </div>
     <div class="post-interactions compact-interactions">
       <details class="reaction-picker" data-reaction-picker>
-        <summary class="reaction-trigger ${selected ? 'is-on' : ''} ${selected?.special ? 'is-special' : ''}" data-focus-key="reaction-trigger:${id}" aria-label="${selected ? `Reação atual: ${selected.label}. Alterar reação` : 'Escolher reação'}">
-          <span aria-hidden="true">${selected?.emoji || '👍'}</span>${selected?.label || 'Reagir'}
+        <summary class="reaction-trigger ${selected ? 'is-on' : ''} ${selected?.special ? 'is-special' : ''} ${selected && !selected.special ? 'is-icon-only' : ''}" data-focus-key="reaction-trigger:${id}" aria-label="${selected ? `Reação atual: ${selected.label}. Alterar reação` : 'Escolher reação'}">
+          <span aria-hidden="true">${selected?.emoji || '👍'}</span>${selected?.special ? `<span>${selected.label}</span>` : selected ? '' : '<span>Reagir</span>'}
         </summary>
         <div class="reaction-popover" role="group" aria-label="Escolher reação" aria-busy="${busy}">
           <div class="reaction-options">

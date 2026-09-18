@@ -634,6 +634,8 @@ button.menu-row:focus-visible { outline:3px solid var(--gold); outline-offset:-3
 .reaction-trigger { display: flex; align-items: center; justify-content: center; gap: 6px; min-height: 40px; padding: 4px 6px; list-style: none; border-radius: 10px; color: var(--muted); font-size: .8rem; font-weight: 600; cursor: pointer; }
 .reaction-trigger::-webkit-details-marker { display: none; }
 .reaction-trigger > span { font-size: 16px; line-height: 1; }
+.reaction-trigger.is-icon-only { max-width: 48px; margin: 0 auto; }
+.reaction-trigger.is-icon-only > span { font-size: 19px; }
 .reaction-trigger.is-on { color: var(--teal); background: #edf4ee; }
 .reaction-trigger.is-special { color: #755009; background: #fff5d7; }
 .compact-interactions .post-comment-link { flex: 1; min-width: 0; min-height: 40px; margin: 0; padding: 4px 6px; border: 0; background: transparent; font-size: .8rem; cursor: pointer; }
