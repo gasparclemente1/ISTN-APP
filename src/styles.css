@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=Playfair+Display:ital,wght@0,600;0,700;1,600;1,700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=DM+Mono:wght@400;500&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=Playfair+Display:ital,wght@0,600;0,700;1,600;1,700&display=swap');
 
 /* Readability floor used throughout: no text under 12px (.75rem), body text at
    least 14px, and every control at least 44px in its smaller dimension. */
@@ -47,10 +47,11 @@ main { max-width: 760px; margin: auto; padding-bottom: 112px; }
 .page-content { padding: 22px 20px 112px; }
 
 .topbar { position: sticky; top: 0; z-index: 10; height: 68px; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px max(16px, calc((100vw - 720px) / 2)); background: color-mix(in srgb, var(--paper) 92%, transparent); backdrop-filter: blur(14px); }
-.brand { display: flex; align-items: center; gap: 8px; min-height: var(--tap); color: var(--deep); font: 700 1.15rem/1 "DM Sans", sans-serif; letter-spacing: -.06em; }
-.brand small { display: block; margin-top: 3px; font: 500 .75rem/1 "DM Mono", monospace; letter-spacing: .08em; }
+.brand { display: flex; align-items: center; gap: 10px; min-height: var(--tap); color: var(--deep); font: 700 1.15rem/1 "DM Sans", sans-serif; letter-spacing: -.03em; }
+.brand small { display: block; margin-top: 3px; font: 500 .75rem/1 "DM Mono", monospace; letter-spacing: .04em; color: #7a6320; }
 .brand-name { display: grid; }
-.brand-sun { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; background: var(--gold); color: var(--deep); }
+.brand-name .brand-mark { font-size: 1.15rem; line-height: 1; letter-spacing: .05em; color: var(--deep); }
+.brand-logo { width: 36px; height: auto; display: block; }
 .page-title { position: absolute; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 4px; white-space: nowrap; font: 700 1.05rem "DM Sans", sans-serif; }
 .page-title .icon-button { position: absolute; right: calc(100% + 2px); }
 .topbar-action { min-width: var(--tap); display: flex; align-items: center; justify-content: flex-end; gap: 2px; }
@@ -113,13 +114,30 @@ main { max-width: 760px; margin: auto; padding-bottom: 112px; }
 
 /* ---------------------------------------------------------------- início -- */
 
-.hero { position: relative; overflow: hidden; min-height: 380px; padding: 44px 22px 42px; color: var(--white); background-color: var(--deep); background-image: linear-gradient(100deg, var(--deep) 0%, var(--deep) 44%, #082e3cdb 64%, #082e3cb3 100%), url("/design/assets/photos/profeta-elias-retrato-640.webp"); background-size: auto, auto 100%; background-position: center, right -10px bottom; background-repeat: no-repeat; }
+/* The welcome: the Profeta Elias with open arms, cut out of his photograph,
+   in front of the sun of the church's logo. The buttons sit over the bottom
+   of the picture, so the whole welcome fits the first screen of a phone. */
+.hero { position: relative; overflow: hidden; isolation: isolate; display: grid; padding: 28px 20px 0; color: var(--white); background: radial-gradient(110% 60% at 50% 72%, #135163 0%, transparent 70%), linear-gradient(180deg, var(--deep) 0%, #05303e 100%); }
 .hero .eyebrow { color: var(--gold); }
-.hero h1 { max-width: 620px; margin: 14px 0 16px; }
-.hero h1 em { color: var(--gold); font-weight: 600; }
-.hero p { max-width: 440px; margin-bottom: 26px; color: #d3e1e2; font-size: 1rem; }
-.hero-actions { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; }
+.hero h1 { margin: 12px 0 12px; font-size: clamp(2.5rem, 11.5vw, 4rem); }
+/* The church's name is set in Roman capitals, like an inscription: an acronym
+   in a flowing italic reads as a word it is not. */
+.brand-mark { font-family: "Cinzel", "Playfair Display", Georgia, serif; font-style: normal; font-weight: 700; letter-spacing: .04em; }
+.hero h1 .brand-mark { display: inline-block; color: var(--gold); font-size: 1.04em; line-height: 1.05; }
+.hero p { max-width: 440px; margin: 0 0 16px; color: #d3e1e2; font-size: 1rem; }
+.hero-art { position: relative; margin: 2px -20px 0; display: grid; justify-items: center; }
+.hero-art img { position: relative; z-index: 1; display: block; width: min(100%, 480px); height: auto; -webkit-mask-image: linear-gradient(180deg, #000 70%, transparent 98%); mask-image: linear-gradient(180deg, #000 70%, transparent 98%); }
+.hero-sun { position: absolute; left: 50%; top: -4%; width: min(100vw, 470px); aspect-ratio: 1; transform: translateX(-50%); border-radius: 50%; background: radial-gradient(circle, #ffe08a 0 12%, #f3c546b3 22%, #f3c54633 44%, transparent 64%), repeating-conic-gradient(#f3c54638 0 4deg, transparent 4deg 15deg); -webkit-mask-image: radial-gradient(circle, #000 28%, transparent 68%); mask-image: radial-gradient(circle, #000 28%, transparent 68%); }
+.hero-actions { position: relative; z-index: 2; display: flex; flex-wrap: wrap; gap: 10px; margin: -70px -20px 0; padding: 26px 20px 26px; background: linear-gradient(180deg, transparent, #042936e0 40%, var(--deep)); }
+.hero-actions .button { flex: 1 1 150px; }
+.button-glass { border: 1px solid #ffffff4d; background: #ffffff1a; color: var(--white); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
 .hero .link-button { color: var(--white); }
+.live-chip { display: inline-flex; align-items: center; gap: 8px; max-width: 100%; min-height: var(--tap); padding: 8px 14px; border: 1px solid #ffffff33; border-radius: 99px; background: #ffffff14; color: var(--white); font-size: .875rem; }
+.live-chip strong { flex: 0 0 auto; color: var(--gold); white-space: nowrap; }
+.live-chip > span:not(.live-dot) { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #d3e1e2; }
+.live-chip.is-live { border-color: #ff9d86; background: #c8321a; }
+.live-chip.is-live strong, .live-chip.is-live > span:not(.live-dot) { color: var(--white); }
+.live-chip.is-live .live-dot { background: var(--white); box-shadow: none; animation: live-pulse 1.4s ease-out infinite; }
 
 .content-section { padding: 36px 20px 0; }
 .section-heading { display: flex; justify-content: space-between; align-items: end; gap: 16px; margin-bottom: 14px; }
@@ -322,7 +340,7 @@ main { max-width: 760px; margin: auto; padding-bottom: 112px; }
 .info-list { margin: 16px 0 20px; border-top: 1px solid var(--line); }
 .info-row { display: flex; gap: 14px; padding: 16px 2px; border-bottom: 1px solid var(--line); }
 .info-row > .ui-icon { margin-top: 2px; color: #2a6d62; }
-.info-row p { display: grid; gap: 4px; margin: 0; color: var(--ink); }
+.info-row > div { flex: 1; min-width: 0; display: grid; gap: 4px; margin: 0; color: var(--ink); }
 .info-row small { font: 500 .75rem "DM Mono", monospace; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
 .info-row strong { font-size: 1rem; }
 .info-row .muted { font-size: .85rem; }
@@ -345,7 +363,11 @@ a.menu-row:hover { background: #f5f8f6; }
 /* --------------------------------------------------------------- ecrãs largos */
 
 @media (min-width: 700px) {
-  .hero { padding: 70px max(48px, calc((100% - 610px) / 2)); border-radius: 0 0 32px 32px; background-image: linear-gradient(100deg, var(--deep) 0%, var(--deep) 48%, #082e3cd6 68%, #082e3ca8 100%), url("/design/assets/photos/profeta-elias-retrato-1280.webp"); background-size: auto, auto 104%; background-position: center, right 3% bottom; }
+  .hero { grid-template-columns: minmax(0, 1.05fr) minmax(0, .95fr); grid-template-rows: auto 1fr; column-gap: 12px; padding: 44px 40px 0; border-radius: 0 0 32px 32px; }
+  .hero-copy { grid-column: 1; grid-row: 1; align-self: end; }
+  .hero-actions { grid-column: 1; grid-row: 2; align-self: start; margin: 0; padding: 8px 0 44px; background: none; }
+  .hero-actions .button { flex: 0 1 auto; }
+  .hero-art { grid-column: 2; grid-row: 1 / span 2; align-self: end; margin: 0 -20px 0 0; }
   .content-section, .page-content { padding-left: 34px; padding-right: 34px; }
   .join-invite, .find-istn { margin-left: 34px; margin-right: 34px; }
   .find-istn { grid-template-columns: 1fr auto; align-items: center; }
@@ -661,4 +683,154 @@ button.menu-row:focus-visible { outline:3px solid var(--gold); outline-offset:-3
   .reaction-popover { animation: none; }
   .reaction-option { transition: none; }
   .reaction-option:hover { transform: none; }
+}
+
+/* ------------------------------------------------------- ao vivo agora ---- */
+
+.on-air { display: inline-flex; align-items: center; padding: 3px 8px; border-radius: 6px; background: #c8321a; color: var(--white); letter-spacing: .1em; }
+.live-card.is-live { background: linear-gradient(140deg, #ffdb70, var(--gold) 55%); box-shadow: 0 0 0 4px var(--white), 0 0 0 7px #c8321a; }
+.live-card.is-live .live-dot, .next-meeting.is-live .live-dot { animation: live-pulse 1.4s ease-out infinite; }
+.next-meeting.is-live { border-color: #c8321a; box-shadow: 0 0 0 3px #f7c8bd; }
+.live-hero .live-hero-lead { margin: 0 0 10px; color: var(--gold); font: italic 600 1.15rem/1.4 "Playfair Display", Georgia, serif; }
+@keyframes live-pulse { 0% { box-shadow: 0 0 0 0 #c8321a99; } 70% { box-shadow: 0 0 0 9px #c8321a00; } 100% { box-shadow: 0 0 0 0 #c8321a00; } }
+
+/* ------------------------------------------------------ igrejas: topo ---- */
+
+/* The Profeta Elias and his word about the nations. On a phone the quote sits
+   over the lower half of the picture — the dark of his shirt — so his face
+   and raised hand stay clear above it. */
+.churches-page { padding-top: 0; }
+.prophecy { position: relative; overflow: hidden; isolation: isolate; min-height: 450px; display: flex; flex-direction: column; justify-content: flex-end; margin: 0 -20px 26px; padding: 0 20px 26px; border-radius: 0 0 28px 28px; color: var(--white); background: radial-gradient(90% 55% at 70% 24%, #17586a 0%, transparent 72%), linear-gradient(180deg, #05313f, var(--deep)); }
+.prophecy::after { content: ""; position: absolute; inset: auto 0 0; z-index: -1; height: 64%; background: linear-gradient(180deg, transparent, #042936d9 42%, var(--deep) 86%); }
+.prophecy-art { position: absolute; top: 0; right: -9%; z-index: -2; width: 88%; max-width: 390px; }
+.prophecy-art img { position: relative; display: block; width: 100%; height: auto; -webkit-mask-image: linear-gradient(180deg, #000 62%, transparent 96%); mask-image: linear-gradient(180deg, #000 62%, transparent 96%); }
+.prophecy-sun { position: absolute; top: -12%; left: 4%; width: 96%; aspect-ratio: 1; border-radius: 50%; background: radial-gradient(circle, #f3c54666 0%, #f3c5461f 38%, transparent 66%), repeating-conic-gradient(#f3c54630 0 4deg, transparent 4deg 15deg); -webkit-mask-image: radial-gradient(circle, #000 22%, transparent 66%); mask-image: radial-gradient(circle, #000 22%, transparent 66%); }
+.prophecy-copy { position: relative; max-width: 560px; margin: 0; }
+.prophecy blockquote { margin: 0; }
+.prophecy blockquote p { position: relative; margin: 0; color: #fffaf0; font: italic 600 clamp(1.1rem, 4.7vw, 1.45rem)/1.45 "Playfair Display", Georgia, serif; letter-spacing: -.005em; text-shadow: 0 1px 16px #021a22; }
+.prophecy blockquote p::before { content: "“"; display: block; height: .55em; margin-bottom: 4px; color: var(--gold); font: 700 3.4rem/1 "Playfair Display", Georgia, serif; }
+.prophecy figcaption { display: flex; align-items: center; gap: 10px; margin-top: 14px; font: 500 .8rem/1 "DM Mono", monospace; letter-spacing: .12em; text-transform: uppercase; color: var(--gold); }
+.prophecy figcaption::before { content: ""; width: 28px; height: 1.5px; background: var(--gold); }
+.churches-page .page-intro .eyebrow .ui-icon { color: #17625f; }
+
+/* --------------------------------------------------- igrejas: o mundo ---- */
+
+.world-card { margin: 4px 0 20px; padding: 20px 18px 14px; border-radius: var(--radius); background: linear-gradient(170deg, #06343f, var(--deep)); color: var(--white); }
+.world-card .eyebrow { color: var(--gold); }
+.world-heading h2 { margin: 6px 0 14px; }
+.world-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 0 0 10px; }
+.world-stats div { padding: 10px 10px 9px; border-radius: 14px; background: #ffffff0f; }
+.world-stats dt { font: 500 .75rem/1.25 "DM Mono", monospace; letter-spacing: .03em; color: #a9c3c7; }
+.world-stats dd { margin: 5px 0 0; font: 700 1.7rem/1 "Playfair Display", Georgia, serif; color: var(--gold); }
+.world-map { display: block; width: 100%; height: auto; margin: 6px 0 8px; overflow: visible; }
+.map-land { fill: none; stroke: #6f9aa1; stroke-width: .6; stroke-linecap: round; opacity: .55; }
+.map-light { cursor: pointer; }
+.map-glow { fill: var(--gold); opacity: .22; transform-box: fill-box; transform-origin: center; animation: map-glow 3.6s ease-in-out infinite; }
+.map-dot { fill: var(--gold); stroke: var(--deep); stroke-width: .22; }
+.map-light.is-online .map-dot { fill: var(--deep); stroke: var(--gold); stroke-width: .34; }
+.map-hit { fill: transparent; }
+.map-light:hover .map-dot { fill: var(--gold-soft); }
+@keyframes map-glow { 50% { opacity: .06; transform: scale(1.4); } }
+.world-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: 0 0 12px; font-size: .8rem; color: #a9c3c7; }
+.legend-dot, .legend-ring { display: inline-block; width: 10px; height: 10px; border-radius: 50%; }
+.legend-dot { background: var(--gold); }
+.legend-ring { margin-left: 6px; border: 1.5px solid var(--gold); }
+.world-hint { flex-basis: 100%; }
+.country-chips { list-style: none; display: flex; gap: 8px; overflow-x: auto; margin: 0 -18px; padding: 2px 18px 8px; scrollbar-width: none; contain: paint; }
+.country-chips::-webkit-scrollbar { display: none; }
+.country-chips button { display: inline-flex; align-items: center; gap: 7px; min-height: var(--tap); padding: 6px 13px; border: 1px solid #ffffff2e; border-radius: 99px; background: #ffffff12; color: var(--white); font-size: .875rem; white-space: nowrap; }
+.country-chips button:hover { background: #ffffff24; }
+.country-chips small { font: 500 .75rem "DM Mono", monospace; color: var(--gold); }
+
+/* --------------------------------------------------- igrejas: sedes ------ */
+
+.world-seat { position: relative; overflow: hidden; isolation: isolate; margin: 0 0 22px; padding: 22px 20px 20px; border: 1px solid #ebcd6f; border-radius: var(--radius); background: linear-gradient(150deg, #fffaea, #fbe9ad); color: var(--deep); box-shadow: 0 10px 28px #bd942024; }
+.world-seat-rays { position: absolute; top: -90px; right: -90px; z-index: -1; width: 260px; height: 260px; border-radius: 50%; background: radial-gradient(circle, #f3c5468c 0 14%, transparent 15%), repeating-conic-gradient(#e0a80047 0 5deg, transparent 5deg 16deg); -webkit-mask-image: radial-gradient(circle, #000 25%, transparent 70%); mask-image: radial-gradient(circle, #000 25%, transparent 70%); }
+.world-seat h2 { margin: 12px 0 4px; font-size: clamp(1.7rem, 7vw, 2.2rem); }
+.world-seat-where { margin: 0 0 10px; color: #5c4a10; font-weight: 600; }
+.world-seat-address { display: flex; align-items: flex-start; gap: 8px; margin: 0 0 12px; color: #4b411f; font-size: .9rem; line-height: 1.45; }
+.world-seat-address .ui-icon { margin-top: 2px; color: #a57800; }
+.world-seat .service-chip { background: #ffffffb3; }
+.world-seat .service-chip.is-today { background: var(--deep); }
+.world-seat-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin-top: 16px; }
+.world-seat .text-button { color: #6b4b00; }
+
+.seat-pill { display: inline-flex; align-items: center; gap: 6px; padding: 4px 11px 4px 5px; border-radius: 99px; font: 700 .75rem/1.2 "DM Sans", sans-serif; letter-spacing: .02em; white-space: nowrap; }
+.seat-pill.seat-mundial { background: linear-gradient(90deg, #f0bd2e, #ffdf7e); color: #3d2c00; box-shadow: 0 2px 8px #bd942038; }
+.seat-pill.seat-nacional { background: var(--deep); color: var(--gold); }
+.seat-seal { flex: 0 0 auto; display: block; }
+.seat-seal.seat-mundial .seal-disc { fill: #c98a00; }
+.seat-seal.seat-mundial circle, .seat-seal.seat-mundial path:not(.seal-disc) { stroke: var(--white); }
+.seat-seal.seat-nacional .seal-disc { fill: var(--gold); }
+.seat-seal.seat-nacional path:not(.seal-disc) { fill: var(--deep); }
+
+.church-card.is-seat { border-color: #ead38a; background: linear-gradient(180deg, #fffaf0, var(--white) 70%); box-shadow: inset 4px 0 0 var(--gold); }
+.church-card.seat-mundial { border-color: #e0b73c; box-shadow: inset 4px 0 0 #d99a00, 0 6px 18px #bd942017; }
+.church-head.is-seat .round-icon { background: #fff2c4; }
+.church-badges { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+
+/* ------------------------------------------------ igrejas: dias de culto -- */
+
+.service-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 2px; }
+.service-chip { display: inline-flex; align-items: baseline; gap: 6px; padding: 5px 10px; border-radius: 10px; background: #eef3ef; color: var(--deep); font-size: .875rem; line-height: 1.25; }
+.service-chip b { font: 700 .75rem "DM Mono", monospace; letter-spacing: .04em; text-transform: uppercase; color: #22695f; }
+.service-chip span { font-weight: 700; font-variant-numeric: tabular-nums; }
+.service-chip i { font-style: normal; font-size: .8rem; color: var(--muted); }
+.service-chip.is-today { background: var(--deep); color: var(--white); }
+.service-chip.is-today b { color: var(--gold); }
+.service-chip.is-today i { color: #c4d8dd; }
+.day-chips { margin-top: 0; }
+.card-line > span { min-width: 0; }
+.card-address { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; margin-top: 2px; font-size: .85rem; color: var(--muted); }
+.country-flag { font-size: 1.3rem; line-height: 1; }
+.country-group.is-online .country-heading .ui-icon { color: #22695f; }
+.group-hint { margin: -4px 2px 12px; font-size: .875rem; }
+#church-results { scroll-margin-top: 80px; }
+
+.next-service { display: flex; align-items: center; gap: 12px; margin: 16px 0 0; padding: 14px 16px; border-radius: 16px; background: var(--deep); color: var(--gold); }
+.next-service span { display: grid; gap: 3px; font: 500 .75rem "DM Mono", monospace; letter-spacing: .06em; text-transform: uppercase; color: #a9c3c7; }
+.next-service strong { font: 700 1.3rem/1.2 "Playfair Display", Georgia, serif; letter-spacing: 0; text-transform: none; color: var(--gold); }
+.service-table { width: 100%; border-collapse: collapse; }
+.service-table th, .service-table td { padding: 9px 0; border-bottom: 1px dashed var(--line); text-align: left; vertical-align: baseline; }
+.service-table tr:last-child th, .service-table tr:last-child td { border-bottom: 0; }
+.service-table th { font-weight: 600; color: var(--ink); }
+.service-table th b { margin-left: 8px; padding: 2px 6px; border-radius: 6px; background: var(--deep); color: var(--gold); font: 500 .75rem "DM Mono", monospace; }
+.service-table td { text-align: right; }
+.service-table td strong { font: 700 1.15rem "Playfair Display", Georgia, serif; color: var(--deep); font-variant-numeric: tabular-nums; }
+.service-table td small { display: block; font-size: .8rem; letter-spacing: 0; text-transform: none; font-family: "DM Sans", sans-serif; color: var(--muted); }
+.service-table tr.is-today th, .service-table tr.is-today td strong { color: #0c4c5c; }
+.leader-list { list-style: none; display: grid; gap: 12px; margin: 0; padding: 0; }
+.leader-list li { display: grid; gap: 2px; }
+.leader-contacts { display: flex; flex-wrap: wrap; align-items: center; gap: 0 16px; }
+.leader-contacts .strong-link { gap: 6px; }
+
+/* --------------------------------------------------------------- ensinos -- */
+
+.coming-soon { display: flex; align-items: center; gap: 10px; margin: -6px 0 16px; padding: 11px 14px; border-radius: 14px; background: var(--gold-soft); color: #5a4300; font-size: .9rem; line-height: 1.4; }
+.coming-soon .ui-icon { color: #c48e00; }
+
+/* ---------------------------------------------------- anúncios: vídeos ---- */
+
+.post-videos { display: grid; gap: 10px; margin: 14px 0 4px; }
+.post-video { display: block; overflow: hidden; border-radius: 16px; background: var(--deep); color: var(--white); }
+.post-video-thumb { position: relative; display: block; aspect-ratio: 16 / 9; background: #0b1f26; }
+.post-video-thumb img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.post-video-play { position: absolute; inset: 0; width: 60px; height: 60px; margin: auto; display: grid; place-items: center; padding-left: 3px; border-radius: 50%; background: #d6281cf0; color: var(--white); box-shadow: 0 6px 20px #00000066; }
+.post-video-label { display: flex; align-items: center; gap: 6px; padding: 11px 14px; font-size: .875rem; font-weight: 600; }
+.post-link { color: var(--teal); text-decoration: underline; text-underline-offset: 3px; overflow-wrap: anywhere; }
+.sheet-hint .ui-icon { vertical-align: -2px; margin-right: 6px; color: var(--teal); }
+
+@media (min-width: 700px) {
+  .prophecy { min-height: 430px; justify-content: center; margin: 0 -34px 30px; padding: 40px 34px; }
+  .prophecy::after { inset: 0 auto 0 0; width: 72%; height: auto; background: linear-gradient(90deg, var(--deep) 42%, transparent); }
+  .prophecy-art { top: auto; bottom: 0; right: 3%; width: 46%; max-width: 360px; }
+  .prophecy-copy { max-width: 56%; }
+  .world-card { padding: 24px 26px 18px; }
+  .world-hint { flex-basis: auto; margin-left: auto; }
+  .country-chips { flex-wrap: wrap; margin: 0; padding: 2px 0 6px; }
+  .post-videos { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .map-glow, .live-chip.is-live .live-dot, .live-card.is-live .live-dot, .next-meeting.is-live .live-dot { animation: none; }
 }

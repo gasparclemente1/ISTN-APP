@@ -5,6 +5,12 @@
 export const WEEKDAY_LABELS = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
 export const DEFAULT_DURATION_MINUTES = 120;
 
+// A live stays on screen as "a decorrer" until six in the morning in Luanda.
+// The lives start in the evening and often run past midnight: at 23:00 someone
+// opening the app must see the live they can still join, not tomorrow's. Only
+// at 06:00 does the app move on to the next one.
+export const LIVE_ENDS_AT_HOUR = 6;
+
 function zoneOffset(instant, timeZone) {
   const parts = Object.fromEntries(new Intl.DateTimeFormat('en-US', { timeZone, hour12: false, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' })
     .formatToParts(new Date(instant)).map((part) => [part.type, part.value]));
@@ -47,22 +53,23 @@ function parseTime(value) {
   return Number.isFinite(hour) && Number.isFinite(minute) ? { hour, minute } : null;
 }
 
-// Candidate dates, soonest first, ignoring the time of day.
+// Candidate dates, soonest first, ignoring the time of day. Yesterday is among
+// them: until six in the morning, last night's live is still the one on.
 function candidateDates(meeting, today) {
   const { year, month, day } = today;
   switch (meeting.recurrence) {
     case 'weekly': {
       const weekdays = (meeting.weekdays || []).map(Number);
-      return Array.from({ length: 8 }, (_, ahead) => {
+      return Array.from({ length: 9 }, (_, index) => {
         const date = atUtc(year, month, day);
-        date.setUTCDate(date.getUTCDate() + ahead);
+        date.setUTCDate(date.getUTCDate() + index - 1);
         return date;
       }).filter((date) => weekdays.includes(date.getUTCDay()));
     }
     case 'monthly_last': {
       const weekday = Number((meeting.weekdays || [])[0]);
       if (!Number.isFinite(weekday)) return [];
-      return [0, 1, 2].map((ahead) => {
+      return [-1, 0, 1, 2].map((ahead) => {
         const target = new Date(Date.UTC(year, month - 1 + ahead, 1));
         return lastWeekdayOfMonth(target.getUTCFullYear(), target.getUTCMonth() + 1, weekday);
       });
@@ -70,7 +77,7 @@ function candidateDates(meeting, today) {
     case 'yearly': {
       if (!meeting.event_date) return [];
       const [, eventMonth, eventDay] = meeting.event_date.split('-').map(Number);
-      return [0, 1].map((ahead) => atUtc(year + ahead, eventMonth, eventDay));
+      return [-1, 0, 1].map((ahead) => atUtc(year + ahead, eventMonth, eventDay));
     }
     case 'once': {
       if (!meeting.event_date) return [];
@@ -82,16 +89,27 @@ function candidateDates(meeting, today) {
   }
 }
 
+// Until when a live that began at `start` counts as going on: the next six in
+// the morning in `timeZone`, and never less than the usual length of a meeting
+// (a vigil at four still gets its two hours).
+export function liveUntil(start, timeZone) {
+  const wall = zonedDateTimeParts(start, timeZone);
+  const sameDay = wall.hour < LIVE_ENDS_AT_HOUR;
+  const date = new Date(Date.UTC(wall.year, wall.month - 1, wall.day + (sameDay ? 0 : 1)));
+  const morning = zonedToInstant({ year: date.getUTCFullYear(), month: date.getUTCMonth() + 1, day: date.getUTCDate(), hour: LIVE_ENDS_AT_HOUR, minute: 0 }, timeZone);
+  return new Date(Math.max(morning.getTime(), start.getTime() + DEFAULT_DURATION_MINUTES * 60000));
+}
+
 // A meeting with no start_time cannot be placed on a clock, only described.
 export function nextOccurrence(meeting, timeZone, now = new Date()) {
   const time = parseTime(meeting.start_time);
   if (!time) return null;
   const today = zonedDateParts(now, timeZone);
-  const windowMs = DEFAULT_DURATION_MINUTES * 60000;
   for (const date of candidateDates(meeting, today)) {
     const start = zonedToInstant({ year: date.getUTCFullYear(), month: date.getUTCMonth() + 1, day: date.getUTCDate(), hour: time.hour, minute: time.minute }, timeZone);
-    if (now.getTime() < start.getTime() + windowMs) {
-      return { meeting, start, isLive: now >= start };
+    const until = liveUntil(start, timeZone);
+    if (now < until) {
+      return { meeting, start, until, isLive: now >= start };
     }
   }
   return null;
@@ -117,8 +135,12 @@ export function untimedMeetingsOn(meetings, timeZone, now = new Date()) {
     .filter((meeting) => candidateDates(meeting, today).some((date) => date.getTime() === key));
 }
 
+// The live going on — the one that began last, if two overlap — or else the
+// next to begin.
 export function nextMeeting(meetings, timeZone, now = new Date()) {
-  return upcomingMeetings(meetings, timeZone, now)[0] || null;
+  const upcoming = upcomingMeetings(meetings, timeZone, now);
+  const live = upcoming.filter((occurrence) => occurrence.isLive).sort((a, b) => b.start - a.start)[0];
+  return live || upcoming[0] || null;
 }
 
 // How a meeting's recurrence reads to a person.

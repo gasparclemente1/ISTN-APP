@@ -20,13 +20,50 @@ test('semanal: a próxima é hoje à noite, em hora de Luanda', () => {
   assert.equal(next.isLive, false);
 });
 
-test('fica "a decorrer" durante duas horas depois do início', () => {
+test('fica "a decorrer" até às 6h de Luanda, e só então aparece a próxima', () => {
+  // Quinta 20:30 em Luanda: a live começou.
   const live = nextMeeting(GERAL, LUANDA, at('2026-09-17T20:15:00Z'));
   assert.equal(live.meeting.id, 'b');
   assert.equal(live.isLive, true);
-  const after = nextMeeting(GERAL, LUANDA, at('2026-09-17T21:31:00Z'));
+  // Às 23:30 e às 05:59 de sexta ainda é a live de quinta.
+  assert.equal(nextMeeting(GERAL, LUANDA, at('2026-09-17T22:30:00Z')).isLive, true);
+  const beforeSix = nextMeeting(GERAL, LUANDA, at('2026-09-18T04:59:00Z'));
+  assert.equal(beforeSix.meeting.id, 'b');
+  assert.equal(beforeSix.start.toISOString(), '2026-09-17T19:30:00.000Z');
+  assert.equal(beforeSix.until.toISOString(), '2026-09-18T05:00:00.000Z');
+  // Às 06:00 de sexta, a próxima: sexta às 19:30.
+  const after = nextMeeting(GERAL, LUANDA, at('2026-09-18T05:00:00Z'));
   assert.equal(after.meeting.id, 'a');
+  assert.equal(after.isLive, false);
   assert.equal(after.start.toISOString(), '2026-09-18T18:30:00.000Z');
+});
+
+test('depois da meia-noite, a live da véspera continua a ser a que está a decorrer', () => {
+  // Quarta 01:00 em Luanda: a live dos ministros começou terça às 20:00.
+  const tuesdayNight = nextMeeting(GERAL, LUANDA, at('2026-09-23T00:00:00Z'));
+  assert.equal(tuesdayNight.meeting.id, 'd');
+  assert.equal(tuesdayNight.isLive, true);
+  // A vigília de 31 de dezembro às 22:00 ainda está a decorrer às 3h de 1 de janeiro.
+  const vigilia = { id: 'v', recurrence: 'yearly', event_date: '2026-12-31', start_time: '22:00' };
+  const newYear = nextOccurrence(vigilia, LUANDA, at('2027-01-01T02:00:00Z'));
+  assert.equal(newYear.isLive, true);
+  assert.equal(newYear.start.toISOString(), '2026-12-31T21:00:00.000Z');
+});
+
+test('duas reuniões no mesmo dia: a que começou por último é a que está a decorrer', () => {
+  const morning = { id: 'm', recurrence: 'once', event_date: '2026-09-19', start_time: '10:00' };
+  const list = [morning, ...GERAL];
+  // Sábado às 20:00 em Luanda: a da manhã ainda conta até às 6h, mas a live
+  // das 19:30 começou depois.
+  assert.equal(nextMeeting(list, LUANDA, at('2026-09-19T19:00:00Z')).meeting.id, 'a');
+  assert.equal(nextMeeting(list, LUANDA, at('2026-09-19T12:00:00Z')).meeting.id, 'm');
+});
+
+test('uma reunião de madrugada tem pelo menos as duas horas habituais', () => {
+  const early = { id: 'e', recurrence: 'once', event_date: '2026-09-20', start_time: '05:00' };
+  const occurrence = nextOccurrence(early, LUANDA, at('2026-09-20T04:30:00Z'));
+  assert.equal(occurrence.isLive, true);
+  assert.equal(occurrence.until.toISOString(), '2026-09-20T06:00:00.000Z');
 });
 
 test('terça: a live dos ministros tem hora; a geral só uma explicação', () => {

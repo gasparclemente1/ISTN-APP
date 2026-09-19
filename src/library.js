@@ -17,11 +17,15 @@ export function categoryOf(service = '') {
 
 export const yearOf = (teaching) => (teaching.publishedAt ? String(teaching.publishedAt).slice(0, 4) : '');
 
+// The id of a YouTube video, from any of the addresses the phone's share
+// button produces: watch?v=, youtu.be/, /shorts/, /live/ and /embed/.
 export function videoId(url) {
   try {
     const parsed = new URL(url);
-    if (parsed.hostname.endsWith('youtu.be')) return parsed.pathname.slice(1) || null;
-    return parsed.searchParams.get('v');
+    if (!/(^|\.)(youtube\.com|youtu\.be|youtube-nocookie\.com)$/.test(parsed.hostname)) return null;
+    if (parsed.hostname.endsWith('youtu.be')) return parsed.pathname.slice(1).split('/')[0] || null;
+    const path = parsed.pathname.match(/^\/(?:shorts|live|embed)\/([\w-]+)/);
+    return path ? path[1] : parsed.searchParams.get('v');
   } catch {
     return null;
   }

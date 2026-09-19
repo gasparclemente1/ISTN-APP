@@ -7,11 +7,11 @@
 // records are corrected by the team, not silently by code.
 import { readFileSync, writeFileSync } from 'node:fs';
 import { bookOf } from '../src/bible.js';
-import { normalizeChurch, rowsFromSourceRecords, serviceLabel, sharedPhones, sortChurches } from '../src/directory.js';
+import { normalizeChurch, rowsFromDirectoryFile, serviceLabel, sharedPhones, sortChurches } from '../src/directory.js';
 import { collator, foldText } from '../src/text.js';
 
 const read = (name) => JSON.parse(readFileSync(new URL(`../data/${name}`, import.meta.url)));
-const churches = sortChurches(rowsFromSourceRecords(read('church-service-source-records.json'), read('online-communities-source-records.json')).map((row) => normalizeChurch(row)));
+const churches = sortChurches(rowsFromDirectoryFile(read('igrejas.json')).map((row) => normalizeChurch(row)));
 const teachings = read('youtube-teachings.json');
 
 const label = (church) => `ISTN — ${church.name}${church.region ? ` (${church.region}, ${church.country})` : ` (${church.country})`} \`${church.id}\``;
@@ -29,7 +29,7 @@ section('Mesmo número em vários registos',
   'Muitas vezes é o mesmo responsável anunciado para vários lugares; às vezes é um erro de cópia. Confirme com o responsável antes de verificar.',
   shared.map(([, list]) => `- **${list[0].leaderPhone}** — ${list.map((church) => `${label(church)} · ${church.leaderName || 'sem nome'}`).join('; ')}`));
 
-const byCountryPrefix = { Angola: '244', Brasil: '55', Portugal: '351', Moçambique: '258', 'São Tomé e Príncipe': '239', Alemanha: '49', França: '33', 'Reino Unido': '44', Noruega: '47', Polónia: '48' };
+const byCountryPrefix = { Angola: '244', Brasil: '55', Portugal: '351', Moçambique: '258', 'São Tomé e Príncipe': '239', Alemanha: '49', França: '33', Inglaterra: '44', 'Reino Unido': '44', Noruega: '47', Polónia: '48' };
 section('Indicativo diferente do país do registo',
   'Pode estar certo (um responsável em Angola que acompanha uma comunidade noutro país), mas convém confirmar. O caso dos Estados Unidos já vinha assinalado: a mensagem original usava a bandeira da Libéria.',
   churches.filter((church) => {
@@ -49,9 +49,18 @@ churches.filter((church) => church.modality === 'physical').forEach((church) => 
   byPlace.set(key, [...(byPlace.get(key) || []), church]);
 });
 section('Localidades repetidas no mesmo país',
-  'Podem ser dois horários da mesma igreja (sábado e domingo) ou dois lugares diferentes com o mesmo nome. Não foram juntados.',
+  'A importação juntou os horários de cada lugar num só registo (ver data/importacao-igrejas.md). O que aparecer aqui tem o mesmo nome e responsáveis diferentes: confirme se são dois lugares.',
   [...byPlace.values()].filter((list) => list.length > 1)
     .map((list) => `- ${list.map((church) => `${label(church)} · ${church.services.map(serviceLabel).join('; ') || 'sem horário'}`).join(' / ')}`));
+
+section('Moradas a rever',
+  'A morada aparece tal como está na lista da equipa. Estas parecem ter um erro de digitação: confirme com o responsável e corrija no painel.',
+  churches.filter((church) => church.address && church.countryCode === 'PT' && /\b\d{4}-\d{1,2}\b/.test(church.address))
+    .map((church) => `- ${label(church)} — «${church.address}»: o código postal português tem sete algarismos (0000-000).`));
+
+section('Sem morada',
+  'A lista não indica morada: a página diz «Morada a confirmar com o responsável».',
+  churches.filter((church) => church.modality === 'physical' && !church.address).map((church) => `- ${label(church)}`));
 
 // Places: the same name once accents, spacing and a silent "h" are ignored
 // ("Baia" and "Bahia"), across localities and regions of one country.

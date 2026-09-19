@@ -1,6 +1,7 @@
 // Announcements: how a post is put together, who may write one, and what a
 // reaction adds up to. Pure functions, so the rules can be tested without a
 // browser and the same ones answer in the app and in the panel.
+import { videoId } from './library.js';
 import { collator } from './text.js';
 import { roleShort } from './roles.js';
 
@@ -108,4 +109,32 @@ export function formatPostDate(value, now = new Date()) {
     return days === 1 ? 'ontem' : `há ${days} dias`;
   }
   return new Intl.DateTimeFormat('pt-PT', { day: '2-digit', month: 'short', year: 'numeric' }).format(date);
+}
+
+// Addresses written in a post, as typed, without the full stop or bracket that
+// ends the sentence around them.
+export function linksIn(text) {
+  return (String(text || '').match(/https?:\/\/[^\s<>"']+/g) || [])
+    .map((link) => link.replace(/[.,;:!?)\]]+$/, ''));
+}
+
+// The YouTube videos a post points to, once each and at most three: a video is
+// shared as a link and watched on YouTube, so it weighs nothing on the app or
+// on the database.
+export function videosIn(text) {
+  const ids = [];
+  linksIn(text).forEach((link) => {
+    const id = videoId(link);
+    if (id && /^[\w-]{6,20}$/.test(id) && !ids.includes(id)) ids.push(id);
+  });
+  return ids.slice(0, 3).map((id) => ({ id, url: `https://www.youtube.com/watch?v=${id}`, thumbnail: `https://i.ytimg.com/vi/${id}/hqdefault.jpg` }));
+}
+
+// What "Partilhar" sends along with the link: the title and the first line of
+// the text, enough for whoever receives it to know what it is about.
+export function postShareText(post) {
+  const clip = (text) => (text.length > 140 ? `${text.slice(0, 139).trimEnd()}…` : text);
+  const firstLine = String(post.body || '').split('\n').map((line) => line.trim()).find(Boolean) || '';
+  if (post.title) return firstLine ? `${post.title}\n${clip(firstLine)}` : post.title;
+  return clip(firstLine || 'Anúncio');
 }

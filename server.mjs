@@ -1,7 +1,9 @@
-import { createReadStream, statSync } from 'node:fs';
+import { createReadStream, readFileSync, statSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { createGzip, gzipSync } from 'node:zlib';
-import { resolvePublicPath, isTextType } from './lib/static.mjs';
+import { join } from 'node:path';
+import { APP_ROUTES, resolvePublicPath, isTextType } from './lib/static.mjs';
+import { PREVIEW_BOTS, previewFor, sectionPreview, withPreview } from './lib/link-preview.mjs';
 import { securityHeaders } from './lib/security.mjs';
 import { createProviderLookup, supabaseConfig } from './lib/supabase.mjs';
 import { latestVideos } from './lib/youtube.mjs';
@@ -116,7 +118,7 @@ async function handle(request, response) {
       const { meetings } = await publicData.meetings();
       return send(request, response, 200, buildCalendar(meetings), {
         'Content-Type': 'text/calendar; charset=utf-8',
-        'Content-Disposition': 'inline; filename="reunioes-elias-istn-sj.ics"',
+        'Content-Disposition': 'inline; filename="reunioes-istn-sj.ics"',
         'Cache-Control': 'no-cache'
       });
     } catch (error) {
@@ -135,6 +137,21 @@ async function handle(request, response) {
     return send(request, response, 200, serviceWorkerScript(root), { 'Content-Type': 'text/javascript; charset=utf-8', 'Cache-Control': 'no-cache' });
   }
 
+  // Every page of the app is index.html, with the tags a shared link's
+  // preview reads. Only WhatsApp and the like wait for the church's or the
+  // announcement's own; a person gets the page at once.
+  if (APP_ROUTES.some((route) => route.test(url.pathname))) {
+    const host = /^[\w.-]+(:\d+)?$/.test(request.headers.host || '') ? request.headers.host : 'localhost';
+    let preview = sectionPreview(url.pathname);
+    if (PREVIEW_BOTS.test(request.headers['user-agent'] || '')) {
+      const load = { directory: () => publicData.directory(), posts: () => publicData.posts() };
+      const late = new Promise((resolve) => { setTimeout(() => resolve(preview), 2500).unref(); });
+      preview = await Promise.race([previewFor(url.pathname, load).catch(() => preview), late]);
+    }
+    const html = withPreview(readFileSync(join(root, 'index.html'), 'utf8'), preview, { origin: `${https ? 'https' : 'http'}://${host}`, pathname: url.pathname });
+    return send(request, response, 200, html, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-cache' });
+  }
+
   const resolved = resolvePublicPath(root, url.pathname);
   if (resolved.status) return send(request, response, resolved.status, resolved.status === 400 ? 'Bad request' : 'Not found');
   return sendFile(request, response, resolved);
@@ -147,4 +164,4 @@ createServer((request, response) => {
     if (!response.headersSent) send(request, response, 500, 'Internal error');
     else response.destroy();
   });
-}).listen(port, () => console.log(`ELIAS — ISTN-SJ disponível em http://localhost:${port}`));
+}).listen(port, () => console.log(`ISTN-SJ disponível em http://localhost:${port}`));

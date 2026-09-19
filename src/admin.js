@@ -5,7 +5,7 @@ import { countryName } from './countries.js';
 import { escapeHtml, safeUrl } from './html.js';
 import { renderInto } from './dom.js';
 import { PUBLISH_SCOPES, authorName, formatPostDate } from './posts.js';
-import { normalizeChurch, sharedPhones } from './directory.js';
+import { SEAT_LABELS, normalizeChurch, sharedPhones } from './directory.js';
 
 const root = document.querySelector('#admin');
 const SESSION_KEY = 'elias-admin-session';
@@ -197,7 +197,7 @@ function shell(content) {
     .filter(([id]) => !['meetings', 'claims', 'history'].includes(id) || isCentral())
     .map(([id, label]) => `<button class="admin-tab ${state.view === id ? 'selected' : ''}" data-view="${id}">${label}${id === 'claims' && pending ? `<span class="tab-count">${pending}</span>` : ''}</button>`).join('');
   return `<header class="admin-bar">
-      <div><strong>ELIAS · Administração</strong><small>${escapeHtml(state.profile?.full_name || state.session.user.email)} · ${role}</small></div>
+      <div><strong>ISTN-SJ · Administração</strong><small>${escapeHtml(state.profile?.full_name || state.session.user.email)} · ${role}</small></div>
       <div class="admin-bar-actions"><a class="text-button" href="/">Ver aplicação</a><button class="button button-outline" data-action="signout">Sair</button></div>
     </header>
     <nav class="admin-tabs">${tabs}</nav>
@@ -524,7 +524,7 @@ function churchesView() {
       .map(([id, label]) => `<button class="filter ${state.filter === id ? 'selected' : ''}" data-filter="${id}">${label}</button>`).join('')}</div>
     <ul class="admin-list">${visible.map((church) => `<li>
       <button data-edit="${church.id}">
-        <span><strong>${escapeHtml(church.locality || church.country || 'Sem localidade')}</strong><small>${escapeHtml([church.region, church.country_code || church.country].filter(Boolean).join(' · ') || church.modality)}</small></span>
+        <span><strong>${escapeHtml(church.locality || church.country || 'Sem localidade')}</strong><small>${escapeHtml([SEAT_LABELS[church.seat], church.region, church.country || church.country_code].filter(Boolean).join(' · ') || church.modality)}</small></span>
         <span class="status-badge ${church.verification_status}">${church.verification_status === 'verified' ? 'Verificado' : 'A confirmar'}</span>
       </button>
     </li>`).join('') || '<li class="admin-empty">Nenhum registo corresponde.</li>'}</ul>
@@ -548,11 +548,14 @@ function churchEditor() {
       <label>Região<input type="text" name="region" value="${escapeHtml(church.region || '')}" /></label>
     </div>
     <label>Morada<input type="text" name="address" value="${escapeHtml(church.address || '')}" placeholder="Para quem se desloca pela primeira vez" /></label>
+    ${seatField(church)}
     <div class="admin-row">
       <label>Responsável<input type="text" name="leader_name" value="${escapeHtml(church.leader_name || '')}" /></label>
       <label>Telefone<input type="text" name="leader_phone" value="${escapeHtml(church.leader_phone || '')}" /></label>
     </div>
     ${phoneSharedWith(church)}
+    <div id="leader-rows">${(Array.isArray(church.other_leaders) ? church.other_leaders : []).map(leaderRow).join('')}</div>
+    <button class="text-button" type="button" data-action="add-leader">+ Acrescentar outro responsável</button>
     <label>Grupo de WhatsApp<input type="url" name="whatsapp_group_url" value="${escapeHtml(church.whatsapp_group_url || '')}" placeholder="https://chat.whatsapp.com/..." /></label>
     ${photoField(church.photo_url, 'igrejas', church.id)}
     <label>Nota<input type="text" name="note" value="${escapeHtml(church.note || '')}" /></label>
@@ -570,6 +573,34 @@ function churchEditor() {
       <button class="button button-gold" type="submit" ${state.busy ? 'disabled' : ''}>${state.busy ? 'A guardar…' : 'Guardar'}</button>
     </div>
   </form></div>`;
+}
+
+// The seat speaks for the whole ISTN, so only the central team changes it; the
+// field says which place holds it now, since giving it here takes it from there.
+function seatField(church) {
+  const country = church.country || church.country_code;
+  if (!isCentral()) {
+    return church.seat ? `<p class="admin-hint">Este lugar é ${escapeHtml(SEAT_LABELS[church.seat].toLowerCase())}. Só a equipa central muda as sedes.</p>` : '';
+  }
+  const holder = (seat) => (state.churches || []).find((item) => item.id !== church.id && item.seat === seat
+    && (seat === 'mundial' || (item.country || item.country_code) === country));
+  const now = (seat) => (holder(seat) ? ` — hoje: ${escapeHtml(holder(seat).locality || holder(seat).country)}` : '');
+  return `<label>Sede<select name="seat">
+      <option value="" ${!church.seat ? 'selected' : ''}>Não é sede</option>
+      <option value="nacional" ${church.seat === 'nacional' ? 'selected' : ''}>Sede nacional${country ? ` de ${escapeHtml(country)}` : ''}${now('nacional')}</option>
+      <option value="mundial" ${church.seat === 'mundial' ? 'selected' : ''}>Sede mundial${now('mundial')}</option>
+    </select></label>
+    <p class="admin-hint">Dar a sede a este lugar tira-a ao lugar que a tem agora.</p>`;
+}
+
+// Someone else responsible for the place, as the announcements publish them:
+// a name and a number, shown on the church's page with the main contact.
+function leaderRow(leader = {}) {
+  return `<div class="admin-row" data-leader-row>
+    <label>Outro responsável<input type="text" data-leader-name value="${escapeHtml(leader.name || '')}" placeholder="Pr. Nome" /></label>
+    <label>Telefone<input type="text" data-leader-phone value="${escapeHtml(leader.phone || '')}" /></label>
+    <button class="text-button admin-danger" type="button" data-remove-leader>remover</button>
+  </div>`;
 }
 
 // The blank row shown when a place has no times yet is only a prompt: it is
@@ -896,6 +927,16 @@ function bind() {
     });
   }
   bindServiceRemoval();
+  document.querySelector('[data-action="add-leader"]')?.addEventListener('click', () => {
+    document.querySelector('#leader-rows').insertAdjacentHTML('beforeend', leaderRow());
+    bindLeaderRemoval();
+  });
+  function bindLeaderRemoval() {
+    document.querySelectorAll('[data-remove-leader]').forEach((element) => {
+      element.onclick = () => element.closest('[data-leader-row]').remove();
+    });
+  }
+  bindLeaderRemoval();
   document.querySelector('#service-rows')?.addEventListener('input', (event) => {
     delete event.target.closest('[data-service-row]')?.dataset.placeholder;
   });
@@ -958,6 +999,10 @@ function bind() {
       }));
     const repeated = servicos.find((servico, index) => servicos.findIndex((other) => other.weekday === servico.weekday && other.start_time === servico.start_time) !== index);
     if (repeated) { toast(`Há dois horários iguais: ${WEEKDAY_LABELS[repeated.weekday]}${repeated.start_time ? ` às ${repeated.start_time}` : ' sem hora'}.`, 'erro'); return; }
+    const outros = [...form.querySelectorAll('[data-leader-row]')]
+      .map((row) => ({ name: row.querySelector('[data-leader-name]').value.trim(), phone: row.querySelector('[data-leader-phone]').value.trim() }))
+      .filter((leader) => leader.name || leader.phone);
+    const seat = values.seat || null;
     const alreadyVerified = church.verification_status === 'verified';
     guard(async () => {
       const updated = await rest(`churches?id=eq.${church.id}`, {
@@ -969,6 +1014,7 @@ function bind() {
           locality: values.locality || null, region: values.region || null,
           address: values.address || null,
           leader_name: values.leader_name || null, leader_phone: values.leader_phone || null,
+          other_leaders: outros,
           whatsapp_group_url: safeUrl(values.whatsapp_group_url) || null,
           note: values.note || null,
           verification_status: values.verified ? 'verified' : 'needs_review',
@@ -985,6 +1031,11 @@ function bind() {
         method: 'POST',
         body: JSON.stringify({ p_church: church.id, p_services: servicos })
       });
+      // The seat moves in one transaction (set_church_seat): the place that
+      // held it gives it up at the same moment this one takes it.
+      if (isCentral() && seat !== (church.seat || null)) {
+        await rest('rpc/set_church_seat', { method: 'POST', body: JSON.stringify({ p_church: church.id, p_seat: seat }) });
+      }
       state.editing = null; state.services = null;
       await loadChurches();
       toast('Registo guardado.');
