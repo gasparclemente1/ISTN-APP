@@ -3,7 +3,9 @@
     "design/assets/IMG_4381.jpeg",
     "design/assets/ministry-art-01.jpeg",
     "design/assets/ministry-art-02.jpeg",
-    "design/assets/ISTN-SJ-logo.png"
+    "design/assets/ISTN-SJ-logo.png",
+    "design/assets/photos/elias-destaque.png",
+    "design/assets/photos/elias-ensinos.jpeg"
   ],
   "source": "User-supplied images",
   "instruction": "Preserve official logo; artwork is visual reference.",
@@ -12,5 +14,9 @@
     "design/assets/photos/profeta-elias-profecia-{560,940}.webp": "Imagens-Profeta-Elias/0b6e78b4-a0ab-41d3-8868-fc281dee92ec.JPG, cut out with scripts/recortar_sujeito.js",
     "design/assets/icons/logo-istn-sj-{96,192}.webp": "ISTN-SJ-logo.png, trimmed to the sun and the globe",
     "design/assets/photos/partilha-istn-sj.jpg": "scripts/build_share_image.py"
+  },
+  "supplied_2026_09_19": {
+    "elias-destaque.png": "0aefacf5-b6f1-4a51-96e7-3a3e480a6448-removebg-preview 2.png",
+    "elias-ensinos.jpeg": "8A586A37-D8CD-4B40-88EB-DB667803BBF7_L0_001-17_07_2026 12_17_06.jpeg"
   }
 }
