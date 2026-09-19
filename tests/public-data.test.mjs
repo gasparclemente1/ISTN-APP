@@ -58,7 +58,7 @@ test('diretório: da base de dados com servos, ou dos ficheiros de origem quando
   const down = fakeSupabase({ churches: new Error('down'), servos: [] });
   const fallback = await createPublicData({ config, fetchJson: down.fetchJson, readLocal }).directory();
   assert.equal(fallback.source, 'arquivo');
-  assert.equal(fallback.churches.length, 85);
+  assert.equal(fallback.churches.length, 73);
 
   const unconfigured = await createPublicData({ config: {}, readLocal }).directory();
   assert.equal(unconfigured.source, 'arquivo');

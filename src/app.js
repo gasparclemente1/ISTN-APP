@@ -7,16 +7,16 @@ import {
   saveProfile, setReaction, signIn, signInWithProvider, signOut, loadServoContact, updatePost
 } from './account.js';
 import { announce, copyText, debounce, renderInto, toast } from './dom.js';
-import { filterChurches } from './directory.js';
+import { filterChurches, findChurch } from './directory.js';
 import { filterTeachings } from './library.js';
 import { nextMeeting } from './meetings.js';
 import { rankPrefixOf } from './roles.js';
 import { prefs } from './prefs.js';
-import { canPublish, publishScopeOf } from './posts.js';
+import { canPublish, postShareText, publishScopeOf } from './posts.js';
 import { uploadPhoto } from './upload.js';
 import { registerServiceWorker } from './pwa.js';
 import { startRouter } from './router.js';
-import { churchPage, churchResults, churchesPage } from './views/churches.js';
+import { churchPage, churchResults, churchShareText, churchesPage } from './views/churches.js';
 import { homePage } from './views/home.js';
 import { liveStatus, livePage } from './views/live.js';
 import { bindProfile, profilePage } from './views/profile.js';
@@ -31,7 +31,7 @@ const state = {
   teachings: null, teachingsError: false,
   teachingFilters: { query: '', category: 'Todas', year: '', book: '', sort: 'recent', savedOnly: false, page: 1 },
   directory: null, directoryError: false,
-  churchFilters: { query: '', country: '', region: '' },
+  churchFilters: { query: '', country: '', region: '', day: '' },
   meetings: null, meetingsError: false,
   posts: null, postsError: false, comments: {}, postAuthors: null, myReactions: {},
   commentDrafts: {}, reactionSaving: {}, postDraft: null, postSaving: false, postUploading: false, commentSaving: false,
@@ -77,14 +77,15 @@ const renderIfShowing = (kind) => { if (USES[kind].includes(state.route.name)) r
 
 function pageTitle(route) {
   if (route.name === 'church') {
-    const church = state.directory?.churches.find((item) => item.id === route.params.id);
-    if (church) return `ISTN — ${church.name} · ELIAS`;
+    const church = findChurch(state.directory?.churches, route.params.id);
+    if (church) return `ISTN — ${church.name} · ISTN-SJ`;
   }
-  return route.name === 'home' ? 'ELIAS — ISTN-SJ' : `${route.title} · ELIAS`;
+  return route.name === 'home' ? 'ISTN-SJ — Igreja Salvação de Todas as Nações' : `${route.title} · ISTN-SJ`;
 }
 
 function onRoute(route, { scrollY, navigated }) {
   state.route = route;
+  if (state.directory) followFormerIds();
   if (route.name === 'teachings' && route.search.get('guardadas') === '1') {
     state.teachingFilters = { ...state.teachingFilters, savedOnly: true, page: 1 };
   }
@@ -118,9 +119,24 @@ function refreshTeachings() {
 function refreshDirectory() {
   state.directoryError = false;
   return loadDirectory()
-    .then((directory) => { state.directory = directory; syncMyChurchFromProfile(); })
+    .then((directory) => { state.directory = directory; followFormerIds(); syncMyChurchFromProfile(); })
     .catch(() => { state.directoryError = true; })
     .finally(() => { renderIfShowing('directory'); if (state.route.name === 'church') document.title = pageTitle(state.route); });
+}
+
+// Places announced once per service were joined into one record each, with new
+// ids. A church saved on this phone, or opened from an old link, is found
+// through the ids it had before and moved to the current one.
+function followFormerIds() {
+  const churches = state.directory?.churches;
+  const saved = prefs.myChurch && findChurch(churches, prefs.myChurch);
+  if (saved && saved.id !== prefs.myChurch) prefs.setMyChurch(saved.id);
+  if (state.route.name !== 'church') return;
+  const shown = findChurch(churches, state.route.params.id);
+  if (shown && shown.id !== state.route.params.id) {
+    state.route = { ...state.route, params: { ...state.route.params, id: shown.id } };
+    window.history.replaceState(window.history.state, '', `/igrejas/${encodeURIComponent(shown.id)}`);
+  }
 }
 
 function refreshPosts({ fresh = false } = {}) {
@@ -269,7 +285,7 @@ function updateChurchResults({ announceCount = false } = {}) {
   renderInto(region, churchResults(state));
   if (announceCount) {
     const count = filterChurches(state.directory.churches, state.churchFilters).length;
-    announce(count === 1 ? '1 registo encontrado' : `${count} registos encontrados`);
+    announce(count === 1 ? '1 igreja encontrada' : `${count} igrejas encontradas`);
   }
 }
 
@@ -312,6 +328,18 @@ const actions = {
     const index = Number(element.dataset.index);
     state.postDraft.images = state.postDraft.images.filter((image, position) => position !== index);
     render();
+  },
+  // A link to the announcement itself, so whoever receives it lands on it.
+  'share-post': async (element) => {
+    const post = state.posts?.find((item) => item.id === element.dataset.id);
+    if (!post) return;
+    const url = `${window.location.origin}/anuncios/${encodeURIComponent(post.id)}`;
+    const text = postShareText(post);
+    if (navigator.share) {
+      try { await navigator.share({ title: post.title || 'Anúncio · ISTN-SJ', text, url }); return; }
+      catch (error) { if (error?.name === 'AbortError') return; }
+    }
+    window.open(`https://wa.me/?text=${encodeURIComponent(`${text}\n${url}`)}`, '_blank', 'noopener,noreferrer');
   },
   'focus-comment': () => {
     app.querySelector('.comments')?.scrollIntoView({ block: 'start', behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' });
@@ -388,11 +416,37 @@ const actions = {
     toast(copied ? `${element.dataset.label} copiado.` : 'Não foi possível copiar. Selecione o texto e copie à mão.');
   },
 
-  'clear-church-filters': () => { state.churchFilters = { query: '', country: '', region: '' }; render(); },
+  'clear-church-filters': () => { state.churchFilters = { query: '', country: '', region: '', day: '' }; render(); },
+  // From the map or the list of countries under it: the list, filtered, with
+  // its first place in view.
+  'church-country': (element) => {
+    state.churchFilters = { ...state.churchFilters, country: element.dataset.country, region: '' };
+    render();
+    app.querySelector('#church-results')?.scrollIntoView({ block: 'start', behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' });
+    const count = filterChurches(state.directory?.churches || [], state.churchFilters).length;
+    announce(`${element.dataset.country}: ${count === 1 ? '1 igreja' : `${count} igrejas`}.`);
+  },
+  'church-day': (element) => {
+    state.churchFilters = { ...state.churchFilters, day: element.dataset.day };
+    render();
+    const count = filterChurches(state.directory?.churches || [], state.churchFilters).length;
+    announce(count === 1 ? '1 igreja encontrada' : `${count} igrejas encontradas`);
+  },
+  'share-church': async (element) => {
+    const church = findChurch(state.directory?.churches, element.dataset.id);
+    if (!church) return;
+    const url = `${window.location.origin}/igrejas/${encodeURIComponent(church.id)}`;
+    const text = churchShareText(church);
+    if (navigator.share) {
+      try { await navigator.share({ title: `ISTN — ${church.name}`, text, url }); return; }
+      catch (error) { if (error?.name === 'AbortError') return; }
+    }
+    window.open(`https://wa.me/?text=${encodeURIComponent(`${text}\n${url}`)}`, '_blank', 'noopener,noreferrer');
+  },
   'my-church': (element) => {
     const id = element.dataset.id;
     const next = prefs.myChurch === id ? null : id;
-    const church = state.directory?.churches.find((item) => item.id === id);
+    const church = findChurch(state.directory?.churches, id);
     prefs.setMyChurch(next);
     if (state.session && church?.dbId && state.directory?.source === 'supabase') {
       saveProfile({ home_church_id: next ? church.dbId : null }, state.session)

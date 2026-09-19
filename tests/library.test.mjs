@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { BOOKS, bookOf } from '../src/bible.js';
-import { CATEGORIES, booksIn, categoryOf, countByCategory, filterTeachings, thumbnailUrl, watchUrl } from '../src/library.js';
+import { CATEGORIES, booksIn, categoryOf, countByCategory, filterTeachings, thumbnailUrl, videoId, watchUrl } from '../src/library.js';
 import { rankPrefixOf } from '../src/roles.js';
 
 const library = JSON.parse(readFileSync(new URL('../data/youtube-teachings.json', import.meta.url)));
@@ -78,4 +78,15 @@ test('um nome não pode começar pela abreviatura da função', () => {
   }
   assert.equal(rankPrefixOf(''), null);
   assert.equal(rankPrefixOf(null), null);
+});
+
+test('o id de um vídeo, de qualquer endereço que o botão partilhar do telemóvel dá', () => {
+  assert.equal(videoId('https://www.youtube.com/watch?v=SBntJhzgKDM&t=30'), 'SBntJhzgKDM');
+  assert.equal(videoId('https://youtu.be/SBntJhzgKDM?si=abc'), 'SBntJhzgKDM');
+  assert.equal(videoId('https://youtube.com/shorts/Qw3rty12345'), 'Qw3rty12345');
+  assert.equal(videoId('https://www.youtube.com/live/Qw3rty12345?feature=share'), 'Qw3rty12345');
+  assert.equal(videoId('https://m.youtube.com/watch?v=SBntJhzgKDM'), 'SBntJhzgKDM');
+  // Só o YouTube: um "?v=" noutro sítio não é um vídeo.
+  assert.equal(videoId('https://exemplo.ao/pagina?v=SBntJhzgKDM'), null);
+  assert.equal(videoId('não é um endereço'), null);
 });

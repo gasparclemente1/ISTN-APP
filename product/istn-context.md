@@ -12,6 +12,12 @@ O líder fundador é o **Apóstolo Marcelino Mário Bento, Profeta Elias**.
 
 O decreto atual da ISTN-SJ é **Elias é Deus**.
 
+## O nome da aplicação
+
+A aplicação chama-se **ISTN-SJ** — não «ELIAS», nem «ISTN Elias». O nome
+escreve-se em capitais romanas (a fonte Cinzel), como uma inscrição; o
+logótipo é o sol por trás do globo.
+
 ## Como se chamam os lugares
 
 Na ISTN **não se diz «congregação»**. Diz-se **igreja**.
@@ -27,6 +33,16 @@ Em geral uma igreja começa como casa de oração e torna-se igreja depois. A
 distinção é de estatuto, não de mera dimensão, e por isso não deve ser apagada
 na interface: chamar «igreja» a uma casa de oração é dizer-lhe algo que ela
 ainda não é.
+
+Onde ainda não há um lugar presencial, a igreja reúne-se online (sobretudo
+pelo WhatsApp): diz-se **igreja online**.
+
+### Sedes
+
+A ISTN-SJ tem uma **sede mundial**, e cada país pode ter a sua **sede
+nacional**. Na lista das igrejas, a sede mundial vem em destaque e cada sede vem
+primeiro no seu país, com um selo. A lista da equipa não diz quais são; a
+equipa central indica-as no painel.
 
 ## Hierarquia dos servos
 
@@ -62,8 +78,10 @@ não invente funções nem presuma equivalências que não existem.
 - Usar **igreja**, nunca «congregação», em texto visível ao utilizador.
 - Nunca chamar **ministério** à igreja. «Ministério» é individual: é o de uma
   pessoa. Os canais do YouTube são «Canais do YouTube», não «do ministério».
-- O diretório ainda não distingue igreja de casa de oração. Enquanto não o
-  fizer, não deve afirmar que um registo é uma igreja.
-- Os nomes dos responsáveis nos dados trazem abreviaturas de função (`Bp.`,
-  `Pr.`) que correspondem a esta hierarquia e não devem ser normalizadas nem
-  removidas.
+- Um lugar cujo tipo ninguém confirmou aparece como «Presencial», não como
+  igreja: o painel distingue igreja de casa de oração, e só depois de a equipa o
+  indicar a aplicação o diz.
+- Os nomes dos responsáveis trazem a abreviatura da função (`Bp.`, `Pr.`), que
+  corresponde a esta hierarquia e não se remove. A lista da equipa escreve a
+  mesma função de várias formas («Bispo», «Bp.»); a importação usa sempre a
+  abreviatura de `src/roles.js`.

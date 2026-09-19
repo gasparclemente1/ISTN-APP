@@ -1,4 +1,4 @@
-# ISTN-SJ / ELIAS — Codex Input Pack
+# ISTN-SJ — Igreja Salvação de Todas as Nações · Sol da Justiça
 
 This package contains the product context, requirements, UX flows, information architecture, live system, church source data and supplied visual assets for the ISTN-SJ / ELIAS mobile-first web app.
 
@@ -33,19 +33,26 @@ A mobile-first web app (installable PWA) with no build step and no runtime
 dependencies: plain ES modules in `src/`, a small Node server in `server.mjs`
 and `lib/`, and Supabase for data, accounts and photographs.
 
-- **Início** — next meeting with a live countdown, "A minha ISTN", latest
-  YouTube videos, the ministry's channels.
+- **Início** — "Bem-vindo à ISTN-SJ" with the Profeta Elias, open-armed; the
+  live of the day above him (on air now, or when the next one starts), "A minha
+  ISTN", latest YouTube videos, the YouTube channels.
 - **Ensinos** — 379 recorded messages, searchable without accents, filtered by
   type, year, biblical book (in canonical order) and saved items; each opens on
   YouTube at the minute the message starts, when known.
 - **Anúncios** — announcements from the team, highlighted or not, with images,
   reactions from any account and comments from verified servants; who may
-  publish is a right the central team grants in the panel.
-- **Ao vivo** — next meeting, Zoom link with copyable ID and passcode, the week
+  publish is a right the central team grants in the panel. Each can be shared
+  (WhatsApp or the phone's own share), and a YouTube link in the text shows as
+  the video's picture — videos are shared as links, never uploaded.
+- **Ao vivo** — the live going on (until 06:00 in Luanda: lives run past
+  midnight) or the next one, Zoom link with copyable ID and passcode, the week
   ahead, monthly and yearly meetings, a calendar feed (`/calendario.ics`) that
   follows the team's edits, and the latest recordings.
-- **Igrejas** — the directory from the database, by country and region, with
-  service times, address and directions, servants, WhatsApp and group links.
+- **Igrejas** — the Profeta Elias and his word about the nations; a map of the
+  ISTN-SJ in the world; the world seat in front and each country's seat first,
+  with a seal; every place with all its days of service (today's marked, in
+  the place's own time), address and directions, the people responsible,
+  WhatsApp and group links; filters by country, region and day of service.
 - **Perfil** — preferences kept on the device for everyone; an optional account
   carries them across devices and lets servants ask for verification.
 - **/admin** — meetings, directory (place type, service times, photos),
@@ -53,7 +60,9 @@ and `lib/`, and Supabase for data, accounts and photographs.
   editor roles enforced by row level security.
 
 Every page has its own address (`/ensinos`, `/ao-vivo`, `/igrejas/<id>`,
-`/perfil`), so links can be shared and the back button works.
+`/perfil`), so links can be shared and the back button works. A link shared on
+WhatsApp shows the church's name, days and address, or the announcement's
+title and text (`lib/link-preview.mjs`).
 
 The server only serves the files the app loads, sends a strict
 Content-Security-Policy, and reads meetings and the directory from Supabase
@@ -74,6 +83,18 @@ npm run test:db         # schema + migrations + permissions on a throwaway Postg
 npm run report:editorial  # rewrites data/revisao-editorial.md
 ```
 
+The directory comes from the team's general list of services (an Excel file,
+one row per service):
+
+```bash
+python3 scripts/import_churches.py lista.xlsx --migracao supabase/migrations/AAAAMMDDHHMMSS_diretorio.sql
+```
+
+Other scripts: `scripts/build_world_map.py` (the dots of the map),
+`scripts/build_share_image.py` (the picture under a shared link),
+`scripts/recortar_sujeito.js` (cuts a person out of a photograph, on a Mac) and
+`scripts/optimize_images.py` (web-sized WebP, keeping a cut-out transparent).
+
 Without Supabase settings the app still starts: the directory is read from
 `data/`, and meetings and accounts say they are unavailable.
 
@@ -86,9 +107,11 @@ real phones.
 
 ## Known limitations
 
-- The church records remain unverified until the team confirms them in the
-  panel; nothing is deduplicated or corrected automatically. What to check is
-  listed in [data/revisao-editorial.md](data/revisao-editorial.md).
+- The church records come from the team's list and remain "a confirmar" until
+  the team confirms each with its church in the panel. What the import decided
+  is in [data/importacao-igrejas.md](data/importacao-igrejas.md); what to check
+  is in [data/revisao-editorial.md](data/revisao-editorial.md). The national
+  seats are a proposal until the team confirms them.
 - The teaching library is a JSON file updated by
   `scripts/import_youtube_library.py`, not edited in the panel.
 - The latest videos are read from the public YouTube channel pages, which

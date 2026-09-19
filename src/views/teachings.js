@@ -94,7 +94,8 @@ export function teachingsPage(state) {
       <div id="teaching-results">${teachingResults(state)}</div>`;
   }
 
-  const body = `<section class="page-intro"><span class="eyebrow">Acervo</span><h1>Todas as pregações num só lugar.</h1><p>${state.teachings ? `${state.teachings.length} pregações` : 'Pregações'} organizadas por tipo de encontro, ano e livro bíblico. Os vídeos abrem no YouTube.</p></section>
+  const body = `<section class="page-intro"><span class="eyebrow">Acervo</span><h1>Todas as pregações de Elias num só lugar.</h1><p>${state.teachings ? `${state.teachings.length} pregações` : 'Pregações'} organizadas por tipo de encontro, ano e livro bíblico. Os vídeos abrem no YouTube.</p></section>
+    <p class="coming-soon">${icon('sun', { size: 16 })}<span><strong>Em breve:</strong> novos links e informações de pregações serão adicionados.</span></p>
     <label class="search-box"><span class="sr-only">Pesquisar pregações</span>${icon('search', { size: 22 })}<input id="teaching-search" type="search" value="${escapeHtml(filters.query)}" placeholder="Tema, título ou referência bíblica" autocomplete="off" enterkeyhint="search" /></label>
     ${content}
     <aside class="note">${icon('info', { size: 18 })}<p>As referências bíblicas aparecem como foram registadas pela equipa. Algumas pregações ainda não têm referência.</p></aside>`;

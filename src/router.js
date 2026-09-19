@@ -3,7 +3,7 @@
 // the same page. The server answers each of these paths with index.html.
 
 const ROUTES = [
-  { name: 'home', pattern: /^\/$/, title: 'ELIAS — ISTN-SJ' },
+  { name: 'home', pattern: /^\/$/, title: 'ISTN-SJ' },
   { name: 'teachings', pattern: /^\/ensinos\/?$/, title: 'Ensinos' },
   { name: 'source', pattern: /^\/fontes\/([\w-]+)\/?$/, keys: ['id'], title: 'Canal' },
   { name: 'live', pattern: /^\/ao-vivo\/?$/, title: 'Ao vivo' },

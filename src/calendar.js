@@ -65,7 +65,7 @@ function recurrenceRule(meeting) {
   }
 }
 
-export function buildCalendar(meetings, { timeZone = 'Africa/Luanda', now = new Date(), name = 'Reuniões ELIAS — ISTN-SJ' } = {}) {
+export function buildCalendar(meetings, { timeZone = 'Africa/Luanda', now = new Date(), name = 'Reuniões ISTN-SJ' } = {}) {
   const offset = offsetOf(timeZone, now);
   const events = (meetings || [])
     .filter((meeting) => meeting.active !== false)
@@ -105,7 +105,7 @@ export function buildCalendar(meetings, { timeZone = 'Africa/Luanda', now = new 
   const lines = [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
-    'PRODID:-//ISTN-SJ//ELIAS//PT',
+    'PRODID:-//ISTN-SJ//Reunioes//PT',
     'CALSCALE:GREGORIAN',
     'METHOD:PUBLISH',
     `X-WR-CALNAME:${escapeIcsText(name)}`,

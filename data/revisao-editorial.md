@@ -2,72 +2,109 @@
 
 Gerado por `npm run report:editorial` a partir dos ficheiros em `data/`. Não altera nenhum registo: serve para a equipa confirmar com as igrejas e corrigir no painel.
 
-85 registos do diretório · 379 pregações.
+73 registos do diretório · 379 pregações.
 
 ## Mesmo número em vários registos
 
 Muitas vezes é o mesmo responsável anunciado para vários lugares; às vezes é um erro de cópia. Confirme com o responsável antes de verificar.
 
-- **+244 923 409 830** — ISTN — Wolfsburg (Wolfsburg, Alemanha) `source_record_031` · Bp. Rui Vaz; ISTN — Sede - Bairro da Fronteira (Benguela, Angola) `source_record_012` · Bispo Rui Vaz; ISTN — Sede - Bairro da Fronteira (Benguela, Angola) `source_record_065` · Bp. Rui Vaz; ISTN — Canadá (Canadá) `online_record_002` · Bispo Rui Vaz; ISTN — Estados Unidos da América (Estados Unidos da América) `online_record_001` · Bispo Rui Vaz
-- **+244 922 846 000** — ISTN — África do Sul (África do Sul) `online_record_003` · Bispo Rufino Boaz; ISTN — Kifica (Luanda, Angola) `source_record_001` · Bp. Rufino Boaz; ISTN — Kifica (Luanda, Angola) `source_record_064` · Bp. Rufino Boaz
-- **+244 928 854 199** — ISTN — Baía Farta - Vila da Baía (Benguela, Angola) `source_record_013` · Pr. Marcelo Cassengue; ISTN — Baía Farta - Vila da Baía (Benguela, Angola) `source_record_066` · Pr. Marcelo Cassange
-- **+244 923 898 009** — ISTN — Cabassango (Cabinda, Angola) `source_record_023` · Pr. Manuel Luemba; ISTN — Cabassango (Cabinda, Angola) `source_record_070` · Pr. Manuel Luemba
-- **+244 934 982 958** — ISTN — Lubango - Hélder Neto (Huíla, Angola) `source_record_024` · Pr. Sérgio Jamba; ISTN — Lubango - Hélder Neto (Huíla, Angola) `source_record_071` · Pr. Sérgio Jamba
-- **+244 940 954 658** — ISTN — Estalagem (Luanda, Angola) `source_record_002` · Bp. Panzo Bento; ISTN — Suíça (Suíça) `online_record_004` · Bispo Panzo Bento
-- **+244 937 547 161** — ISTN — Saurimo - Candembe (Lunda Sul, Angola) `source_record_020` · Pr. Aux. Bonifácio Muatxitambuila; ISTN — Saurimo - Candembe (Lunda Sul, Angola) `source_record_069` · Pr. Aux. Bonifácio Muatxitambuila
-- **+244 925 290 774** — ISTN — Saurimo - Sassamba (Lunda Sul, Angola) `source_record_019` · Pr. Fábio Francisco; ISTN — Saurimo - Sassamba (Lunda Sul, Angola) `source_record_068` · Pr. Fábio Francisco
-- **+55 71 9933-6908** — ISTN — Baia (Bahia, Brasil) `source_record_063` · Pastor Israel dos Santos; ISTN — Terra Nova (Bahia, Brasil) `source_record_058` · Pr. Israel Santos
-- **+55 11 9861 07003** — ISTN — Belo Horizonte (Minas Gerais, Brasil) `source_record_062` · Bp. Aux. Gil Faustino; ISTN — Diadema (São Paulo, Brasil) `source_record_054` · Bp. Aux. Gil Faustino
-- **+47 906 64 958** — ISTN — Congo (Congo) `online_record_006` · Pr. Gaspar Clemente; ISTN — Noruega (Noruega) `online_record_005` · Pr. Gaspar Clemente
-- **+351 962 570 104** — ISTN — Caldas da Rainha (Leiria, Portugal) `source_record_027` · Bp. Aux. Adriano Muginga; ISTN — Caldas da Rainha (Leiria, Portugal) `source_record_074` · Bp. Aux. Adriano Muginga
-- **+351 929 259 327** — ISTN — Pontinha (Lisboa, Portugal) `source_record_025` · Bp. João Cardoso; ISTN — Pontinha (Lisboa, Portugal) `source_record_073` · Bp. João Cardoso
-- **+244 929 184 966** — ISTN — Quénia (Quénia) `online_record_008` · Pr. Nilton Silva; ISTN — Tanzânia (Tanzânia) `online_record_007` · Pr. Nilton Silva
+- **+244 923 409 830** — ISTN — Sede - Bairro da Fronteira (Benguela, Angola) `ao-sede-bairro-da-fronteira` · Bp. Rui Vaz; ISTN — Wolfsburg (Alemanha) `de-wolfsburg` · Bp. Rui Vaz; ISTN — Canadá (Canadá) `online-canada` · Bp. Rui Vaz; ISTN — Estados Unidos da América (Estados Unidos da América) `online-estados-unidos-da-america` · Bp. Rui Vaz
+- **+244 922 846 000** — ISTN — Kifica (Luanda, Angola) `ao-kifica` · Bp. Rufino Boaz; ISTN — África do Sul (África do Sul) `online-africa-do-sul` · Bp. Rufino Boaz
+- **+244 940 954 658** — ISTN — Estalagem (Luanda, Angola) `ao-estalagem` · Bp. Panzo Bento; ISTN — Suíça (Suíça) `online-suica` · Bp. Panzo Bento
+- **+55 11 9 86107003** — ISTN — Belo Horizonte (Minas Gerais, Brasil) `br-belo-horizonte` · Bp. Aux. Gil Faustino; ISTN — Diadema (São Paulo, Brasil) `br-diadema` · Bp. Aux. Gil Faustino
+- **+47 906 64 958** — ISTN — Congo (Congo) `online-congo` · Pr. Gaspar Clemente; ISTN — Noruega (Noruega) `online-noruega` · Pr. Gaspar Clemente
+- **+244 929 184 966** — ISTN — Quénia (Quénia) `online-quenia` · Pr. Nilton Silva; ISTN — Tanzânia (Tanzânia) `online-tanzania` · Pr. Nilton Silva
 
 ## Indicativo diferente do país do registo
 
 Pode estar certo (um responsável em Angola que acompanha uma comunidade noutro país), mas convém confirmar. O caso dos Estados Unidos já vinha assinalado: a mensagem original usava a bandeira da Libéria.
 
-- ISTN — África do Sul (África do Sul) `online_record_003` — +244 922 846 000
-- ISTN — Wolfsburg (Wolfsburg, Alemanha) `source_record_031` — +244 923 409 830
-- ISTN — Canadá (Canadá) `online_record_002` — +244 923 409 830
-- ISTN — Congo (Congo) `online_record_006` — +47 906 64 958
-- ISTN — Estados Unidos da América (Estados Unidos da América) `online_record_001` — +244 923 409 830 · nota: Supplied message used Liberia flag; country text says United States.
-- ISTN — Quénia (Quénia) `online_record_008` — +244 929 184 966
-- ISTN — Senegal (Senegal) `online_record_009` — +351 967 377 074
-- ISTN — Suíça (Suíça) `online_record_004` — +244 940 954 658
-- ISTN — Tanzânia (Tanzânia) `online_record_007` — +244 929 184 966
+- ISTN — Wolfsburg (Alemanha) `de-wolfsburg` — +244 923 409 830
+- ISTN — África do Sul (África do Sul) `online-africa-do-sul` — +244 922 846 000
+- ISTN — Canadá (Canadá) `online-canada` — +244 923 409 830
+- ISTN — Congo (Congo) `online-congo` — +47 906 64 958
+- ISTN — Estados Unidos da América (Estados Unidos da América) `online-estados-unidos-da-america` — +244 923 409 830
+- ISTN — Quénia (Quénia) `online-quenia` — +244 929 184 966
+- ISTN — Senegal (Senegal) `online-senegal` — +351 967 377 074
+- ISTN — Suíça (Suíça) `online-suica` — +244 940 954 658
+- ISTN — Tanzânia (Tanzânia) `online-tanzania` — +244 929 184 966
 
 ## Horário incompleto
 
 Registos sem dia ou sem hora de culto.
 
-- ISTN — Wolfsburg (Wolfsburg, Alemanha) `source_record_031` — Domingo, hora a confirmar
-- ISTN — Capital (Capital, São Tomé e Príncipe) `source_record_050` — Domingo, hora a confirmar
-- ISTN — Neves (Neves, São Tomé e Príncipe) `source_record_049` — Domingo, hora a confirmar
+- ISTN — Wolfsburg (Alemanha) `de-wolfsburg` — Domingo, hora a confirmar · Via Zoom
+- ISTN — Neves (São Tomé e Príncipe) `st-neves` — Domingo, hora a confirmar
+- ISTN — Capital (São Tomé e Príncipe) `st-capital` — Domingo, hora a confirmar
 
 ## Localidades repetidas no mesmo país
 
-Podem ser dois horários da mesma igreja (sábado e domingo) ou dois lugares diferentes com o mesmo nome. Não foram juntados.
+A importação juntou os horários de cada lugar num só registo (ver data/importacao-igrejas.md). O que aparecer aqui tem o mesmo nome e responsáveis diferentes: confirme se são dois lugares.
 
-- ISTN — Baía Farta - Vila da Baía (Benguela, Angola) `source_record_013` · Domingo, 07:00 / ISTN — Baía Farta - Vila da Baía (Benguela, Angola) `source_record_066` · Sábado, 09:00
-- ISTN — Sede - Bairro da Fronteira (Benguela, Angola) `source_record_012` · Domingo, 10:00 / ISTN — Sede - Bairro da Fronteira (Benguela, Angola) `source_record_065` · Sábado, 09:30
-- ISTN — Cabassango (Cabinda, Angola) `source_record_023` · Domingo, 09:00 / ISTN — Cabassango (Cabinda, Angola) `source_record_070` · Sábado, 09:00
-- ISTN — Cidade Baixa (Huambo, Angola) `source_record_014` · Domingo, 09:00 / ISTN — Cidade Baixa (Huambo, Angola) `source_record_067` · Sábado, 09:00
-- ISTN — Lubango - Hélder Neto (Huíla, Angola) `source_record_024` · Domingo, 09:30 / ISTN — Lubango - Hélder Neto (Huíla, Angola) `source_record_071` · Sábado, 09:00
-- ISTN — Kifica (Luanda, Angola) `source_record_001` · Domingo, 09:00 / ISTN — Kifica (Luanda, Angola) `source_record_064` · Sábado, 09:00
-- ISTN — Saurimo - Candembe (Lunda Sul, Angola) `source_record_020` · Domingo, 09:00 / ISTN — Saurimo - Candembe (Lunda Sul, Angola) `source_record_069` · Sábado, 09:00
-- ISTN — Saurimo - Sassamba (Lunda Sul, Angola) `source_record_019` · Domingo, 09:00 / ISTN — Saurimo - Sassamba (Lunda Sul, Angola) `source_record_068` · Sábado, 09:00
-- ISTN — Alto Garças (Mato Grosso, Brasil) `source_record_051` · Domingo, 19:00 / ISTN — Alto Garças (Mato Grosso, Brasil) `source_record_052` · Domingo, 19:00
-- ISTN — Caldas da Rainha (Leiria, Portugal) `source_record_027` · Domingo, 10:00 / ISTN — Caldas da Rainha (Leiria, Portugal) `source_record_074` · Sábado, 10:00
-- ISTN — Pontinha (Lisboa, Portugal) `source_record_025` · Domingo, 10:00 / ISTN — Pontinha (Lisboa, Portugal) `source_record_073` · Sábado, 10:00
+_Nada a assinalar._
+
+## Moradas a rever
+
+A morada aparece tal como está na lista da equipa. Estas parecem ter um erro de digitação: confirme com o responsável e corrija no painel.
+
+- ISTN — Pontinha (Lisboa, Portugal) `pt-pontinha` — «Travessa Quinta das Arrombas 99, 1675-76 Serra da Luz - Pontinha»: o código postal português tem sete algarismos (0000-000).
+
+## Sem morada
+
+A lista não indica morada: a página diz «Morada a confirmar com o responsável».
+
+- ISTN — Baía Farta - Vila da Baía (Benguela, Angola) `ao-baia-farta-vila-da-baia`
+- ISTN — Bailundo - Espírito Santo (Huambo, Angola) `ao-bailundo-espirito-santo`
+- ISTN — Camama (Luanda, Angola) `ao-camama`
+- ISTN — Golf 2 (Luanda, Angola) `ao-golf-2`
+- ISTN — Luanda Sul - Viana (Luanda, Angola) `ao-luanda-sul-viana`
+- ISTN — Mungo - Aldeia do Mbata (Huambo, Angola) `ao-mungo-aldeia-do-mbata`
+- ISTN — Quibala - Cambango (Cuanza Sul, Angola) `ao-quibala-cambango`
+- ISTN — Ramiros (Luanda, Angola) `ao-ramiros`
+- ISTN — Sapú 2 (Luanda, Angola) `ao-sapu-2`
+- ISTN — Zango 1 (Icolo e Bengo, Angola) `ao-zango-1`
+- ISTN — Wolfsburg (Alemanha) `de-wolfsburg`
+- ISTN — Bayern de Munique (Alemanha) `de-bayern-de-munique`
+- ISTN — Sankt Augustin (Alemanha) `de-sankt-augustin`
+- ISTN — Alto Garças (Mato Grosso, Brasil) `br-alto-garcas`
+- ISTN — Altamira (Pará, Brasil) `br-altamira`
+- ISTN — Arraial do Piauí (Piauí, Brasil) `br-arraial-do-piaui`
+- ISTN — Belo Horizonte (Minas Gerais, Brasil) `br-belo-horizonte`
+- ISTN — Diadema (São Paulo, Brasil) `br-diadema`
+- ISTN — Itatiba (São Paulo, Brasil) `br-itatiba`
+- ISTN — Nova Lima (Minas Gerais, Brasil) `br-nova-lima`
+- ISTN — Santa Quitéria (Ceará, Brasil) `br-santa-quiteria`
+- ISTN — São Domingos (Maranhão, Brasil) `br-sao-domingos`
+- ISTN — São Paulo - Sede Estadual (São Paulo, Brasil) `br-sao-paulo-sede-estadual`
+- ISTN — Terra Nova (Bahia, Brasil) `br-terra-nova`
+- ISTN — Vicentinópolis (Goiás, Brasil) `br-vicentinopolis`
+- ISTN — Paris (França) `fr-paris`
+- ISTN — Leeds (Inglaterra) `gb-leeds`
+- ISTN — Londres (Inglaterra) `gb-londres`
+- ISTN — Lualane (Moçambique) `mz-lualane`
+- ISTN — Chongoene (Gaza, Moçambique) `mz-chongoene`
+- ISTN — Cidade da Beira (Sofala, Moçambique) `mz-cidade-da-beira`
+- ISTN — Cidade de Chimoio (Manica, Moçambique) `mz-cidade-de-chimoio`
+- ISTN — Cidade de Lichinga (Niassa, Moçambique) `mz-cidade-de-lichinga`
+- ISTN — Cidade de Nampula (Nampula, Moçambique) `mz-cidade-de-nampula`
+- ISTN — Cidade de Tete (Tete, Moçambique) `mz-cidade-de-tete`
+- ISTN — Maxaquene (Maputo Cidade, Moçambique) `mz-maxaquene`
+- ISTN — Maxixe (Inhambane, Moçambique) `mz-maxixe`
+- ISTN — Maxungue (Maputo, Moçambique) `mz-maxungue`
+- ISTN — Pemba (Cabo Delgado, Moçambique) `mz-pemba`
+- ISTN — Sangariveira (Quelimane, Moçambique) `mz-sangariveira`
+- ISTN — Braga (Portugal) `pt-braga`
+- ISTN — Caranguejeira (Leiria, Portugal) `pt-caranguejeira`
+- ISTN — Covilhã (Castelo Branco, Portugal) `pt-covilha`
+- ISTN — Porto (Portugal) `pt-porto`
+- ISTN — Neves (São Tomé e Príncipe) `st-neves`
+- ISTN — Capital (São Tomé e Príncipe) `st-capital`
 
 ## Grafias diferentes do mesmo nome
 
 Lugares escritos de mais do que uma forma («Baia» e «Bahia»), e o mesmo número com nomes de responsável diferentes. O filtro por região trata variantes como regiões distintas até serem uniformizadas.
 
-- Lugar: «Bahia» / «Baia»
-- Responsável: «Pr. Marcelo Cassange» / «Pr. Marcelo Cassengue»
-- Responsável: «Pastor Israel dos Santos» / «Pr. Israel Santos»
+_Nada a assinalar._
 
 ## Pregações sem referência bíblica
 

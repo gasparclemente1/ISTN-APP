@@ -1,4 +1,4 @@
-# Publicar a ELIAS — ISTN-SJ
+# Publicar a aplicação ISTN-SJ
 
 A aplicação corre no [Render](https://render.com) a partir de `render.yaml`, e os
 dados vivem no Supabase. Cada `push` para `main` é construído (`npm run check &&
@@ -51,6 +51,41 @@ na base de dados **antes** de o código chegar a `main`:
 
 As migrações podem ser corridas mais do que uma vez sem estragar nada; o
 `npm run test:db` confirma isso em cada alteração.
+
+**Migração `20260919160000_diretorio_lista_geral` (diretório da lista geral).**
+Traz a lista geral de cultos da equipa para a base de dados: 135 linhas da folha
+passam a **73 lugares** (63 presenciais e 10 igrejas online, em 18 países), cada
+um com todos os seus dias de culto e a morada quando a folha a indica. Acrescenta
+a sede (mundial ou nacional), os outros responsáveis de um lugar e os
+identificadores antigos de cada lugar, para que links partilhados e «A minha
+ISTN» continuem a funcionar.
+
+1. Antes de correr, rever as sedes propostas em
+   [data/importacao-igrejas.md](data/importacao-igrejas.md). Se alguma estiver
+   errada, pode corrigi-la depois no painel (Diretório → a igreja → Sede), sem
+   voltar a correr nada.
+2. Correr o ficheiro no editor SQL. Os registos que eram o mesmo lugar anunciado
+   duas vezes (Kifica ao sábado e ao domingo) juntam-se num só; os servos, os
+   editores locais, a igreja escolhida pelos membros e os anúncios que apontavam
+   para o registo repetido passam para o que fica, antes de ele sair. Nada é
+   apagado sem isso.
+3. Corre uma só vez: fica registado em `data_imports`, e corrê-lo de novo não
+   muda nada — nem desfaz o que a equipa tenha entretanto editado no painel.
+4. Fazer merge logo a seguir. Nos 2–3 minutos até o Render publicar, a versão
+   antiga ainda não conhece os identificadores novos: um link antigo ou «A
+   minha ISTN» podem não abrir até a versão nova chegar, que os reconhece.
+   Se o código chegar primeiro, a aplicação mostra a lista a partir de
+   `data/igrejas.json` e o painel não grava igrejas até a migração correr.
+
+Para importar uma lista nova no futuro:
+
+```bash
+python3 scripts/import_churches.py ~/Downloads/lista.xlsx --migracao supabase/migrations/AAAAMMDDHHMMSS_diretorio.sql
+```
+
+Escreve `data/igrejas.json`, `data/importacao-igrejas.md` (as decisões tomadas,
+para rever) e uma migração nova, com outro nome. Uma migração que já correu em
+produção nunca se reescreve.
 
 **Migração 009 (anúncios).** Cria as publicações, comentários, reações e o
 *bucket* `publicacoes`. Depois de a correr, o separador **Anúncios** do painel

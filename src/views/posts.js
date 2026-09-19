@@ -3,12 +3,13 @@
 // Reading needs no account. Reacting needs one. Commenting needs the servant
 // seal, and publishing a right the team grants — so the page says plainly which
 // of those the reader has, instead of offering a box that would be refused.
+import { findChurch } from '../directory.js';
 import { escapeHtml, safeUrl } from '../html.js';
 import { icon } from '../icons.js';
 import { prefs } from '../prefs.js';
-import { REACTIONS, reactionFor, authorName, canComment, canPublish, formatPostDate, isHighlighted, publishScopeOf, visiblePosts } from '../posts.js';
+import { REACTIONS, reactionFor, authorName, canComment, canPublish, formatPostDate, isHighlighted, publishScopeOf, videosIn, visiblePosts } from '../posts.js';
 import { verifiedSeal } from '../roles.js';
-import { emptyState, errorState, loadingState, page, sectionHeading } from './shared.js';
+import { emptyState, errorState, externalHint, loadingState, page, sectionHeading } from './shared.js';
 
 function authorLine(post) {
   const author = post.author;
@@ -35,6 +36,26 @@ function postImages(post, { full = false } = {}) {
 
 // Paragraphs, as typed. Never raw HTML: what people write is text.
 const bodyHtml = (text) => String(text || '').split(/\n{2,}/).map((block) => `<p>${escapeHtml(block).replace(/\n/g, '<br>')}</p>`).join('');
+
+// The same, with the addresses in it made into links — only where the post is
+// read in full: in the feed the whole card is already a link.
+const ENTITY = { '&amp;': '&', '&lt;': '<', '&gt;': '>', '&#39;': "'", '&quot;': '"' };
+const linkedBodyHtml = (text) => bodyHtml(text).replace(/https?:\/\/[^\s<>"']+/g, (match) => {
+  const address = match.replace(/[.,;:!?)\]]+$/, '');
+  const href = safeUrl(address.replace(/&(amp|lt|gt|#39|quot);/g, (entity) => ENTITY[entity]), { schemes: ['https:', 'http:'] });
+  return href ? `<a class="post-link" href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer nofollow">${address}</a>${match.slice(address.length)}` : match;
+});
+
+// A video shared in a post, as a picture to tap: it opens on YouTube, where the
+// phone plays it best, and nothing heavy is loaded until someone asks for it.
+function postVideos(post) {
+  const videos = videosIn(post.body);
+  if (!videos.length) return '';
+  return `<div class="post-videos">${videos.map((video) => `<a class="post-video" href="${escapeHtml(video.url)}" target="_blank" rel="noopener noreferrer">
+    <span class="post-video-thumb"><img src="${escapeHtml(video.thumbnail)}" alt="" loading="lazy" decoding="async" /><span class="post-video-play">${icon('play', { size: 22 })}</span></span>
+    <span class="post-video-label">${icon('external', { size: 14 })}Ver o vídeo no YouTube${externalHint}</span>
+  </a>`).join('')}</div>`;
+}
 
 function reactionRow(state, post, { compact = true } = {}) {
   const mine = state.myReactions?.[post.id] || '';
@@ -65,6 +86,7 @@ function reactionRow(state, post, { compact = true } = {}) {
         </div>
       </details>
       ${compact ? `<a class="post-comment-link" href="/anuncios/${id}?comentarios=1">${icon('message', { size: 16 })}Comentar</a>` : '<button class="post-comment-link" type="button" data-action="focus-comment">' + icon('message', { size: 16 }) + 'Comentar</button>'}
+      <button class="post-comment-link post-share" type="button" data-action="share-post" data-id="${id}" data-focus-key="share-post:${id}">${icon('share', { size: 16 })}Partilhar</button>
     </div>`;
 }
 
@@ -83,6 +105,7 @@ function postCard(state, post) {
       <div class="post-body is-clamped">${bodyHtml(post.body)}</div>
       <span class="post-more">Ler tudo${icon('chevron', { size: 14 })}</span>
     </a>
+    ${postVideos(post)}
     ${postImages(post)}
     ${reactionRow(state, post)}
   </article>`;
@@ -109,6 +132,7 @@ export function composerSheet(state) {
       <div class="composer-heading"><div><span class="eyebrow">PARTILHAR COM A COMUNIDADE</span><h2 id="post-sheet-title">${draft.id ? 'Editar publicação' : 'Criar publicação'}</h2></div><button class="icon-button" type="button" data-sheet-close aria-label="Fechar" ${state.postUploading || state.postSaving ? 'disabled' : ''}>${icon('close')}</button></div>
       <label class="sheet-field">Título (opcional)<input type="text" name="title" data-focus-key="post-title" placeholder="Dê um título à sua publicação" value="${escapeHtml(draft.title || '')}" maxlength="120" /></label>
       <label class="sheet-field">Mensagem<textarea id="post-body" name="body" rows="5" maxlength="4000" required placeholder="Partilhe as novidades com a sua comunidade…">${escapeHtml(draft.body || '')}</textarea></label>
+      <p class="sheet-hint">${icon('play', { size: 14 })}Para partilhar um vídeo, cole o link do YouTube na mensagem: aparece com a imagem do vídeo.</p>
       ${emojiTools('post-body')}
       ${scope === 'global'
         ? `<label class="sheet-field">Para quem<select name="church_id">
@@ -200,7 +224,8 @@ export function postPage(state, id) {
   const body = `<article class="post-full ${isHighlighted(post) ? 'is-highlighted' : ''}">
       ${authorLine(post)}
       ${post.title ? `<h1>${escapeHtml(post.title)}</h1>` : ''}
-      <div class="post-body">${bodyHtml(post.body)}</div>
+      <div class="post-body">${linkedBodyHtml(post.body)}</div>
+      ${postVideos(post)}
       ${postImages(post, { full: true })}
       ${reactionRow(state, post, { compact: false })}
       ${mine ? `<div class="post-owner-actions">
@@ -218,4 +243,4 @@ export function postPage(state, id) {
 
 // Kept next to the feed: the home page's "A minha ISTN" card and this page both
 // need the church the reader chose, as the database knows it.
-export const myChurchDbId = (state) => state.directory?.churches.find((church) => church.id === prefs.myChurch)?.dbId || null;
+export const myChurchDbId = (state) => findChurch(state.directory?.churches, prefs.myChurch)?.dbId || null;

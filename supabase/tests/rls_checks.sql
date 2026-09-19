@@ -13,15 +13,15 @@ insert into auth.users (id, email) values
 insert into public.admin_profiles (id, full_name, role, church_id) values
   ('00000000-0000-0000-0000-0000000000c1', 'Equipa central', 'central', null),
   ('00000000-0000-0000-0000-0000000000e1', 'Editor local', 'local',
-   (select id from public.churches where record_id = 'source_record_001'));
+   (select id from public.churches where record_id = 'ao-kifica'));
 
 insert into public.servos (id, full_name, gender, role, church_id) values
   ('00000000-0000-0000-0000-00000000005a', 'Servo Um', 'masculino', 'pastor',
-   (select id from public.churches where record_id = 'source_record_001')),
+   (select id from public.churches where record_id = 'ao-kifica')),
   ('00000000-0000-0000-0000-00000000005b', 'Servo Dois', 'masculino', 'obreiro',
-   (select id from public.churches where record_id = 'source_record_002')),
+   (select id from public.churches where record_id = 'ao-estalagem')),
   ('00000000-0000-0000-0000-00000000005c', 'Servo Três', 'feminino', 'obreira',
-   (select id from public.churches where record_id = 'source_record_002'));
+   (select id from public.churches where record_id = 'ao-estalagem'));
 
 insert into public.servo_contacts (servo_id, phone) values
   ('00000000-0000-0000-0000-00000000005a', '+244 900 000 001'),
@@ -29,7 +29,38 @@ insert into public.servo_contacts (servo_id, phone) values
 
 insert into public.app_users (id, display_name, phone, gender, claimed_role, home_church_id, servo_claim_status) values
   ('00000000-0000-0000-0000-0000000000a2', 'Pedido Obreiro', '+244 900 000 009', 'masculino', 'obreiro',
-   (select id from public.churches where record_id = 'source_record_001'), 'pendente');
+   (select id from public.churches where record_id = 'ao-kifica'), 'pendente');
+
+-- The import turned the records announced once per service into one record
+-- per place, and a second run of every migration changed nothing.
+do $$
+declare kifica public.churches := (select c from public.churches c where record_id = 'ao-kifica');
+begin
+  if (select count(*) from public.data_imports) <> 1 then
+    raise exception 'FALHOU: a importação do diretório não ficou registada uma vez';
+  end if;
+  if exists (select 1 from public.churches where record_id like 'source\_record\_%' or record_id like 'online\_record\_%') then
+    raise exception 'FALHOU: ficaram registos antigos por juntar';
+  end if;
+  if (select count(*) from public.churches) <> 73 then
+    raise exception 'FALHOU: esperados 73 lugares, há %', (select count(*) from public.churches);
+  end if;
+  if not kifica.former_record_ids @> array['source_record_001', 'source_record_064'] then
+    raise exception 'FALHOU: Kifica esqueceu os identificadores que tinha';
+  end if;
+  if kifica.address is null or kifica.seat <> 'mundial' then
+    raise exception 'FALHOU: Kifica ficou sem morada ou sem a sede mundial';
+  end if;
+  if (select count(*) from public.church_services where church_id = kifica.id) <> 3 then
+    raise exception 'FALHOU: Kifica devia ter os cultos de quinta, sábado e domingo';
+  end if;
+  if (select jsonb_array_length(other_leaders) from public.churches where record_id = 'br-alto-garcas') <> 1 then
+    raise exception 'FALHOU: Alto Garças perdeu o segundo responsável';
+  end if;
+  if (select count(*) from public.churches where seat = 'mundial') <> 1 then
+    raise exception 'FALHOU: tem de haver exatamente uma sede mundial';
+  end if;
+end $$;
 
 -- ------------------------------------------------------------ anónimo ------
 
@@ -49,7 +80,7 @@ do $$ begin
   if (select count(*) from public.servos) < 3 then
     raise exception 'FALHOU: o diretório público deixou de ver os servos';
   end if;
-  if (select count(*) from public.churches) < 80 then
+  if (select count(*) from public.churches) < 70 then
     raise exception 'FALHOU: o diretório público deixou de ver as igrejas';
   end if;
   if (select count(*) from public.church_services) = 0 then
@@ -60,7 +91,7 @@ end $$;
 do $$
 declare changed integer;
 begin
-  update public.churches set locality = 'Alterado' where record_id = 'source_record_001';
+  update public.churches set locality = 'Alterado' where record_id = 'ao-kifica';
   get diagnostics changed = row_count;
   if changed > 0 then raise exception 'FALHOU: um visitante anónimo alterou uma igreja'; end if;
 end $$;
@@ -87,9 +118,9 @@ set request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000e1';
 
 do $$
 declare
-  own uuid := (select id from public.churches where record_id = 'source_record_001');
-  other uuid := (select id from public.churches where record_id = 'source_record_002');
-  before_other integer := (select count(*) from public.church_services where church_id = (select id from public.churches where record_id = 'source_record_002'));
+  own uuid := (select id from public.churches where record_id = 'ao-kifica');
+  other uuid := (select id from public.churches where record_id = 'ao-estalagem');
+  before_other integer := (select count(*) from public.church_services where church_id = (select id from public.churches where record_id = 'ao-estalagem'));
 begin
   perform public.replace_church_services(own, '[{"weekday":0,"start_time":"09:00","label":null},{"weekday":6,"start_time":null,"label":"Culto dos servos"}]');
   if (select count(*) from public.church_services where church_id = own) <> 2 then
@@ -133,7 +164,7 @@ end $$;
 reset role;
 
 do $$ begin
-  if (select count(*) from public.church_services where church_id = (select id from public.churches where record_id = 'source_record_002')) = 0 then
+  if (select count(*) from public.church_services where church_id = (select id from public.churches where record_id = 'ao-estalagem')) = 0 then
     raise exception 'FALHOU: a tentativa recusada apagou os horários de outra igreja';
   end if;
 end $$;
@@ -162,7 +193,7 @@ begin
   end;
 
   begin
-    update public.churches set whatsapp_group_url = 'javascript:alert(1)' where record_id = 'source_record_001';
+    update public.churches set whatsapp_group_url = 'javascript:alert(1)' where record_id = 'ao-kifica';
     raise exception 'FALHOU: a base de dados aceitou um link de grupo que não é https';
   exception when check_violation then null;
   end;
@@ -243,9 +274,9 @@ insert into auth.users (id, email) values
 insert into public.app_users (id, display_name, gender, claimed_role, servo_id, servo_claim_status, home_church_id) values
   ('00000000-0000-0000-0000-0000000000a3', 'Servo Três', 'feminino', 'obreira',
    '00000000-0000-0000-0000-00000000005c', 'aprovado',
-   (select id from public.churches where record_id = 'source_record_002')),
+   (select id from public.churches where record_id = 'ao-estalagem')),
   ('00000000-0000-0000-0000-0000000000a4', 'Membro Comum', null, null, null, 'nenhum',
-   (select id from public.churches where record_id = 'source_record_001'));
+   (select id from public.churches where record_id = 'ao-kifica'));
 
 -- A member with no right to publish cannot.
 set role authenticated;
@@ -290,7 +321,7 @@ set request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000a3';
 do $$
 declare
   minha uuid := (select home_church_id from public.app_users where id = auth.uid());
-  outra uuid := (select id from public.churches where record_id = 'source_record_001');
+  outra uuid := (select id from public.churches where record_id = 'ao-kifica');
 begin
   insert into public.posts (body, church_id) values ('Culto especial no sábado.', minha);
   begin
@@ -422,8 +453,8 @@ set role authenticated;
 set request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000e1';
 do $$
 declare
-  minha uuid := (select id from public.churches where record_id = 'source_record_001');
-  outra uuid := (select id from public.churches where record_id = 'source_record_002');
+  minha uuid := (select id from public.churches where record_id = 'ao-kifica');
+  outra uuid := (select id from public.churches where record_id = 'ao-estalagem');
 begin
   begin
     update public.posts set hidden = true where church_id = outra;
@@ -432,5 +463,99 @@ begin
     end if;
   exception when insufficient_privilege then null;
   end;
+end $$;
+reset role;
+
+-- ------------------------------------------- diretório da lista geral ----
+
+-- Two records of one place become one, and nothing that pointed at the second
+-- is lost: not a servant, a local editor, a member's church or an announcement.
+insert into auth.users (id, email) values ('00000000-0000-0000-0000-0000000000d1', 'duplicado@istn.test');
+insert into public.churches (record_id, modality, country_code, locality, address)
+  values ('teste-a', 'physical', 'AO', 'Teste', null), ('teste-b', 'physical', 'AO', 'Teste', 'Rua do teste');
+insert into public.servos (full_name, gender, role, church_id)
+  values ('Servo do Duplicado', 'masculino', 'pastor', (select id from public.churches where record_id = 'teste-b'));
+insert into public.admin_profiles (id, full_name, role, church_id)
+  values ('00000000-0000-0000-0000-0000000000d1', 'Editor do duplicado', 'local', (select id from public.churches where record_id = 'teste-b'));
+insert into public.app_users (id, display_name, home_church_id)
+  values ('00000000-0000-0000-0000-0000000000d1', 'Membro do duplicado', (select id from public.churches where record_id = 'teste-b'));
+set request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000c1';
+insert into public.posts (church_id, title, body)
+  values ((select id from public.churches where record_id = 'teste-b'), 'Do duplicado', 'Anúncio de uma igreja duplicada');
+set request.jwt.claim.sub = '';
+
+do $$
+declare
+  a uuid := (select id from public.churches where record_id = 'teste-a');
+  b uuid := (select id from public.churches where record_id = 'teste-b');
+begin
+  perform public.merge_church_into(a, b);
+  if exists (select 1 from public.churches where id = b) then
+    raise exception 'FALHOU: o registo duplicado não foi removido';
+  end if;
+  if (select church_id from public.servos where full_name = 'Servo do Duplicado') is distinct from a
+     or (select church_id from public.admin_profiles where id = '00000000-0000-0000-0000-0000000000d1') is distinct from a
+     or (select home_church_id from public.app_users where id = '00000000-0000-0000-0000-0000000000d1') is distinct from a then
+    raise exception 'FALHOU: juntar dois registos deixou referências para trás';
+  end if;
+  if (select church_id from public.posts where title = 'Do duplicado') is distinct from a then
+    raise exception 'FALHOU: juntar dois registos apagou ou esqueceu um anúncio';
+  end if;
+  if (select address from public.churches where id = a) is distinct from 'Rua do teste'
+     or not (select former_record_ids from public.churches where id = a) @> array['teste-b'] then
+    raise exception 'FALHOU: juntar dois registos perdeu o que a equipa escreveu no segundo';
+  end if;
+end $$;
+
+delete from public.posts where title = 'Do duplicado';
+delete from public.app_users where id = '00000000-0000-0000-0000-0000000000d1';
+delete from public.admin_profiles where id = '00000000-0000-0000-0000-0000000000d1';
+delete from public.servos where full_name = 'Servo do Duplicado';
+delete from public.churches where record_id = 'teste-a';
+
+-- Nobody reaches the merge through the API.
+set role authenticated;
+set request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000c1';
+do $$ begin
+  begin
+    perform public.merge_church_into(gen_random_uuid(), gen_random_uuid());
+    raise exception 'FALHOU: juntar igrejas ficou acessível pela API';
+  exception when insufficient_privilege then null;
+  end;
+end $$;
+reset role;
+
+-- The seat is the central team's: a local editor cannot give it to their own
+-- church, not even by writing the column directly.
+set role authenticated;
+set request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000e1';
+do $$ begin
+  update public.churches set seat = 'nacional', leader_name = 'Bp. Rufino Boaz' where record_id = 'ao-estalagem';
+  update public.churches set seat = null where record_id = 'ao-kifica';
+  if (select seat from public.churches where record_id = 'ao-kifica') is distinct from 'mundial' then
+    raise exception 'FALHOU: um editor local tirou a sede mundial à sua igreja';
+  end if;
+  begin
+    perform public.set_church_seat((select id from public.churches where record_id = 'ao-kifica'), null);
+    raise exception 'FALHOU: um editor local usou set_church_seat';
+  exception when raise_exception then
+    if sqlerrm like 'FALHOU%' then raise; end if;
+  end;
+end $$;
+reset role;
+
+-- Giving a country's seat to another place takes it from the first, at once.
+set role authenticated;
+set request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000c1';
+do $$ begin
+  perform public.set_church_seat((select id from public.churches where record_id = 'pt-caldas-da-rainha'), 'nacional');
+  if (select seat from public.churches where record_id = 'pt-pontinha') is not null
+     or (select seat from public.churches where record_id = 'pt-caldas-da-rainha') is distinct from 'nacional' then
+    raise exception 'FALHOU: a sede nacional de Portugal não passou para Caldas da Rainha';
+  end if;
+  if (select count(*) from public.churches where seat = 'nacional') <> 7 then
+    raise exception 'FALHOU: mudar a sede de um país mexeu nas dos outros';
+  end if;
+  perform public.set_church_seat((select id from public.churches where record_id = 'pt-pontinha'), 'nacional');
 end $$;
 reset role;

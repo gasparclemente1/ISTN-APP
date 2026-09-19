@@ -6,5 +6,11 @@
     "design/assets/ISTN-SJ-logo.png"
   ],
   "source": "User-supplied images",
-  "instruction": "Preserve official logo; artwork is visual reference."
+  "instruction": "Preserve official logo; artwork is visual reference.",
+  "derived": {
+    "design/assets/photos/profeta-elias-boas-vindas-{600,1100}.webp": "Imagens-Profeta-Elias/6cc5e82f-e287-4379-a701-a087f1d5605d.JPG, cut out with scripts/recortar_sujeito.js",
+    "design/assets/photos/profeta-elias-profecia-{560,940}.webp": "Imagens-Profeta-Elias/0b6e78b4-a0ab-41d3-8868-fc281dee92ec.JPG, cut out with scripts/recortar_sujeito.js",
+    "design/assets/icons/logo-istn-sj-{96,192}.webp": "ISTN-SJ-logo.png, trimmed to the sun and the globe",
+    "design/assets/photos/partilha-istn-sj.jpg": "scripts/build_share_image.py"
+  }
 }

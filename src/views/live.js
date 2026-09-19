@@ -8,8 +8,21 @@ import { videoRow } from './videos.js';
 
 const shortTime = (value) => String(value || '').slice(0, 5);
 
+// While a live is on the app says so, and since when; the countdown before.
 export function liveStatus(next, now = new Date()) {
-  return next.isLive ? 'A reunião já começou.' : countdownLabel(next.start, now);
+  return next.isLive ? `A live está a decorrer desde as ${formatInZone(next.start)}.` : countdownLabel(next.start, now);
+}
+
+// The one line the home page's welcome carries, so the live is in view even
+// before scrolling: on air now, or when the next one starts.
+export function liveChip(state, now = new Date()) {
+  if (!state.meetings) return '';
+  const next = nextMeeting(state.meetings, TIME_ZONE, now);
+  if (!next) return '';
+  if (next.isLive) {
+    return `<a class="live-chip is-live" href="/ao-vivo"><span class="live-dot" aria-hidden="true"></span><strong>Ao vivo agora</strong><span>${escapeHtml(next.meeting.title)}</span>${icon('arrowRight', { size: 16 })}</a>`;
+  }
+  return `<a class="live-chip" href="/ao-vivo">${icon('live', { size: 16 })}<strong>Próxima live</strong><span>${escapeHtml(relativeDayLabel(next.start, now))}, ${formatInZone(next.start)} · Luanda</span>${icon('arrowRight', { size: 16 })}</a>`;
 }
 
 // Said wherever the next meeting is shown, so a Tuesday never looks empty:
@@ -24,11 +37,11 @@ export function calendarActions({ compact = false } = {}) {
   const feed = '/calendario.ics';
   const subscribe = `webcal://${window.location.host}${feed}`;
   if (compact) {
-    return `<a class="text-button" href="${feed}" download="reunioes-elias-istn-sj.ics">${icon('bell', { size: 18 })}Lembrar-me</a>`;
+    return `<a class="text-button" href="${feed}" download="reunioes-istn-sj.ics">${icon('bell', { size: 18 })}Lembrar-me</a>`;
   }
   return `<div class="calendar-actions">
     <a class="button button-outline full-width" href="${escapeHtml(subscribe)}" data-external>${icon('calendar', { size: 18 })}Subscrever no calendário</a>
-    <p class="hint">A subscrição atualiza-se sozinha quando a equipa muda um horário. Se o telemóvel não a abrir, <a href="${feed}" download="reunioes-elias-istn-sj.ics">descarregue o ficheiro</a>.</p>
+    <p class="hint">A subscrição atualiza-se sozinha quando a equipa muda um horário. Se o telemóvel não a abrir, <a href="${feed}" download="reunioes-istn-sj.ics">descarregue o ficheiro</a>.</p>
   </div>`;
 }
 
@@ -40,15 +53,17 @@ export function liveCard(state, now = new Date()) {
   if (!state.meetings) return `<section class="live-card">${kicker('Próxima reunião')}<p class="live-note">A carregar a programação…</p></section>`;
   const next = nextMeeting(state.meetings, TIME_ZONE, now);
   if (!next) return `<section class="live-card">${kicker('Próxima reunião')}<p class="live-note">Não há reuniões com hora marcada.</p>${untimedNote(state.meetings, now)}</section>`;
+  const zoom = safeUrl(next.meeting.zoom_url);
   return `<section class="live-card ${next.isLive ? 'is-live' : ''}" aria-labelledby="live-card-title">
-    ${kicker(next.isLive ? 'A decorrer agora' : 'Próxima reunião')}
+    ${kicker(next.isLive ? '<span class="on-air">Ao vivo agora</span>' : 'Próxima reunião')}
     <h2 id="live-card-title">${escapeHtml(next.meeting.title)}</h2>
-    <p class="live-time"><strong>${formatInZone(next.start)}</strong><span>${relativeDayLabel(next.start, now)} · hora de Luanda${showBothZones() ? `<br>${formatInZone(next.start, userZone)} no seu fuso horário` : ''}</span></p>
+    <p class="live-time"><strong>${formatInZone(next.start)}</strong><span>${next.isLive ? 'Começou' : relativeDayLabel(next.start, now)} · hora de Luanda${showBothZones() ? `<br>${formatInZone(next.start, userZone)} no seu fuso horário` : ''}</span></p>
     <p class="live-countdown" data-countdown="${next.start.toISOString()}" data-live="${next.isLive}">${escapeHtml(liveStatus(next, now))}</p>
     ${untimedNote(state.meetings, now)}
     <div class="live-actions">
-      <a class="button button-light" href="/ao-vivo">${next.isLive ? 'Entrar na reunião' : 'Ver reunião'}${icon('arrowRight', { size: 18 })}</a>
-      ${calendarActions({ compact: true })}
+      ${next.isLive && zoom
+        ? `<a class="button button-dark" ${externalLinkAttrs(zoom)}>${icon('external', { size: 18 })}Entrar no Zoom${externalHint}</a><a class="text-button" href="/ao-vivo">ID e senha</a>`
+        : `<a class="button button-light" href="/ao-vivo">${next.isLive ? 'Entrar na reunião' : 'Ver reunião'}${icon('arrowRight', { size: 18 })}</a>${calendarActions({ compact: true })}`}
     </div>
   </section>`;
 }
@@ -121,7 +136,7 @@ function otherMeetings(meetings, now) {
 }
 
 export function livePage(state, now = new Date()) {
-  const hero = `<section class="live-hero"><span class="eyebrow">${icon('live', { size: 16 })}Programação</span><h1>Reuniões que nos aproximam.</h1><p>Veja a próxima reunião, entre pelo Zoom e guarde os horários no calendário.</p></section>`;
+  const hero = `<section class="live-hero"><span class="eyebrow">${icon('live', { size: 16 })}Programação</span><h1>Reuniões que nos fortalecem</h1><p class="live-hero-lead">Se alimente cada dia na mesa do Senhor no seio de Deus.</p><p>Veja a próxima reunião, entre pelo Zoom e guarde os horários no calendário.</p></section>`;
   let body;
   if (state.meetingsError) body = `${hero}${errorState(scheduleError(state), state.meetingsError === 'indisponivel' ? '' : 'retry-meetings')}`;
   else if (!state.meetings) body = `${hero}${loadingState('A carregar a programação…')}`;
@@ -130,9 +145,9 @@ export function livePage(state, now = new Date()) {
     const recordings = APP_CONFIG.sources.find((source) => source.id === 'zoom-recordings');
     body = `${hero}
       ${next ? `<section class="next-meeting ${next.isLive ? 'is-live' : ''}" aria-labelledby="next-title">
-        <div class="next-date"><span>${escapeHtml(relativeDayLabel(next.start, now))}</span><strong>${formatInZone(next.start)}</strong><small>Luanda</small></div>
+        <div class="next-date"><span>${next.isLive ? 'Desde as' : escapeHtml(relativeDayLabel(next.start, now))}</span><strong>${formatInZone(next.start)}</strong><small>Luanda</small></div>
         <div>
-          <span class="eyebrow">${next.isLive ? 'A decorrer agora' : 'Próxima reunião'}</span>
+          <span class="eyebrow">${next.isLive ? '<span class="on-air">Ao vivo agora</span>' : 'Próxima reunião'}</span>
           <h2 id="next-title">${escapeHtml(next.meeting.title)}</h2>
           <p class="live-countdown" data-countdown="${next.start.toISOString()}" data-live="${next.isLive}">${escapeHtml(liveStatus(next, now))}</p>
           ${showBothZones() ? `<p class="hint">${formatInZone(next.start, userZone)} no seu fuso horário (${escapeHtml(userZone)})</p>` : ''}

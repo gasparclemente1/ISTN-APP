@@ -38,6 +38,24 @@ Três decisões da equipa atravessam todo o modelo:
 | `verification_status` | text | `needs_review` ou `verified`. |
 | `verified_at` `verified_by` | timestamptz, uuid | |
 | `updated_at` | timestamptz | |
+| `seat` | text | `mundial` ou `nacional`. Uma sede mundial; no máximo uma sede nacional por país. Só a equipa central muda, com `set_church_seat`, que tira a sede ao lugar que a tinha na mesma transação. Um gatilho devolve o valor anterior a quem mais o tentar mudar. |
+| `other_leaders` | jsonb | Outros responsáveis, `[{name, phone}]`, como a lista da equipa os publica (Alto Garças tem um bispo e um pastor). O primeiro contacto continua a ser `leader_name`. |
+| `former_record_ids` | text[] | Os identificadores que o lugar teve antes de a importação juntar os seus registos (`source_record_001` e `source_record_064` são hoje `ao-kifica`). A aplicação encontra um lugar por eles: links partilhados e «A minha ISTN» antigos continuam a abrir. |
+
+**De onde vem o diretório.** Da lista geral de cultos da equipa (uma folha
+Excel com uma linha por culto), importada por `scripts/import_churches.py`: um
+registo por lugar, com todos os seus dias de culto. O script escreve
+`data/igrejas.json` — a cópia que o servidor usa quando a base de dados não
+responde — e a migração que leva a base de dados ao mesmo estado. Cada decisão
+tomada (lugares juntados, grafias, números diferentes) fica em
+`data/importacao-igrejas.md`. `data_imports` guarda que importações já
+correram, para que nenhuma volte a correr por cima de edições do painel.
+
+**Juntar dois registos do mesmo lugar** faz-se com `merge_church_into(fica,
+sai)`, só no editor SQL: move servos, editores locais, a igreja dos membros e os
+anúncios para o registo que fica, guarda o que a equipa escreveu no outro, e só
+então o apaga. `posts.church_id` apaga em cascata; sem isto, os anúncios da
+igreja repetida desapareciam com ela.
 
 **Os ministros não são um campo daqui.** É a mesma relação que `servos.church_id`
 e, guardada dos dois lados, um dia as duas versões discordam. A igreja pergunta
@@ -252,7 +270,7 @@ destaque terminar sozinho, sem ninguém se lembrar de o retirar.
 
 E ainda `post_images` (imagens, por ordem, só `https://`), `post_comments`
 (comentários, também com `hidden`) e `post_reactions` (uma reação por pessoa e
-por anúncio: `amem`, `gosto` ou `oracao`).
+por anúncio).
 
 ### Quem pode o quê
 

@@ -1,7 +1,12 @@
 {
-  "project": "ISTN-SJ / ELIAS",
-  "source_records_physical_service_entries": 75,
-  "online_community_records": 10,
-  "note": "Service entries can represent multiple schedules for the same congregation; do not count them as unique churches without deduplication/verification.",
+  "project": "ISTN-SJ",
+  "directory": "data/igrejas.json — one record per place, imported from the team's general list of services by scripts/import_churches.py",
+  "places": 73,
+  "physical_places": 63,
+  "online_churches": 10,
+  "countries": 18,
+  "places_with_address": 17,
+  "services": 122,
+  "source_records_before_import": "data/church-service-source-records.json (75) and data/online-communities-source-records.json (10), kept as the seed's input",
   "verification_status_default": "needs_review"
 }

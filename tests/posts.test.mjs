@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { REACTIONS, reactionFor, authorName, canComment, canPublish, formatPostDate, isHighlighted, normalizePost, publishScopeOf, sortPosts, visiblePosts } from '../src/posts.js';
+import { REACTIONS, reactionFor, authorName, canComment, canPublish, formatPostDate, isHighlighted, linksIn, normalizePost, postShareText, publishScopeOf, sortPosts, videosIn, visiblePosts } from '../src/posts.js';
 
 const authors = new Map([['u1', { id: 'u1', display_name: 'Rufino Boaz', servo_role: 'bispo', verified: true }],
   ['u2', { id: 'u2', display_name: 'Membro Comum', servo_role: null, verified: false }]]);
@@ -100,4 +100,26 @@ test('reações antigas conservam o significado e entram nos totais com as novas
   assert.equal(post.reactionTotal, 7);
   assert.equal(post.reactions.elias_deus, 1);
   assert.equal(post.reactions.amem, 1);
+});
+
+test('vídeos num anúncio: os do YouTube, uma vez cada, no máximo três', () => {
+  const body = 'Vejam https://youtu.be/SBntJhzgKDM. E de novo https://www.youtube.com/watch?v=SBntJhzgKDM&t=10, '
+    + 'https://youtube.com/shorts/Qw3rty12345 (curto), https://youtu.be/Aaaaaa11111 https://youtu.be/Bbbbbb22222 e https://exemplo.ao/x';
+  const videos = videosIn(body);
+  assert.deepEqual(videos.map((video) => video.id), ['SBntJhzgKDM', 'Qw3rty12345', 'Aaaaaa11111']);
+  assert.equal(videos[0].url, 'https://www.youtube.com/watch?v=SBntJhzgKDM');
+  assert.equal(videos[0].thumbnail, 'https://i.ytimg.com/vi/SBntJhzgKDM/hqdefault.jpg');
+  assert.deepEqual(videosIn('Sem vídeos aqui.'), []);
+});
+
+test('endereços num anúncio, sem a pontuação que fecha a frase', () => {
+  assert.deepEqual(linksIn('Veja https://exemplo.ao/a?b=1&c=2, e (https://exemplo.ao/b).'), ['https://exemplo.ao/a?b=1&c=2', 'https://exemplo.ao/b']);
+  assert.deepEqual(linksIn('nada'), []);
+});
+
+test('partilhar um anúncio envia o título e a primeira linha', () => {
+  assert.equal(postShareText({ title: 'Vigília', body: '\n\nSexta às 20:00.\n\nMais.' }), 'Vigília\nSexta às 20:00.');
+  assert.equal(postShareText({ title: 'Só título', body: '' }), 'Só título');
+  assert.equal(postShareText({ title: '', body: 'Culto no sábado.' }), 'Culto no sábado.');
+  assert.ok(postShareText({ title: '', body: 'x'.repeat(300) }).length <= 140);
 });

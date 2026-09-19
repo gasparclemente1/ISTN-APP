@@ -19,7 +19,7 @@ const CODES = (
 
 // Countries where the ISTN-SJ is present, offered first so most people never
 // scroll past two hundred names to find their own.
-export const ISTN_COUNTRIES = ['AO', 'BR', 'CD', 'DE', 'ES', 'FR', 'MZ', 'PT', 'ST'];
+export const ISTN_COUNTRIES = ['AO', 'BR', 'CA', 'CD', 'CH', 'DE', 'ES', 'FR', 'GB', 'KE', 'MZ', 'NO', 'PL', 'PT', 'SN', 'ST', 'TZ', 'US', 'ZA'];
 
 // The standard names for the two Congos ("Congo - Kinshasa", "Congo - Brazzaville")
 // read as catalogue entries. The ISTN is present in one of them, so both get the

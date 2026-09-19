@@ -55,6 +55,10 @@ export function servantName(servo) {
   return short ? `${short} ${servo.full_name}` : servo.full_name;
 }
 
+// The scalloped disc of every seal in the app: the verified servant's, and the
+// seat of a church. One shape, so a seal reads as a seal wherever it appears.
+export const SEAL_PATH = 'M10.89 2.35Q12.00 1.00 13.11 2.35Q14.23 3.69 15.86 3.08Q17.50 2.47 17.79 4.20Q18.08 5.92 19.80 6.21Q21.53 6.50 20.92 8.14Q20.31 9.77 21.65 10.89Q23.00 12.00 21.65 13.11Q20.31 14.23 20.92 15.86Q21.53 17.50 19.80 17.79Q18.08 18.08 17.79 19.80Q17.50 21.53 15.86 20.92Q14.23 20.31 13.11 21.65Q12.00 23.00 10.89 21.65Q9.77 20.31 8.14 20.92Q6.50 21.53 6.21 19.80Q5.92 18.08 4.20 17.79Q2.47 17.50 3.08 15.86Q3.69 14.23 2.35 13.11Q1.00 12.00 2.35 10.89Q3.69 9.77 3.08 8.14Q2.47 6.50 4.20 6.21Q5.92 5.92 6.21 4.20Q6.50 2.47 8.14 3.08Q9.77 3.69 10.89 2.35Z';
+
 // The verified seal, the scalloped disc used everywhere for this purpose. It
 // sits right after the name, like on Facebook or X — a mark, not a label, so it
 // does not compete with the name it certifies.
@@ -66,7 +70,7 @@ export function verifiedSeal(role, { title = 'Conta verificada' } = {}) {
   const tier = badgeTier(role);
   if (tier === 'neutro') return '';
   return `<svg class="verified-seal tier-${tier}" viewBox="0 0 24 24" width="16" height="16" role="img" aria-label="${title}"><title>${title}</title>`
-    + `<path class="seal-disc" d="M10.89 2.35Q12.00 1.00 13.11 2.35Q14.23 3.69 15.86 3.08Q17.50 2.47 17.79 4.20Q18.08 5.92 19.80 6.21Q21.53 6.50 20.92 8.14Q20.31 9.77 21.65 10.89Q23.00 12.00 21.65 13.11Q20.31 14.23 20.92 15.86Q21.53 17.50 19.80 17.79Q18.08 18.08 17.79 19.80Q17.50 21.53 15.86 20.92Q14.23 20.31 13.11 21.65Q12.00 23.00 10.89 21.65Q9.77 20.31 8.14 20.92Q6.50 21.53 6.21 19.80Q5.92 18.08 4.20 17.79Q2.47 17.50 3.08 15.86Q3.69 14.23 2.35 13.11Q1.00 12.00 2.35 10.89Q3.69 9.77 3.08 8.14Q2.47 6.50 4.20 6.21Q5.92 5.92 6.21 4.20Q6.50 2.47 8.14 3.08Q9.77 3.69 10.89 2.35Z" />`
+    + `<path class="seal-disc" d="${SEAL_PATH}" />`
     + '<path class="seal-check" d="M7.6 12.3l3 3 5.8-6.2" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" />'
     + '</svg>';
 }
