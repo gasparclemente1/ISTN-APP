@@ -45,7 +45,7 @@ function welcome(state) {
     </div>
     <div class="hero-art">
       <span class="hero-sun" aria-hidden="true"></span>
-      <img src="/design/assets/photos/elias-destaque.png" width="433" height="577" alt="Profeta Elias a pregar" fetchpriority="high" />
+      <img src="/design/assets/photos/elias-destaque.png" width="433" height="576" alt="Profeta Elias a pregar" fetchpriority="high" />
       <span class="hero-signature">Profeta <strong>Elias</strong></span>
     </div>
     <div class="hero-actions">
