@@ -834,3 +834,35 @@ button.menu-row:focus-visible { outline:3px solid var(--gold); outline-offset:-3
 @media (prefers-reduced-motion: reduce) {
   .map-glow, .live-chip.is-live .live-dot, .live-card.is-live .live-dot, .next-meeting.is-live .live-dot { animation: none; }
 }
+
+/* Portraits supplied by the ISTN team, with the face kept clear of the text. */
+.hero { background: radial-gradient(ellipse at 78% 62%, #296573 0, transparent 55%), #062d3a; }
+.hero-art img { width: min(74%, 350px); max-height: 430px; object-fit: contain; object-position: bottom; }
+.hero-signature { position: absolute; z-index: 2; left: 6%; bottom: 88px; display: grid; color: #fff5dc; font-size: .8rem; letter-spacing: .06em; text-shadow: 0 2px 14px #062d3a; }
+.hero-signature strong { font: 600 3.2rem/1.1 "Playfair Display", Georgia, serif; }
+.teaching-intro { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 18px; align-items: center; padding: 18px; margin-bottom: 18px; border: 1px solid var(--line); border-radius: 20px; background: #fffaf0; }
+.teaching-intro > img { width: 96px; height: 150px; object-fit: cover; object-position: 50% 43%; border-radius: 12px; }
+.teaching-intro h1 { font-size: clamp(1.4rem, 4vw, 2.4rem); margin: 8px 0; }
+.teaching-intro p { font-size: .85rem; margin: 0; }
+.prophecy { min-height: 0; display: grid; grid-template-columns: 76px minmax(0, 1fr); gap: 16px; align-items: center; margin: 0 0 22px; padding: 16px; border-radius: 18px; }
+.prophecy::after, .prophecy-sun { display: none; }
+.prophecy-art { position: static; width: 76px; max-width: none; z-index: auto; }
+.prophecy-art img { height: 108px; width: 76px; object-fit: cover; object-position: 50% 40%; border-radius: 10px; mask-image: none; -webkit-mask-image: none; }
+.prophecy-copy { max-width: none; }
+.prophecy blockquote p { font-size: .92rem; line-height: 1.5; font-weight: 400; }
+.prophecy blockquote p::before { display: none; }
+.prophecy figcaption { font-size: .65rem; margin-top: 10px; }
+@media (min-width: 700px) {
+  .hero { min-height: 480px; }
+  .hero-art img { width: min(100%, 350px); max-height: 450px; }
+  .hero-signature { left: 0; bottom: 28px; }
+  .teaching-intro { grid-template-columns: 128px minmax(0, 1fr); gap: 24px; }
+  .teaching-intro > img { width: 128px; height: 172px; }
+}
+@media (max-width: 360px) {
+  .teaching-intro { grid-template-columns: 68px minmax(0, 1fr); gap: 12px; padding: 12px; }
+  .teaching-intro > img { width: 68px; height: 136px; }
+  .hero-signature { left: 3%; }
+}
+
+@media (min-width: 700px) { .hero h1 { font-size: 3rem; } }

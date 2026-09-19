@@ -82,3 +82,13 @@ test('diretório: só mostra o número de um servo que escolheu torná-lo visív
   assert.deepEqual(churches[0].servants.map((servant) => servant.phone), ['+244 900 000 001', null]);
   assert.ok(calls.some((call) => call.url.includes('servo_contacts') && call.url.includes('phone_public=eq.true')));
 });
+
+test('o diretório pede e publica o nome e a sede guardados pelo Admin', async () => {
+  const { calls, fetchJson } = fakeSupabase({ churches: [{ id: 'u1', name: 'ISTN Esperança', locality: 'Kifica', seat: 'mundial' }], servos: [] });
+  const result = await createPublicData({ config, fetchJson, readLocal }).directory();
+  assert.equal(result.churches[0].name, 'ISTN Esperança');
+  assert.equal(result.churches[0].seat, 'mundial');
+  const selection = new URL(calls.find(({ url }) => url.includes('/churches?')).url).searchParams.get('select').split(',');
+  assert.ok(selection.includes('name'));
+  assert.ok(selection.includes('seat'));
+});

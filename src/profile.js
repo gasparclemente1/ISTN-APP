@@ -21,7 +21,7 @@ const initials = (name) => String(name ?? '').trim().split(/\s+/).filter(Boolean
 
 function churchLabel(church, withContext = false) {
   if (!church) return '';
-  const place = church.locality || church.country || 'Sem nome';
+  const place = church.name || church.locality || church.country || 'Sem nome';
   const kind = church.place_type === 'casa_de_oracao' ? ' (casa de oração)' : '';
   if (!withContext) return `${place}${kind}`;
   const context = [church.region, countryName(church.country_code) || church.country].filter(Boolean).join(', ');
@@ -278,7 +278,7 @@ function serviceSheet({ state, escapeHtml, radios }) {
       title: 'Pedido em análise',
       submit: '',
       body: `<div class="service-summary">
-        <p><strong>${escapeHtml(roleLabel(profile.claimed_role))}</strong>${church ? ` em ${escapeHtml(church.locality || church.country || '')}` : ''}</p>
+        <p><strong>${escapeHtml(roleLabel(profile.claimed_role))}</strong>${church ? ` em ${escapeHtml(church.name || church.locality || church.country || '')}` : ''}</p>
         <p>A equipa ISTN-SJ vai confirmar antes de atribuir o selo. Enquanto o pedido estiver em análise, a função e o género não podem ser alterados.</p>
       </div>
       <button class="button button-outline full-width" type="button" data-service-withdraw>Retirar o pedido</button>`

@@ -151,7 +151,7 @@ async function rest(path, options = {}, session = readSession(), retry = true) {
 // the linked servant, never from anything the member can write.
 export async function loadProfile(session = readSession()) {
   if (!session?.user?.id) return null;
-  const rows = await rest(`app_users?select=*,servo:servo_id(full_name,role,is_minister,church:church_id(locality,country))&id=eq.${session.user.id}`, {}, session);
+  const rows = await rest(`app_users?select=*,servo:servo_id(full_name,role,is_minister,church:church_id(name,locality,country))&id=eq.${session.user.id}`, {}, session);
   if (rows.length) return rows[0];
   // Only the name the person gave when registering here; never the local part
   // of their email, nor the name Google holds.
@@ -168,7 +168,7 @@ export async function loadProfile(session = readSession()) {
 // church — it could not before, when the app read it from a bundled file whose
 // records share no id with the table.
 export async function loadChurchOptions() {
-  return rest('churches?select=id,locality,country,country_code,region,place_type&order=country_code.asc,region.asc,locality.asc');
+  return rest('churches?select=id,name,locality,country,country_code,region,place_type&order=country_code.asc,region.asc,locality.asc');
 }
 
 export async function saveProfile(changes, session = readSession()) {
@@ -295,6 +295,6 @@ export function loadMyReactions(session = readSession()) {
 export function badgeFor(profile) {
   const servo = profile?.servo;
   if (profile?.servo_claim_status !== 'aprovado' || !servo) return null;
-  const church = servo.church?.locality || servo.church?.country || null;
+  const church = servo.church?.name || servo.church?.locality || servo.church?.country || null;
   return { label: roleLabel(servo.role), role: servo.role, tier: badgeTier(servo.role), isMinister: servo.is_minister, name: servantName(servo), church };
 }

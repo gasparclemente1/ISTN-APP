@@ -137,7 +137,7 @@ export function composerSheet(state) {
       ${scope === 'global'
         ? `<label class="sheet-field">Para quem<select name="church_id">
             <option value="">Toda a ISTN</option>
-            ${churches.map((church) => `<option value="${church.id}" ${draft.churchId === church.id ? 'selected' : ''}>ISTN — ${escapeHtml(church.locality || church.country || '')}</option>`).join('')}
+            ${churches.map((church) => `<option value="${church.id}" ${draft.churchId === church.id ? 'selected' : ''}>ISTN — ${escapeHtml(church.name || church.locality || church.country || '')}</option>`).join('')}
           </select></label>`
         : `<p class="sheet-hint">Este anúncio é publicado na sua igreja.</p><input type="hidden" name="church_id" value="${escapeHtml(home || '')}" />`}
       <details class="post-options" ${draft.highlighted ? 'open' : ''}><summary>${icon('sun', { size: 18 })} Opções de destaque</summary><label class="sheet-check"><input type="checkbox" name="highlighted" ${draft.highlighted ? 'checked' : ''} /> Destacar este anúncio</label>

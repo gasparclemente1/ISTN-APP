@@ -34,8 +34,7 @@ function savedLink() {
   return `<a class="saved-link" href="/ensinos?guardadas=1">${icon('heart', { size: 18 })}<span>${count === 1 ? '1 pregação guardada' : `${count} pregações guardadas`}</span>${icon('chevron', { size: 18 })}</a>`;
 }
 
-// The welcome: the Profeta Elias with open arms, large enough to be the first
-// thing anyone sees, and the live of the day already in view above him.
+// The welcome keeps the supplied portrait prominent and the next live visible.
 function welcome(state) {
   return `<section class="hero" aria-labelledby="hero-title">
     <div class="hero-copy">
@@ -46,7 +45,8 @@ function welcome(state) {
     </div>
     <div class="hero-art">
       <span class="hero-sun" aria-hidden="true"></span>
-      <img src="/design/assets/photos/profeta-elias-boas-vindas-600.webp" srcset="/design/assets/photos/profeta-elias-boas-vindas-600.webp 600w, /design/assets/photos/profeta-elias-boas-vindas-1100.webp 1100w" sizes="(min-width: 760px) 440px, 100vw" width="600" height="606" alt="O Profeta Elias, de braços abertos" fetchpriority="high" />
+      <img src="/design/assets/photos/elias-destaque.png" width="433" height="577" alt="Profeta Elias a pregar" fetchpriority="high" />
+      <span class="hero-signature">Profeta <strong>Elias</strong></span>
     </div>
     <div class="hero-actions">
       <a class="button button-gold" href="/ensinos">Explorar ensinos${icon('arrowRight', { size: 18 })}</a>

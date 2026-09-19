@@ -161,3 +161,13 @@ test('números repetidos em vários registos são assinalados para revisão', ()
   assert.ok(shared.has('244923409830'));
   assert.ok(shared.get('244923409830').length >= 3);
 });
+
+test('o nome escolhido pelo Admin aparece e pode ser pesquisado sem perder a localidade', () => {
+  const church = normalizeChurch({ id: '1', name: '  ISTN Esperança  ', locality: 'Kifica', country_code: 'AO', seat: 'mundial' });
+  assert.equal(church.name, 'ISTN Esperança');
+  assert.equal(church.locality, 'Kifica');
+  assert.equal(church.seat, 'mundial');
+  assert.equal(filterChurches([church], { query: 'Esperança' }).length, 1);
+  assert.equal(filterChurches([church], { query: 'Kifica' }).length, 1);
+  assert.equal(normalizeChurch({ name: '  ', locality: 'Kifica' }).name, 'Kifica');
+});

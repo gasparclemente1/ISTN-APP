@@ -669,3 +669,17 @@ refreshDirectory();
 refreshTeachings();
 refreshVideos();
 startAccount();
+
+// Returning from Admin or another tab refreshes the public data. Do not
+// redraw a member's form while they are composing or editing their profile.
+let lastPublicRefresh = Date.now();
+function refreshPublicOnReturn() {
+  if (document.visibilityState !== 'visible' || Date.now() - lastPublicRefresh < 60000) return;
+  if (!['home', 'churches', 'church', 'live'].includes(state.route.name)) return;
+  lastPublicRefresh = Date.now();
+  refreshDirectory();
+  refreshMeetings();
+  refreshPosts();
+}
+document.addEventListener('visibilitychange', refreshPublicOnReturn);
+window.addEventListener('focus', refreshPublicOnReturn);
