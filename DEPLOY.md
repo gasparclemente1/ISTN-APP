@@ -50,7 +50,10 @@ na base de dados **antes** de o código chegar a `main`:
 2. Fazer merge do pull request. O Render publica em 2–3 minutos.
 
 As migrações podem ser corridas mais do que uma vez sem estragar nada; o
-`npm run test:db` confirma isso em cada alteração.
+`npm run test:db` confirma isso em cada alteração. Confirma também que cada
+migração corre **instrução a instrução**, como o editor SQL do Supabase a
+executa: uma migração que dependa de uma tabela temporária, por exemplo, falha
+nos testes em vez de falhar no editor.
 
 **Migração `20260919160000_diretorio_lista_geral` (diretório da lista geral).**
 Traz a lista geral de cultos da equipa para a base de dados: 135 linhas da folha

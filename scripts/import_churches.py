@@ -290,28 +290,23 @@ def attach_former_ids(churches):
 
 # ------------------------------------------------------------------ saída --
 
-def sql(value):
-    if value is None or value == '':
-        return 'null'
-    return "'" + str(value).replace("'", "''") + "'"
-
-
 def migration_sql(churches, name):
-    rows = []
-    for church in churches:
-        services = [{key: service[key] for key in ('weekday', 'start_time', 'label')} for service in church['services']]
-        rows.append('  (' + ', '.join([
-            sql(church['record_id']),
-            "array[" + ', '.join(sql(item) for item in church['former_record_ids']) + ']::text[]',
-            sql(church['modality']), sql(church['seat']), sql(church['country_code']), sql(church['country']),
-            sql(church['region']), sql(church['locality']), sql(church['address']),
-            sql(church['leader_name']), sql(church['leader_phone']),
-            sql(json.dumps(church['other_leaders'], ensure_ascii=False)) + '::jsonb',
-            sql(church['source']),
-            sql(json.dumps(services, ensure_ascii=False)) + '::jsonb',
-        ]) + ')')
+    """The migration: the places as one JSON document inside the import block.
+
+    Not a temporary table, and not one INSERT per place: the Supabase SQL
+    editor runs each statement of a file on its own, so anything the import
+    needs has to travel inside the single statement that does it.
+    """
+    places = [{key: church[key] for key in (
+        'record_id', 'former_record_ids', 'modality', 'seat', 'country_code', 'country', 'region', 'locality',
+        'address', 'leader_name', 'leader_phone', 'other_leaders', 'source')}
+        | {'services': [{key: service[key] for key in ('weekday', 'start_time', 'label')} for service in church['services']]}
+        for church in churches]
+    document = '[\n' + ',\n'.join('  ' + json.dumps(place, ensure_ascii=False) for place in places) + '\n]'
+    if '$places$' in document:
+        raise SystemExit('Os dados contêm $places$, a marca que delimita o documento JSON.')
     template = (ROOT / 'scripts' / 'import_churches.sql').read_text('utf-8')
-    return template.replace('{{NAME}}', name).replace('{{ROWS}}', ',\n'.join(rows)).replace('{{COUNT}}', str(len(churches)))
+    return template.replace('{{NAME}}', name).replace('{{PLACES}}', document).replace('{{COUNT}}', str(len(churches)))
 
 
 def report(churches, notes, unmatched, workbook):

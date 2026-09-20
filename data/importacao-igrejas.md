@@ -1,6 +1,6 @@
 # Importação da lista geral de cultos
 
-Gerado por `scripts/import_churches.py` a partir de `ISTN-SJ_Cultos_Geral_Enderecos_Atualizados.xlsx` em 2026-09-19.
+Gerado por `scripts/import_churches.py` a partir de `ISTN-SJ_Cultos_Geral_Enderecos_Atualizados.xlsx` em 2026-09-20.
 
 135 linhas da folha → **73 lugares**: 63 presenciais e 10 igrejas online, em 18 países.
 
