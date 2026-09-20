@@ -5,8 +5,8 @@
 // soon as someone searches or filters, the map and the seat step aside and the
 // results sit right under the search box, where the keyboard leaves them.
 import {
-  SEAT_LABELS, SHORT_DAYS, churchTimeZone, countriesIn, countryFlag, filterChurches, findChurch, groupDirectory, nextService,
-  placeKindLabel, regionsIn, serviceDaysIn, serviceLabel, weekdayIn
+  SEAT_LABELS, SHORT_DAYS, churchTimeZone, churchTitle, countriesIn, countryFlag, filterChurches, findChurch, groupDirectory,
+  nextService, placeKindLabel, regionsIn, serviceDaysIn, serviceLabel, weekdayIn
 } from '../directory.js';
 import { escapeHtml, externalLinkAttrs, safeUrl, whatsAppUrl } from '../html.js';
 import { icon } from '../icons.js';
@@ -69,7 +69,7 @@ function churchCard(church, now) {
   const online = church.modality === 'online';
   return `<li><a class="church-card ${church.seat ? `is-seat seat-${church.seat}` : ''}" href="/igrejas/${escapeHtml(church.id)}">
     <span class="church-card-top">${church.seat ? seatPill(church.seat) : `<span class="kind">${escapeHtml(placeKindLabel(church))}</span>`}${mine ? `<span class="mine-tag">${icon('heart', { size: 12 })}A minha ISTN</span>` : ''}${church.verificationStatus === 'verified' ? statusBadge('verified') : ''}</span>
-    <h3>ISTN — ${escapeHtml(church.name)}</h3>
+    <h3>${escapeHtml(churchTitle(church))}</h3>
     ${online
       ? `<span class="card-line">${icon('globe', { size: 16 })}Culto online — fale com o responsável para participar</span>`
       : `<span class="card-line">${icon('pin', { size: 16 })}<span>${escapeHtml(church.region || church.country)}${church.address ? `<small class="card-address">${escapeHtml(church.address)}</small>` : ''}</span></span>`}
@@ -86,7 +86,7 @@ function worldSeatCard(church, now) {
   return `<section class="world-seat" aria-labelledby="world-seat-title">
     <span class="world-seat-rays" aria-hidden="true"></span>
     ${seatPill('mundial')}
-    <h2 id="world-seat-title">ISTN — ${escapeHtml(church.name)}</h2>
+    <h2 id="world-seat-title">${escapeHtml(churchTitle(church))}</h2>
     <p class="world-seat-where">${escapeHtml(where(church))} <span aria-hidden="true">${countryFlag(church.countryCode)}</span></p>
     ${church.address ? `<p class="world-seat-address">${icon('pin', { size: 16 })}<span>${escapeHtml(church.address)}</span></p>` : ''}
     ${serviceChips(church, now)}
@@ -228,10 +228,10 @@ export function churchPage(state, id, now = new Date()) {
   const online = church.modality === 'online';
 
   const body = `
-    ${photo ? `<img class="church-photo" src="${escapeHtml(photo)}" alt="Fotografia de ISTN — ${escapeHtml(church.name)}" />` : ''}
+    ${photo ? `<img class="church-photo" src="${escapeHtml(photo)}" alt="Fotografia de ${escapeHtml(churchTitle(church))}" />` : ''}
     <section class="church-head ${church.seat ? `is-seat seat-${church.seat}` : ''}">
       <span class="round-icon">${church.seat ? seatSeal(church.seat, { size: 30 }) : icon(online ? 'globe' : 'church', { size: 24 })}</span>
-      <div><span class="kind">${escapeHtml(placeKindLabel(church))}</span><h1>ISTN — ${escapeHtml(church.name)}</h1><p>${escapeHtml(where(church))} <span aria-hidden="true">${countryFlag(church.countryCode)}</span></p></div>
+      <div><span class="kind">${escapeHtml(placeKindLabel(church))}</span><h1>${escapeHtml(churchTitle(church))}</h1><p>${escapeHtml(where(church))} <span aria-hidden="true">${countryFlag(church.countryCode)}</span></p></div>
     </section>
     <div class="church-badges">${seatPill(church.seat)}${statusBadge(church.verificationStatus)}</div>
     ${nextServiceBanner(church, now)}
@@ -259,7 +259,7 @@ export function churchPage(state, id, now = new Date()) {
 // What "Partilhar esta igreja" sends: enough to find it without opening the link.
 export function churchShareText(church) {
   return [
-    `ISTN — ${church.name}${church.seat ? ` (${SEAT_LABELS[church.seat]})` : ''}`,
+    `${churchTitle(church)}${church.seat ? ` (${SEAT_LABELS[church.seat]})` : ''}`,
     where(church),
     church.services.length ? church.services.map(serviceLabel).join(' · ') : '',
     church.address ? `Morada: ${church.address}` : '',

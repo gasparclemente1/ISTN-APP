@@ -674,3 +674,82 @@ begin
   end if;
 end $$;
 reset role;
+
+-- ------------------------------------------ criar uma igreja no painel ----
+
+set role authenticated;
+set request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000c1';
+do $$
+declare
+  nova uuid;
+  recusado boolean;
+begin
+  nova := public.create_church('ao-nova-esperanca', 'physical', 'AO',
+    '{"name":"ISTN Nova Esperança","locality":"Nova Esperança","region":"Luanda","leader_name":"Pr. Teste"}',
+    '[{"weekday":0,"start_time":"09:00"}]');
+  if not exists (select 1 from public.churches where id = nova and record_id = 'ao-nova-esperanca'
+                  and modality = 'physical' and country_code = 'AO' and verification_status = 'needs_review'
+                  and name = 'ISTN Nova Esperança' and locality = 'Nova Esperança') then
+    raise exception 'FALHOU: a igreja criada não ficou com os dados do formulário';
+  end if;
+  if (select count(*) from public.church_services where church_id = nova) <> 1 then
+    raise exception 'FALHOU: os horários da igreja criada não foram guardados';
+  end if;
+
+  -- O mesmo identificador não pode existir duas vezes: seria o mesmo endereço.
+  recusado := false;
+  begin
+    perform public.create_church('ao-nova-esperanca', 'physical', 'AO', '{}', '[]');
+  exception when raise_exception then recusado := true; end;
+  if not recusado then raise exception 'FALHOU: duas igrejas com o mesmo identificador'; end if;
+
+  -- Identificador, modalidade e país fora das regras não entram.
+  recusado := false;
+  begin
+    perform public.create_church('Ao Kifica!', 'physical', 'AO', '{}', '[]');
+  exception when raise_exception then recusado := true; end;
+  if not recusado then raise exception 'FALHOU: identificador com maiúsculas e espaços aceite'; end if;
+  recusado := false;
+  begin
+    perform public.create_church('ao-outra', 'presencial', 'AO', '{}', '[]');
+  exception when raise_exception then recusado := true; end;
+  if not recusado then raise exception 'FALHOU: modalidade desconhecida aceite'; end if;
+  recusado := false;
+  begin
+    perform public.create_church('ao-outra', 'physical', 'Angola', '{}', '[]');
+  exception when raise_exception then recusado := true; end;
+  if not recusado then raise exception 'FALHOU: país fora da lista aceite'; end if;
+
+  delete from public.churches where record_id = 'ao-nova-esperanca';
+end $$;
+reset role;
+
+-- Um editor local cuida da sua igreja; não acrescenta igrejas novas.
+set role authenticated;
+set request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000e1';
+do $$
+declare recusado boolean := false;
+begin
+  begin
+    perform public.create_church('ao-do-editor', 'physical', 'AO', '{}', '[]');
+  exception when raise_exception then recusado := true; end;
+  if not recusado or exists (select 1 from public.churches where record_id = 'ao-do-editor') then
+    raise exception 'FALHOU: um editor local criou uma igreja';
+  end if;
+end $$;
+reset role;
+
+-- E uma conta de membro, muito menos.
+set role authenticated;
+set request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000a1';
+do $$
+declare recusado boolean := false;
+begin
+  begin
+    perform public.create_church('ao-do-membro', 'physical', 'AO', '{}', '[]');
+  exception when raise_exception then recusado := true; end;
+  if not recusado or exists (select 1 from public.churches where record_id = 'ao-do-membro') then
+    raise exception 'FALHOU: um membro criou uma igreja';
+  end if;
+end $$;
+reset role;

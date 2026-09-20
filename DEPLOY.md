@@ -55,6 +55,14 @@ migração corre **instrução a instrução**, como o editor SQL do Supabase a
 executa: uma migração que dependa de uma tabela temporária, por exemplo, falha
 nos testes em vez de falhar no editor.
 
+**Migração `20260920120000_create_church_from_panel` (criar igrejas no
+painel).** A equipa central passa a acrescentar igrejas a partir do painel, sem
+SQL: a igreja nasce completa — identidade, país, horários — numa só transação.
+O identificador é gerado do país e da localidade (`ao-viana-centro`) e passa a
+ser o endereço da igreja na aplicação, por isso não muda depois. A modalidade
+(presencial ou igreja online) passa também a poder ser mudada: um lugar que
+reunia online e arranjou salão deixa de precisar de alguém que escreva SQL.
+
 **Migração `20260920030000_church_country_from_list` (país de uma lista).** O
 país de uma igreja passa a ser escolhido no painel a partir da lista de
 `src/countries.js` (ISO 3166, nomes em português europeu) e deixa de poder ser

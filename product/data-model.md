@@ -52,6 +52,11 @@ tomada (lugares juntados, grafias, números diferentes) fica em
 `data/importacao-igrejas.md`. `data_imports` guarda que importações já
 correram, para que nenhuma volte a correr por cima de edições do painel.
 
+**Criar uma igreja** faz-se no painel, com `create_church`, só pela equipa
+central: valida o identificador (que será o endereço na aplicação), a
+modalidade e o país, e passa o resto pela mesma `save_church` de uma edição —
+uma igreja nova e uma editada nunca são preenchidas por regras diferentes.
+
 **Juntar dois registos do mesmo lugar** faz-se com `merge_church_into(fica,
 sai)`, só no editor SQL: move servos, editores locais, a igreja dos membros e os
 anúncios para o registo que fica, guarda o que a equipa escreveu no outro, e só

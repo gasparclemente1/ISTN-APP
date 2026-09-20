@@ -1,7 +1,7 @@
 // The home page: what is happening next, the reader's own church, the newest
 // videos, and a way into everything else.
 import { APP_CONFIG } from '../data.js';
-import { SEAT_LABELS, findChurch, placeKindLabel } from '../directory.js';
+import { SEAT_LABELS, churchTitle, findChurch, placeKindLabel } from '../directory.js';
 import { escapeHtml } from '../html.js';
 import { icon } from '../icons.js';
 import { prefs } from '../prefs.js';
@@ -17,7 +17,7 @@ function myChurchCard(state) {
   const church = findChurch(state.directory.churches, prefs.myChurch);
   if (!church) return '';
   return `<section class="content-section">
-    ${sectionHeading('A minha ISTN', `ISTN — ${church.name}`)}
+    ${sectionHeading('A minha ISTN', churchTitle(church))}
     <a class="my-church" href="/igrejas/${escapeHtml(church.id)}">
       <span class="round-icon">${church.seat ? seatSeal(church.seat, { size: 28 }) : icon(church.modality === 'online' ? 'globe' : 'church', { size: 22 })}</span>
       <span><small>${escapeHtml(church.seat ? SEAT_LABELS[church.seat] : placeKindLabel(church))}${church.region ? ` · ${escapeHtml(church.region)}` : ''}</small>
