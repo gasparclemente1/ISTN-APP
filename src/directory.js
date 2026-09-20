@@ -70,9 +70,10 @@ export function normalizeChurch(row, servants = []) {
       : [];
   services.sort(byWeekOrder);
 
-  // The name the team wrote ("Quénia", "Inglaterra") before the one the
-  // browser knows for the code ("Quênia", "Reino Unido").
-  const country = row.country || countryName(row.country_code) || '';
+  // One name per country everywhere — the panel's list, the profile's and the
+  // directory's. What the source list wrote ("Inglaterra") is kept beside it:
+  // it is what people type when they search.
+  const country = countryName(row.country_code) || row.country || '';
   return {
     id: row.record_id || row.id,
     dbId: row.id || null,
@@ -82,6 +83,7 @@ export function normalizeChurch(row, servants = []) {
     seat: SEAT_LABELS[row.seat] ? row.seat : null,
     countryCode: row.country_code || null,
     country,
+    countryWritten: row.country && row.country !== country ? row.country : null,
     region: row.region || null,
     locality: row.locality || null,
     name: row.name?.trim() || row.locality || country || 'Sem localidade',
@@ -116,6 +118,10 @@ export function findChurch(churches, id) {
   if (!id || !churches) return null;
   return churches.find((church) => church.id === id) || churches.find((church) => church.formerIds.includes(id)) || null;
 }
+
+// "ISTN — Kifica", but never "ISTN — ISTN-SJ Kifica": the panel lets a church
+// be named in full, and a name that already says ISTN says it once.
+export const churchTitle = (church) => (/^istn/.test(foldText(church?.name || '')) ? church.name : `ISTN — ${church?.name || ''}`);
 
 const SEAT_RANK = { mundial: 0, nacional: 1 };
 const seatRank = (church) => SEAT_RANK[church.seat] ?? 2;
@@ -183,8 +189,8 @@ export function filterChurches(churches, { query = '', country = '', region = ''
   return churches.filter((church) => (!country || church.country === country)
     && (!region || church.region === region)
     && (weekday === null || church.services.some((service) => service.weekday === weekday))
-    && matchesQuery([church.name, church.locality, church.region, church.country, church.address, church.leaderName,
-      ...church.otherLeaders.map((leader) => leader.name), placeKindLabel(church), SEAT_LABELS[church.seat]], query));
+    && matchesQuery([church.name, church.locality, church.region, church.country, church.countryWritten, church.address,
+      church.leaderName, ...church.otherLeaders.map((leader) => leader.name), placeKindLabel(church), SEAT_LABELS[church.seat]], query));
 }
 
 // Numbers that appear on more than one record — often the same leader

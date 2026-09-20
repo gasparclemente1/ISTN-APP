@@ -20,3 +20,8 @@ export function matchesQuery(fields, query) {
 }
 
 export const collator = new Intl.Collator('pt', { sensitivity: 'base', numeric: true });
+
+// "São Tomé e Príncipe" -> "sao-tome-e-principe". The identifier a church is
+// given in the panel becomes its address in the app (/igrejas/…), so it must
+// carry no accents, spaces or capitals.
+export const slugify = (value) => foldText(value).replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');

@@ -7,7 +7,7 @@ import {
   saveProfile, setReaction, signIn, signInWithProvider, signOut, loadServoContact, updatePost
 } from './account.js';
 import { announce, copyText, debounce, renderInto, toast } from './dom.js';
-import { filterChurches, findChurch } from './directory.js';
+import { churchTitle, filterChurches, findChurch } from './directory.js';
 import { filterTeachings } from './library.js';
 import { nextMeeting } from './meetings.js';
 import { rankPrefixOf } from './roles.js';
@@ -78,7 +78,7 @@ const renderIfShowing = (kind) => { if (USES[kind].includes(state.route.name)) r
 function pageTitle(route) {
   if (route.name === 'church') {
     const church = findChurch(state.directory?.churches, route.params.id);
-    if (church) return `ISTN — ${church.name} · ISTN-SJ`;
+    if (church) return `${churchTitle(church)} · ISTN-SJ`;
   }
   return route.name === 'home' ? 'ISTN-SJ — Igreja Salvação de Todas as Nações' : `${route.title} · ISTN-SJ`;
 }
@@ -438,7 +438,7 @@ const actions = {
     const url = `${window.location.origin}/igrejas/${encodeURIComponent(church.id)}`;
     const text = churchShareText(church);
     if (navigator.share) {
-      try { await navigator.share({ title: `ISTN — ${church.name}`, text, url }); return; }
+      try { await navigator.share({ title: churchTitle(church), text, url }); return; }
       catch (error) { if (error?.name === 'AbortError') return; }
     }
     window.open(`https://wa.me/?text=${encodeURIComponent(`${text}\n${url}`)}`, '_blank', 'noopener,noreferrer');

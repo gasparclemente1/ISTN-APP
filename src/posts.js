@@ -1,6 +1,7 @@
 // Announcements: how a post is put together, who may write one, and what a
 // reaction adds up to. Pure functions, so the rules can be tested without a
 // browser and the same ones answer in the app and in the panel.
+import { churchTitle } from './directory.js';
 import { videoId } from './library.js';
 import { collator } from './text.js';
 import { roleShort } from './roles.js';
@@ -45,7 +46,7 @@ export function normalizePost(row, { authors = new Map(), reactions = [], commen
     body: row.body || '',
     churchId: row.church_id || null,
     churchName: church?.name || null,
-    scope: row.church_id ? (church?.name ? `ISTN — ${church.name}` : 'Uma igreja') : 'Toda a ISTN',
+    scope: row.church_id ? (church?.name ? churchTitle(church) : 'Uma igreja') : 'Toda a ISTN',
     highlighted: Boolean(row.highlighted),
     highlightUntil: row.highlight_until || null,
     hidden: Boolean(row.hidden),

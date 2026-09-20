@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
-  countriesIn, countryFlag, countryPresence, filterChurches, findChurch, groupDirectory, nextService, normalizeChurch,
-  placeKindLabel, regionsIn, rowsFromDirectoryFile, serviceDaysIn, serviceLabel, sharedPhones, sortChurches, weekdayIn
+  churchTitle, countriesIn, countryFlag, countryPresence, filterChurches, findChurch, groupDirectory, nextService,
+  normalizeChurch, placeKindLabel, regionsIn, rowsFromDirectoryFile, serviceDaysIn, serviceLabel, sharedPhones,
+  sortChurches, weekdayIn
 } from '../src/directory.js';
 import { foldText, matchesQuery } from '../src/text.js';
 
@@ -70,10 +71,18 @@ test('da base de dados: vários horários, servos, sede, outros responsáveis e 
   assert.equal(normalizeChurch({ record_id: 'x', seat: 'provincial' }).seat, null);
 });
 
-test('o nome do país é o que a equipa escreveu, não o do código', () => {
+test('um país, um nome: o da lista — e quem procura pelo nome antigo encontra', () => {
+  // A lista manda: o painel, o perfil e o diretório dizem o mesmo.
+  assert.equal(normalizeChurch({ record_id: 'x', country_code: 'GB', country: 'Inglaterra' }).country, 'Reino Unido');
   assert.equal(normalizeChurch({ record_id: 'x', country_code: 'KE', country: 'Quénia' }).country, 'Quénia');
-  assert.equal(normalizeChurch({ record_id: 'x', country_code: 'GB', country: 'Inglaterra' }).country, 'Inglaterra');
   assert.equal(normalizeChurch({ record_id: 'x', country_code: 'AO' }).country, 'Angola');
+  // O nome que a lista de origem escreveu fica ao lado, para a pesquisa.
+  assert.equal(normalizeChurch({ record_id: 'x', country_code: 'GB', country: 'Inglaterra' }).countryWritten, 'Inglaterra');
+  assert.equal(normalizeChurch({ record_id: 'x', country_code: 'AO', country: 'Angola' }).countryWritten, null);
+  assert.deepEqual(filterChurches(churches, { query: 'inglaterra' }).map((church) => church.id).sort(), ['gb-leeds', 'gb-londres']);
+  assert.ok(filterChurches(churches, { query: 'reino unido' }).length >= 2);
+  // Sem código, ainda assim se mostra o que a lista de origem trazia.
+  assert.equal(normalizeChurch({ record_id: 'x', country: 'Um país novo' }).country, 'Um país novo');
 });
 
 test('um link ou «A minha ISTN» antigos encontram o lugar pelo id que ele tinha', () => {
@@ -109,6 +118,7 @@ test('países e regiões para os filtros', () => {
   const countries = countriesIn(churches);
   assert.deepEqual(countries, [...countries].sort((a, b) => a.localeCompare(b, 'pt')));
   assert.equal(countries.length, 18);
+  assert.ok(countries.includes('Reino Unido') && !countries.includes('Inglaterra'));
   assert.ok(regionsIn(churches, 'Portugal').includes('Lisboa'));
   assert.ok(!regionsIn(churches, 'Portugal').includes('Luanda'));
   assert.ok(regionsIn(churches, 'Brasil').includes('Goiás'));
@@ -170,4 +180,12 @@ test('o nome escolhido pelo Admin aparece e pode ser pesquisado sem perder a loc
   assert.equal(filterChurches([church], { query: 'Esperança' }).length, 1);
   assert.equal(filterChurches([church], { query: 'Kifica' }).length, 1);
   assert.equal(normalizeChurch({ name: '  ', locality: 'Kifica' }).name, 'Kifica');
+});
+
+test('o nome da igreja não repete o ISTN quando já o traz', () => {
+  assert.equal(churchTitle({ name: 'Kifica' }), 'ISTN — Kifica');
+  // O painel deixa escrever o nome por extenso; escrito assim, aparece assim.
+  assert.equal(churchTitle({ name: 'ISTN-SJ Viana Centro' }), 'ISTN-SJ Viana Centro');
+  assert.equal(churchTitle({ name: 'istn kifica' }), 'istn kifica');
+  assert.equal(churchTitle({ name: '' }), 'ISTN — ');
 });

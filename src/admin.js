@@ -3,6 +3,7 @@ import { uploadPhoto } from './upload.js';
 import { badgeTier, isMinisterRole, quietCheck, roleLabel, rolesForGender, servantName, verifiedSeal } from './roles.js';
 import { ISTN_COUNTRIES, countryList, countryName } from './countries.js';
 import { escapeHtml, safeUrl } from './html.js';
+import { slugify } from './text.js';
 import { renderInto } from './dom.js';
 import { PUBLISH_SCOPES, authorName, formatPostDate } from './posts.js';
 import { SEAT_LABELS, normalizeChurch, sharedPhones } from './directory.js';
@@ -271,7 +272,7 @@ function meetingEditor() {
     <div class="admin-dialog-actions">
       ${isNew ? '' : '<button class="button button-outline admin-danger" type="button" data-action="delete-meeting">Eliminar</button>'}
       <button class="button button-outline" type="button" data-action="cancel-meeting">Cancelar</button>
-      <button class="button button-gold" type="submit" ${state.busy ? 'disabled' : ''}>${state.busy ? 'A guardar…' : 'Guardar'}</button>
+      <button class="button button-gold" type="submit" ${state.busy ? 'disabled' : ''}>${state.busy ? 'A guardar…' : isNew ? 'Criar igreja' : 'Guardar'}</button>
     </div>
   </form></div>`;
 }
@@ -520,6 +521,7 @@ function churchesView() {
   return `<div class="admin-card">
     <h2>Diretório</h2>
     <p class="admin-hint">${mine.length} ${mine.length === 1 ? 'registo' : 'registos'} · <strong>${pending}</strong> por verificar. Confirme com a igreja antes de marcar como verificado.</p>
+    ${isCentral() ? '<button class="button button-gold" type="button" data-action="new-church">+ Nova igreja</button>' : ''}
     <label class="search-box"><span>⌕</span><input id="church-search" value="${escapeHtml(state.query)}" placeholder="Procurar por nome, localidade, região ou responsável" autocomplete="off" /></label>
     <div class="admin-filters">${[['todas', 'Todas'], ['porVerificar', 'Por verificar'], ['verificadas', 'Verificadas']]
       .map(([id, label]) => `<button class="filter ${state.filter === id ? 'selected' : ''}" data-filter="${id}">${label}</button>`).join('')}</div>
@@ -535,9 +537,16 @@ function churchesView() {
 function churchEditor() {
   const church = state.editing;
   const services = state.services || [];
+  const isNew = Boolean(church.isNew);
   return `<div class="admin-overlay"><form id="church-form" class="admin-card admin-dialog">
-    <h2>${escapeHtml(church.name || church.locality || church.country || 'Local')}</h2>
-    <p class="admin-hint">Origem: ${escapeHtml(church.source || church.note || 'registo operacional')}</p>
+    <h2>${isNew ? 'Nova igreja' : escapeHtml(church.name || church.locality || church.country || 'Local')}</h2>
+    ${isNew
+      ? `<p class="admin-hint">O lugar nasce por confirmar. A fotografia e a sede acrescentam-se depois de gravar.</p>
+         <label>Como se reúne<select name="modality">
+           <option value="physical" ${church.modality === 'online' ? '' : 'selected'}>Presencial — tem lugar de culto</option>
+           <option value="online" ${church.modality === 'online' ? 'selected' : ''}>Igreja online — reúne-se pela internet</option>
+         </select></label>`
+      : `<p class="admin-hint">Origem: ${escapeHtml(church.source || church.note || 'registo operacional')}</p>`}
     <label>Nome da igreja<input type="text" name="name" maxlength="160" value="${escapeHtml(church.name || '')}" placeholder="Ex.: ISTN-SJ Kifica" /></label>
     <p class="admin-hint">Este nome aparece na aplicação. Se ficar vazio, será usada a localidade.</p>
     <label>Tipo de lugar<select name="place_type">
@@ -552,7 +561,7 @@ function churchEditor() {
       <label>Região<input type="text" name="region" value="${escapeHtml(church.region || '')}" /></label>
     </div>
     <label>Morada<input type="text" name="address" value="${escapeHtml(church.address || '')}" placeholder="Para quem se desloca pela primeira vez" /></label>
-    ${seatField(church)}
+    ${isNew ? '' : seatField(church)}
     <div class="admin-row">
       <label>Responsável<input type="text" name="leader_name" value="${escapeHtml(church.leader_name || '')}" /></label>
       <label>Telefone<input type="text" name="leader_phone" value="${escapeHtml(church.leader_phone || '')}" /></label>
@@ -561,7 +570,7 @@ function churchEditor() {
     <div id="leader-rows">${(Array.isArray(church.other_leaders) ? church.other_leaders : []).map(leaderRow).join('')}</div>
     <button class="text-button" type="button" data-action="add-leader">+ Acrescentar outro responsável</button>
     <label>Grupo de WhatsApp<input type="url" name="whatsapp_group_url" value="${escapeHtml(church.whatsapp_group_url || '')}" placeholder="https://chat.whatsapp.com/..." /></label>
-    ${photoField(church.photo_url, 'igrejas', church.id)}
+    ${isNew ? '' : photoField(church.photo_url, 'igrejas', church.id)}
     <label>Nota<input type="text" name="note" value="${escapeHtml(church.note || '')}" /></label>
 
     <h3>Horários de culto</h3>
@@ -591,7 +600,7 @@ function countryField(church) {
       <optgroup label="Onde a ISTN-SJ está presente">${all.filter((country) => ISTN_COUNTRIES.includes(country.code)).map(option).join('')}</optgroup>
       <optgroup label="Todos os países">${all.map(option).join('')}</optgroup>
     </select></label>
-    ${written ? `<p class="admin-hint">A lista de origem escreveu «${escapeHtml(church.country)}», que é o nome mostrado hoje. Se mudar o país aqui, passa a ser «${escapeHtml(countryName(church.country_code) || '')}».</p>` : ''}`;
+    ${written ? `<p class="admin-hint">A lista de origem escreveu «${escapeHtml(church.country)}»; a aplicação mostra «${escapeHtml(countryName(church.country_code) || '')}», o nome da lista. Quem procurar pelo nome antigo continua a encontrar este lugar.</p>` : ''}`;
 }
 
 // The seat speaks for the whole ISTN, so only the central team changes it; the
@@ -994,6 +1003,12 @@ function bind() {
   const search = document.querySelector('#church-search');
   if (search) search.addEventListener('input', (event) => { state.query = event.target.value; render(); });
 
+  document.querySelector('[data-action="new-church"]')?.addEventListener('click', () => {
+    state.editing = { isNew: true, modality: 'physical', other_leaders: [], verification_status: 'needs_review' };
+    state.services = [];
+    render();
+  });
+
   root.querySelectorAll('[data-edit]').forEach((element) => element.addEventListener('click', () => {
     state.editing = state.churches.find((church) => church.id === element.dataset.edit) || null;
     state.services = null;
@@ -1023,22 +1038,53 @@ function bind() {
       .map((row) => ({ name: row.querySelector('[data-leader-name]').value.trim(), phone: row.querySelector('[data-leader-phone]').value.trim() }))
       .filter((leader) => leader.name || leader.phone);
     const seat = values.seat || null;
+    const details = {
+      name: values.name.trim() || null,
+      place_type: values.place_type || null,
+      became_church_on: values.place_type === 'igreja' && values.became_church_on ? values.became_church_on : null,
+      locality: values.locality || null, region: values.region || null,
+      address: values.address || null,
+      leader_name: values.leader_name || null, leader_phone: values.leader_phone || null,
+      other_leaders: outros,
+      whatsapp_group_url: safeUrl(values.whatsapp_group_url) || null,
+      note: values.note || null,
+      verification_status: values.verified ? 'verified' : 'needs_review'
+    };
+
+    if (church.isNew) {
+      const modality = values.modality === 'online' ? 'online' : 'physical';
+      const country = values.country_code || '';
+      if (!country) { toast('Escolha o país.', 'erro'); return; }
+      // The identifier becomes the church's address in the app, and never
+      // changes afterwards: /igrejas/ao-kifica, /igrejas/online-noruega.
+      const from = modality === 'online' ? countryName(country) : (values.locality || values.name);
+      const recordId = modality === 'online' ? `online-${slugify(from)}` : `${country.toLowerCase()}-${slugify(from)}`;
+      if (slugify(from).length < 2) {
+        toast(modality === 'online' ? 'Escolha o país.' : 'Indique a localidade: é ela que dá o endereço da igreja na aplicação.', 'erro');
+        return;
+      }
+      guard(async () => {
+        const born = await rest('rpc/create_church', {
+          method: 'POST',
+          body: JSON.stringify({ p_record_id: recordId, p_modality: modality, p_country_code: country, p_details: details, p_services: servicos })
+        });
+        await loadChurches();
+        // Straight back into the new church: the photograph and the seat are
+        // the two things that could not be set before it existed.
+        state.editing = state.churches.find((item) => item.id === born) || null;
+        state.services = state.editing ? null : [];
+        render();
+        if (state.editing) await loadServices(state.editing.id);
+        toast('Igreja criada. Falta a fotografia e, se for o caso, a sede.');
+      });
+      return;
+    }
+
     guard(async () => {
       await rest('rpc/save_church', {
         method: 'POST',
         body: JSON.stringify({ p_church: church.id, p_services: servicos, p_country_code: values.country_code || null,
-          p_details: {
-            name: values.name.trim() || null,
-            place_type: values.place_type || null,
-            became_church_on: values.place_type === 'igreja' && values.became_church_on ? values.became_church_on : null,
-            locality: values.locality || null, region: values.region || null,
-            address: values.address || null,
-            leader_name: values.leader_name || null, leader_phone: values.leader_phone || null,
-            other_leaders: outros,
-            whatsapp_group_url: safeUrl(values.whatsapp_group_url) || null,
-            note: values.note || null,
-            verification_status: values.verified ? 'verified' : 'needs_review'
-          }, p_change_seat: isCentral() && seat !== (church.seat || null), p_seat: seat
+          p_details: details, p_change_seat: isCentral() && seat !== (church.seat || null), p_seat: seat
         })
       });
       state.editing = null; state.services = null;
