@@ -151,7 +151,7 @@ function prophecyHero() {
   return `<section class="prophecy" aria-label="Palavra do Profeta Elias">
     <div class="prophecy-art">
       <span class="prophecy-sun" aria-hidden="true"></span>
-      <img src="/design/assets/photos/profeta-elias-profecia-560.webp" srcset="/design/assets/photos/profeta-elias-profecia-560.webp 560w, /design/assets/photos/profeta-elias-profecia-940.webp 940w" sizes="(min-width: 760px) 360px, 80vw" width="560" height="720" alt="O Profeta Elias a pregar, de mão erguida" fetchpriority="high" />
+      <img src="/design/assets/photos/elias-ensinos.jpeg" width="1706" height="2560" alt="Profeta Elias a pregar" loading="lazy" />
     </div>
     <figure class="prophecy-copy">
       <blockquote><p>${escapeHtml(PROPHECY)}</p></blockquote>

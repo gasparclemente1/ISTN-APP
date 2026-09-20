@@ -43,7 +43,7 @@ export function header({ title = '', back = '', action = '' } = {}) {
   const backPath = back ? pathFor(back) : '';
   return `<a class="skip-link" href="#conteudo">Saltar para o conteúdo</a>
   <header class="topbar ${title ? 'has-title' : ''}">
-    <a class="brand" href="/" aria-label="ISTN-SJ — página inicial"><img class="brand-logo" src="/design/assets/icons/logo-istn-sj-96.webp" srcset="/design/assets/icons/logo-istn-sj-96.webp 1x, /design/assets/icons/logo-istn-sj-192.webp 2x" width="36" height="37" alt="" /><span class="brand-name"><span class="brand-mark">ISTN-SJ</span><small>Sol da Justiça</small></span></a>
+    <a class="brand" href="/" aria-label="ISTN-SJ — página inicial"><img class="brand-logo" src="/design/assets/icons/logo-istn-sj-96.webp" srcset="/design/assets/icons/logo-istn-sj-96.webp 1x, /design/assets/icons/logo-istn-sj-192.webp 2x" width="36" height="37" alt="" /><span class="brand-name"><span class="brand-mark">ISTN-SJ</span><small>Elias é Deus</small></span></a>
     ${title ? `<div class="page-title">${backPath ? `<a class="icon-button" href="${backPath}" aria-label="Voltar">${icon('arrowLeft', { size: 22 })}</a>` : ''}<span>${escapeHtml(title)}</span></div>` : ''}
     <div class="topbar-action">${action}${accountAvatar()}</div>
   </header>`;

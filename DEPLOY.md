@@ -187,3 +187,17 @@ Testes da base de dados (precisa de PostgreSQL 14+ instalado):
 ```bash
 npm run test:db
 ```
+
+## Nomes das igrejas e gravação do Admin — 19/09/2026
+
+Aplicar `20260919184817_admin_church_names_atomic_save.sql` antes desta versão.
+A migração acrescenta `churches.name` e `save_church`, que guarda os dados,
+horários e eventual mudança de sede numa única transação. No projeto
+`mpylizblfkdrdpkjacdq`, esta migração foi aplicada e verificada em 19/09/2026.
+O Admin central pode definir sedes; o editor local só altera a sua igreja.
+Um nome vazio mantém a localidade como nome público. A atualização pública
+pode demorar até um minuto por causa da cache.
+
+O acervo de Ensinos continua em `data/youtube-teachings.json`; os últimos
+vídeos são consultados no YouTube. Fotografias e textos de apresentação são
+ficheiros da aplicação. Não são conteúdos editáveis no Admin.

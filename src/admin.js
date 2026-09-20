@@ -88,7 +88,8 @@ async function rest(path, options = {}, retry = true) {
 
 async function loadProfile() {
   const rows = await rest(`admin_profiles?select=id,full_name,role,church_id&id=eq.${state.session.user.id}`);
-  state.profile = rows[0] || { role: 'local', church_id: null, full_name: state.session.user.email };
+  if (!rows[0]) throw new Error('Esta conta não tem acesso à administração. Peça acesso à equipa central.');
+  state.profile = rows[0];
 }
 
 async function loadMeetings() {
@@ -277,7 +278,7 @@ function meetingEditor() {
 
 const churchLabel = (id) => {
   const church = state.churches?.find((item) => item.id === id);
-  return church ? (church.locality || church.country || 'Sem nome') : 'Sem igreja';
+  return church ? (church.name || church.locality || church.country || 'Sem nome') : 'Sem igreja';
 };
 
 function claimsView() {
@@ -302,7 +303,7 @@ function claimsView() {
         </div>
       </div>
       <dl class="claim-facts">
-        <div><dt>Igreja</dt><dd>${escapeHtml(church ? (church.locality || church.country) : '—')}${church?.region ? `, ${escapeHtml(church.region)}` : ''}</dd></div>
+        <div><dt>Igreja</dt><dd>${escapeHtml(church ? (church.name || church.locality || church.country) : '—')}${church?.region ? `, ${escapeHtml(church.region)}` : ''}</dd></div>
         <div><dt>Género</dt><dd>${escapeHtml({ masculino: 'Masculino', feminino: 'Feminino' }[claim.gender] || '—')}</dd></div>
         <div><dt>Telefone</dt><dd>${escapeHtml(claim.phone || '—')}</dd></div>
         <div><dt>Onde vive</dt><dd>${escapeHtml([claim.city, countryName(claim.country_code)].filter(Boolean).join(', ') || '—')}</dd></div>
@@ -332,15 +333,15 @@ const IGNORED_FIELDS = new Set(['id', 'updated_at', 'created_at', 'church_id', '
 const FIELD_LABELS = {
   title: 'Título', kind: 'Tipo', start_time: 'Hora de início', time_note: 'Explicação da hora', recurrence: 'Recorrência',
   weekdays: 'Dias da semana', event_date: 'Data', zoom_url: 'Link do Zoom', zoom_meeting_id: 'ID do Zoom', zoom_passcode: 'Senha do Zoom',
-  active: 'Ativo', sort_order: 'Ordem', place_type: 'Tipo de lugar', became_church_on: 'Passou a igreja em', locality: 'Localidade',
+  name: 'Nome da igreja', active: 'Ativo', sort_order: 'Ordem', place_type: 'Tipo de lugar', became_church_on: 'Passou a igreja em', locality: 'Localidade',
   region: 'Região', address: 'Morada', leader_name: 'Responsável', leader_phone: 'Telefone', whatsapp_group_url: 'Grupo de WhatsApp',
-  photo_url: 'Fotografia', note: 'Nota', verification_status: 'Verificação', verified_at: 'Verificado em', full_name: 'Nome',
+  seat: 'Sede', other_leaders: 'Outros responsáveis', photo_url: 'Fotografia', note: 'Nota', verification_status: 'Verificação', verified_at: 'Verificado em', full_name: 'Nome',
   gender: 'Género', role: 'Função', phone: 'Telefone', weekday: 'Dia', label: 'Descrição'
 };
 
 function recordName(row) {
   const value = row.new_value || row.old_value || {};
-  return value.title || value.full_name || value.locality || value.country || (value.weekday !== undefined ? WEEKDAY_LABELS[value.weekday] : '') || value.phone || row.record_id;
+  return value.title || value.full_name || value.name || value.locality || value.country || (value.weekday !== undefined ? WEEKDAY_LABELS[value.weekday] : '') || value.phone || row.record_id;
 }
 
 const shown = (value) => (value === null || value === undefined || value === '' ? '—' : Array.isArray(value) ? value.join(', ') : typeof value === 'object' ? JSON.stringify(value) : String(value));
@@ -490,7 +491,7 @@ function servoEditor() {
       <label>Contacto <small>(${servo.phone_public ? 'visível no diretório, por escolha do servo' : 'privado'})</small><input type="tel" name="phone" value="${escapeHtml(servo.phone || '')}" /></label>
       <label>Igreja onde serve<select name="church_id">
         <option value="">— sem igreja —</option>
-        ${igrejas.map((church) => `<option value="${church.id}" ${servo.church_id === church.id ? 'selected' : ''}>${escapeHtml(church.locality || church.country || church.record_id)}</option>`).join('')}
+        ${igrejas.map((church) => `<option value="${church.id}" ${servo.church_id === church.id ? 'selected' : ''}>${escapeHtml(church.name || church.locality || church.country || church.record_id)}</option>`).join('')}
       </select></label>
     </div>
     ${photoField(servo.photo_url, 'servos', servo.id)}
@@ -511,7 +512,7 @@ function churchesView() {
     const matchesFilter = state.filter === 'todas'
       || (state.filter === 'porVerificar' && church.verification_status !== 'verified')
       || (state.filter === 'verificadas' && church.verification_status === 'verified');
-    const haystack = [church.locality, church.region, church.country, church.country_code, church.leader_name].filter(Boolean).join(' ').toLowerCase();
+    const haystack = [church.name, church.locality, church.region, church.country, church.country_code, church.leader_name].filter(Boolean).join(' ').toLowerCase();
     return matchesFilter && (!query || haystack.includes(query));
   });
   if (!mine.length) return '<p class="admin-empty">Ainda não tem nenhuma igreja atribuída. Peça à equipa central.</p>';
@@ -519,12 +520,12 @@ function churchesView() {
   return `<div class="admin-card">
     <h2>Diretório</h2>
     <p class="admin-hint">${mine.length} ${mine.length === 1 ? 'registo' : 'registos'} · <strong>${pending}</strong> por verificar. Confirme com a igreja antes de marcar como verificado.</p>
-    <label class="search-box"><span>⌕</span><input id="church-search" value="${escapeHtml(state.query)}" placeholder="Procurar por localidade, região ou responsável" autocomplete="off" /></label>
+    <label class="search-box"><span>⌕</span><input id="church-search" value="${escapeHtml(state.query)}" placeholder="Procurar por nome, localidade, região ou responsável" autocomplete="off" /></label>
     <div class="admin-filters">${[['todas', 'Todas'], ['porVerificar', 'Por verificar'], ['verificadas', 'Verificadas']]
       .map(([id, label]) => `<button class="filter ${state.filter === id ? 'selected' : ''}" data-filter="${id}">${label}</button>`).join('')}</div>
     <ul class="admin-list">${visible.map((church) => `<li>
       <button data-edit="${church.id}">
-        <span><strong>${escapeHtml(church.locality || church.country || 'Sem localidade')}</strong><small>${escapeHtml([SEAT_LABELS[church.seat], church.region, church.country || church.country_code].filter(Boolean).join(' · ') || church.modality)}</small></span>
+        <span><strong>${escapeHtml(church.name || church.locality || church.country || 'Sem localidade')}</strong><small>${escapeHtml([SEAT_LABELS[church.seat], church.region, church.country || church.country_code].filter(Boolean).join(' · ') || church.modality)}</small></span>
         <span class="status-badge ${church.verification_status}">${church.verification_status === 'verified' ? 'Verificado' : 'A confirmar'}</span>
       </button>
     </li>`).join('') || '<li class="admin-empty">Nenhum registo corresponde.</li>'}</ul>
@@ -535,8 +536,10 @@ function churchEditor() {
   const church = state.editing;
   const services = state.services || [];
   return `<div class="admin-overlay"><form id="church-form" class="admin-card admin-dialog">
-    <h2>${escapeHtml(church.locality || church.country || 'Local')}</h2>
+    <h2>${escapeHtml(church.name || church.locality || church.country || 'Local')}</h2>
     <p class="admin-hint">Origem: ${escapeHtml(church.source || church.note || 'registo operacional')}</p>
+    <label>Nome da igreja<input type="text" name="name" maxlength="160" value="${escapeHtml(church.name || '')}" placeholder="Ex.: ISTN-SJ Kifica" /></label>
+    <p class="admin-hint">Este nome aparece na aplicação. Se ficar vazio, será usada a localidade.</p>
     <label>Tipo de lugar<select name="place_type">
       <option value="" ${!church.place_type ? 'selected' : ''}>— por confirmar —</option>
       <option value="igreja" ${church.place_type === 'igreja' ? 'selected' : ''}>Igreja</option>
@@ -584,7 +587,7 @@ function seatField(church) {
   }
   const holder = (seat) => (state.churches || []).find((item) => item.id !== church.id && item.seat === seat
     && (seat === 'mundial' || (item.country || item.country_code) === country));
-  const now = (seat) => (holder(seat) ? ` — hoje: ${escapeHtml(holder(seat).locality || holder(seat).country)}` : '');
+  const now = (seat) => (holder(seat) ? ` — hoje: ${escapeHtml(holder(seat).name || holder(seat).locality || holder(seat).country)}` : '');
   return `<label>Sede<select name="seat">
       <option value="" ${!church.seat ? 'selected' : ''}>Não é sede</option>
       <option value="nacional" ${church.seat === 'nacional' ? 'selected' : ''}>Sede nacional${country ? ` de ${escapeHtml(country)}` : ''}${now('nacional')}</option>
@@ -989,6 +992,7 @@ function bind() {
     const form = event.target;
     const values = formValues(form);
     const church = state.editing;
+    if (state.services === null) { toast('Os horários não foram carregados. Feche e volte a abrir a igreja antes de guardar.', 'erro'); return; }
     if (values.whatsapp_group_url && !safeUrl(values.whatsapp_group_url)) { toast('O link do grupo tem de começar por https://.', 'erro'); return; }
     const servicos = [...form.querySelectorAll('[data-service-row]')]
       .filter((row) => !('placeholder' in row.dataset))
@@ -1003,39 +1007,24 @@ function bind() {
       .map((row) => ({ name: row.querySelector('[data-leader-name]').value.trim(), phone: row.querySelector('[data-leader-phone]').value.trim() }))
       .filter((leader) => leader.name || leader.phone);
     const seat = values.seat || null;
-    const alreadyVerified = church.verification_status === 'verified';
     guard(async () => {
-      const updated = await rest(`churches?id=eq.${church.id}`, {
-        method: 'PATCH',
-        headers: { Prefer: 'return=representation' },
-        body: JSON.stringify({
-          place_type: values.place_type || null,
-          became_church_on: values.place_type === 'igreja' && values.became_church_on ? values.became_church_on : null,
-          locality: values.locality || null, region: values.region || null,
-          address: values.address || null,
-          leader_name: values.leader_name || null, leader_phone: values.leader_phone || null,
-          other_leaders: outros,
-          whatsapp_group_url: safeUrl(values.whatsapp_group_url) || null,
-          note: values.note || null,
-          verification_status: values.verified ? 'verified' : 'needs_review',
-          // Saving an already verified record again does not move the date or
-          // the person who confirmed it.
-          verified_at: values.verified ? (alreadyVerified ? church.verified_at : new Date().toISOString()) : null,
-          verified_by: values.verified ? (alreadyVerified ? church.verified_by : state.session.user.id) : null
+      await rest('rpc/save_church', {
+        method: 'POST',
+        body: JSON.stringify({ p_church: church.id, p_services: servicos,
+          p_details: {
+            name: values.name.trim() || null,
+            place_type: values.place_type || null,
+            became_church_on: values.place_type === 'igreja' && values.became_church_on ? values.became_church_on : null,
+            locality: values.locality || null, region: values.region || null,
+            address: values.address || null,
+            leader_name: values.leader_name || null, leader_phone: values.leader_phone || null,
+            other_leaders: outros,
+            whatsapp_group_url: safeUrl(values.whatsapp_group_url) || null,
+            note: values.note || null,
+            verification_status: values.verified ? 'verified' : 'needs_review'
+          }, p_change_seat: isCentral() && seat !== (church.seat || null), p_seat: seat
         })
       });
-      if (!updated?.length) throw new Error('Não tem permissão para alterar este registo.');
-      // One transaction in the database (migration 008): deleting and then
-      // inserting as two requests lost every time if the second one failed.
-      await rest('rpc/replace_church_services', {
-        method: 'POST',
-        body: JSON.stringify({ p_church: church.id, p_services: servicos })
-      });
-      // The seat moves in one transaction (set_church_seat): the place that
-      // held it gives it up at the same moment this one takes it.
-      if (isCentral() && seat !== (church.seat || null)) {
-        await rest('rpc/set_church_seat', { method: 'POST', body: JSON.stringify({ p_church: church.id, p_seat: seat }) });
-      }
       state.editing = null; state.services = null;
       await loadChurches();
       toast('Registo guardado.');

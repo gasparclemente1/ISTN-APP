@@ -559,3 +559,64 @@ do $$ begin
   perform public.set_church_seat((select id from public.churches where record_id = 'pt-pontinha'), 'nacional');
 end $$;
 reset role;
+
+-- Full Admin saves must be all-or-nothing and keep local editors in scope.
+set role authenticated;
+set request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000e1';
+do $$
+declare
+  own uuid := (select id from public.churches where record_id = 'ao-kifica');
+  other uuid := (select id from public.churches where record_id = 'ao-estalagem');
+  denied boolean;
+begin
+  perform public.save_church(own, '{"name":"ISTN Esperança"}', '[{"weekday":0,"start_time":"10:00"}]');
+  if (select name from public.churches where id=own) <> 'ISTN Esperança' then raise exception 'Nome não guardado'; end if;
+  denied := false;
+  begin
+    perform public.save_church(own, '{"name":"Não guardar"}', '[{"weekday":8}]');
+  exception when check_violation then denied := true; end;
+  if not denied or (select name from public.churches where id=own) <> 'ISTN Esperança' then raise exception 'Gravação parcial'; end if;
+  denied := false;
+  begin
+    perform public.save_church(other, '{"name":"Proibido"}', '[]');
+  exception when raise_exception then denied := true; end;
+  if not denied then raise exception 'Editor alterou outra igreja'; end if;
+  denied := false;
+  begin
+    perform public.save_church(own, '{"name":"Proibido"}', '[]', true, 'mundial');
+  exception when raise_exception then denied := true; end;
+  if not denied then raise exception 'Editor alterou sede'; end if;
+  perform public.save_church(own, '{"name":null}', '[]');
+  if exists(select 1 from public.church_services where church_id=own)
+    or exists(select 1 from public.churches where id=own and service_day is not null) then
+    raise exception 'Horário antigo reapareceu'; end if;
+end $$;
+reset role;
+set role authenticated;
+set request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000c1';
+do $$
+declare target uuid := (select id from public.churches where record_id='pt-caldas-da-rainha');
+begin
+  perform public.save_church(target, '{"name":"ISTN Caldas"}', '[{"weekday":0,"start_time":"09:00"}]', true, 'nacional');
+  if not exists(select 1 from public.churches where id=target and name='ISTN Caldas' and seat='nacional') then
+    raise exception 'Admin não guardou nome e sede'; end if;
+  begin
+    perform public.save_church(target, '{"name":"Não guardar"}', '[]', true, 'invalida');
+  exception when raise_exception then null; end;
+  if (select name from public.churches where id=target) <> 'ISTN Caldas'
+    or not exists(select 1 from public.church_services where church_id=target) then
+    raise exception 'Falha da sede não reverteu os dados e horários'; end if;
+end $$;
+reset role;
+
+set role authenticated;
+set request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000a1';
+do $$
+declare denied boolean := false;
+begin
+  begin
+    perform public.save_church((select id from public.churches where record_id='ao-kifica'), '{"name":"Proibido"}', '[]');
+  exception when raise_exception then denied := true; end;
+  if not denied then raise exception 'Conta sem perfil Admin acedeu à gravação'; end if;
+end $$;
+reset role;

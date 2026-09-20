@@ -84,7 +84,7 @@ export function normalizeChurch(row, servants = []) {
     country,
     region: row.region || null,
     locality: row.locality || null,
-    name: row.locality || country || 'Sem localidade',
+    name: row.name?.trim() || row.locality || country || 'Sem localidade',
     address: row.address || null,
     leaderName: row.leader_name || null,
     leaderPhone: row.leader_phone || null,
