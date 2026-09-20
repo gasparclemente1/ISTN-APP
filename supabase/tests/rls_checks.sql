@@ -620,3 +620,57 @@ begin
   if not denied then raise exception 'Conta sem perfil Admin acedeu à gravação'; end if;
 end $$;
 reset role;
+
+-- ------------------------------------------- país escolhido de uma lista ----
+
+-- A equipa central muda o país de um lugar; o nome que a lista de origem
+-- escreveu sai com ele, para que o nome mostrado venha sempre do código.
+set role authenticated;
+set request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000c1';
+do $$
+declare
+  alvo uuid := (select id from public.churches where record_id = 'de-sankt-augustin');
+  recusado boolean := false;
+begin
+  update public.churches set country = 'Alemanha' where id = alvo;
+  perform public.save_church(alvo, '{}', '[]', false, null, 'CH');
+  if (select country_code from public.churches where id = alvo) <> 'CH'
+     or (select country from public.churches where id = alvo) is not null then
+    raise exception 'FALHOU: o país não mudou, ou o nome antigo ficou a contradizê-lo';
+  end if;
+
+  -- Um código que não existe na lista não entra.
+  begin
+    perform public.save_church(alvo, '{}', '[]', false, null, 'Brasil');
+  exception when raise_exception then recusado := true; end;
+  if not recusado or (select country_code from public.churches where id = alvo) <> 'CH' then
+    raise exception 'FALHOU: a base de dados aceitou um país fora da lista';
+  end if;
+
+  -- Sem país no pedido, o que lá está fica como está.
+  perform public.save_church(alvo, '{"name":"ISTN Sankt Augustin"}', '[]');
+  if (select country_code from public.churches where id = alvo) <> 'CH' then
+    raise exception 'FALHOU: guardar sem indicar país mudou o país';
+  end if;
+  perform public.save_church(alvo, '{"name":null}', '[]', false, null, 'DE');
+end $$;
+reset role;
+
+-- Mudar de país um lugar que é sede nacional não pode dar duas sedes ao mesmo país.
+set role authenticated;
+set request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000c1';
+do $$
+declare
+  franca uuid := (select id from public.churches where record_id = 'fr-paris');
+  recusado boolean := false;
+begin
+  begin
+    perform public.save_church(franca, '{}', '[]', false, null, 'PT');
+  exception when raise_exception then recusado := true; end;
+  if not recusado then raise exception 'FALHOU: Portugal ficou com duas sedes nacionais'; end if;
+  if (select country_code from public.churches where id = franca) <> 'FR'
+     or (select seat from public.churches where id = franca) <> 'nacional' then
+    raise exception 'FALHOU: a recusa deixou o registo a meio';
+  end if;
+end $$;
+reset role;

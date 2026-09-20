@@ -27,7 +27,8 @@ Três decisões da equipa atravessam todo o modelo:
 | `place_type` | text | **A acrescentar.** `igreja` ou `casa_de_oracao`. |
 | `became_church_on` | date | **A acrescentar.** Quando a casa de oração passou a igreja. |
 | `modality` | text | `physical` ou `online`. |
-| `country_code` `country` | text | |
+| `country_code` | text | Código ISO 3166, **escolhido de uma lista** no painel (`src/countries.js`), nunca escrito. A base de dados só aceita duas letras maiúsculas. |
+| `country` | text | O nome do país como a lista de origem o escreveu («Inglaterra»). Vazio: usa-se o nome do código («Reino Unido»). Mudar o país no painel limpa-o, para os dois não se contradizerem. |
 | `region` | text | **Manter.** Preenchida em 75 registos; o diretório filtra por ela. |
 | `locality` | text | |
 | `address` | text | **A acrescentar.** Morada, para quem se desloca. |

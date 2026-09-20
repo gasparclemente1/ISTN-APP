@@ -1,8 +1,10 @@
-// Every country, named in the reader's language by the browser itself.
+// Every country, named by the browser itself in the Portuguese the church
+// writes: "Quénia" and "Polónia", not the Brazilian "Quênia" and "Polônia".
 //
-// Only the ISO 3166 codes are kept here. The names come from Intl.DisplayNames,
-// so they are correct Portuguese without a translated list to maintain, and the
+// Only the ISO 3166 codes are kept here. The names come from Intl.DisplayNames
+// in pt-PT, so they are correct without a translated list to maintain, and the
 // same codes are what churches.country_code and app_users.country_code store.
+// This list is also the one the panel offers: a country is chosen, never typed.
 // Uninhabited territories (Antarctica, Bouvet, Heard, South Georgia, the French
 // Southern Lands, US Minor Outlying Islands) are left out: nobody lives there
 // to choose them.
@@ -24,11 +26,11 @@ export const ISTN_COUNTRIES = ['AO', 'BR', 'CA', 'CD', 'CH', 'DE', 'ES', 'FR', '
 // The standard names for the two Congos ("Congo - Kinshasa", "Congo - Brazzaville")
 // read as catalogue entries. The ISTN is present in one of them, so both get the
 // names people actually use.
-const OVERRIDES = { pt: { CD: 'República Democrática do Congo', CG: 'República do Congo' } };
+const OVERRIDES = { 'pt-PT': { CD: 'República Democrática do Congo', CG: 'República do Congo' } };
 
 let cache = null;
 
-export function countryList(locale = 'pt') {
+export function countryList(locale = 'pt-PT') {
   if (cache?.locale === locale) return cache.list;
   const names = new Intl.DisplayNames([locale], { type: 'region' });
   const list = CODES
@@ -38,7 +40,7 @@ export function countryList(locale = 'pt') {
   return list;
 }
 
-export function countryName(code, locale = 'pt') {
+export function countryName(code, locale = 'pt-PT') {
   if (!code) return '';
   return countryList(locale).find((country) => country.code === code)?.name || code;
 }
