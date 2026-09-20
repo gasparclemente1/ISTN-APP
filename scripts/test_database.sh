@@ -28,6 +28,18 @@ run() {
 run -f "$ROOT/supabase/tests/supabase_stub.sql"
 run -f "$ROOT/supabase/schema.sql"
 run -f "$ROOT/supabase/seed.sql"
+
+# The first pass runs every migration the way the Supabase SQL editor does:
+# each statement on its own, outside the file's transaction. A migration that
+# leaves something in a temporary table, or in any other state that does not
+# survive between statements, fails here instead of failing in production.
+for migration in "$ROOT"/supabase/migrations/*.sql; do
+  sed -e '/^begin;$/d' -e '/^commit;$/d' "$migration" > "$WORK/isolado.sql"
+  run -f "$WORK/isolado.sql" >/dev/null
+done
+
+# The second and third run them whole, twice: as DEPLOY.md says, a migration
+# can be run again without changing anything.
 for pass in 1 2; do
   for migration in "$ROOT"/supabase/migrations/*.sql; do
     run -f "$migration" >/dev/null

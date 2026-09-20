@@ -161,33 +161,16 @@ create table if not exists public.data_imports (
 -- No policy: nobody reads it through the API.
 alter table public.data_imports enable row level security;
 
-create temp table directory_import (
-  ord               serial,
-  record_id         text not null,
-  former_record_ids text[] not null,
-  modality          text not null,
-  seat              text,
-  country_code      text,
-  country           text,
-  region            text,
-  locality          text,
-  address           text,
-  leader_name       text,
-  leader_phone      text,
-  other_leaders     jsonb not null,
-  source            text,
-  services          jsonb not null
-) on commit drop;
-
-insert into directory_import (record_id, former_record_ids, modality, seat, country_code, country, region, locality,
-                              address, leader_name, leader_phone, other_leaders, source, services) values
-{{ROWS}};
-
-do $$
+-- The places travel inside this block, as one JSON document, and the whole
+-- import is a single statement. A temporary table would be simpler to read,
+-- but the Supabase SQL editor runs each statement of a file on its own, and a
+-- temporary table does not survive that.
+do $import$
 declare
   item  record;
   keep  uuid;
   other uuid;
+  places constant jsonb := $places${{PLACES}}$places$::jsonb;
 begin
   if exists (select 1 from public.data_imports where name = '{{NAME}}') then
     raise notice 'A importação {{NAME}} já foi aplicada: nada a fazer.';
@@ -198,7 +181,15 @@ begin
   -- before, so no country has two while that runs.
   update public.churches set seat = null where seat is not null;
 
-  for item in select * from directory_import order by ord loop
+  for item in
+    select place.*
+      from jsonb_array_elements(places) with ordinality as listed(value, ord)
+      cross join lateral jsonb_to_record(listed.value) as place(
+        record_id text, former_record_ids text[], modality text, seat text, country_code text, country text,
+        region text, locality text, address text, leader_name text, leader_phone text, other_leaders jsonb,
+        source text, services jsonb)
+     order by listed.ord
+  loop
     -- The record that becomes this place: the one with its new id, if a
     -- previous run created it, or else the first of the ids it had before.
     keep := null;
@@ -249,6 +240,6 @@ begin
 
   insert into public.data_imports (name) values ('{{NAME}}');
   raise notice 'Importação {{NAME}}: {{COUNT}} lugares.';
-end $$;
+end $import$;
 
 commit;

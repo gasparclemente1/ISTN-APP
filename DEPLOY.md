@@ -50,7 +50,10 @@ na base de dados **antes** de o código chegar a `main`:
 2. Fazer merge do pull request. O Render publica em 2–3 minutos.
 
 As migrações podem ser corridas mais do que uma vez sem estragar nada; o
-`npm run test:db` confirma isso em cada alteração.
+`npm run test:db` confirma isso em cada alteração. Confirma também que cada
+migração corre **instrução a instrução**, como o editor SQL do Supabase a
+executa: uma migração que dependa de uma tabela temporária, por exemplo, falha
+nos testes em vez de falhar no editor.
 
 **Migração `20260919160000_diretorio_lista_geral` (diretório da lista geral).**
 Traz a lista geral de cultos da equipa para a base de dados: 135 linhas da folha
@@ -96,7 +99,41 @@ passa a funcionar; até lá, mostra um erro.
 migrações e o Render terminar de publicar, o painel antigo não consegue gravar
 o telefone de um servo. Convém fazê-lo fora das horas das reuniões.
 
-## 4. Verificar depois de publicar
+## 4. O domínio próprio — istnsj.org
+
+Registado na Cloudflare a 20 de setembro de 2026. O endereço tem de ficar
+decidido **antes** de a aplicação ser partilhada com a igreja: quem a instala
+no telemóvel fica preso ao endereço com que a instalou, e mudá-lo depois
+obriga cada pessoa a reinstalar.
+
+1. **Render → o serviço → Settings → Custom Domains.** Acrescentar
+   `istnsj.org` e `www.istnsj.org`. O Render mostra, para cada um, o registo de
+   DNS que espera (em regra um `A` para a raiz e um `CNAME` para o `www`).
+2. **Cloudflare → istnsj.org → DNS → Records.** Criar exatamente esses
+   registos, com **Proxy status: DNS only** — a nuvem cinzenta. Com a nuvem
+   laranja, o Render não consegue emitir o certificado HTTPS.
+3. Esperar que o Render verifique e emita o certificado (minutos).
+4. **Render → Environment:** `CANONICAL_HOST=istnsj.org`. A partir daí, quem
+   chegar pelo endereço antigo `…onrender.com` ou por `www` é reencaminhado
+   para o endereço novo, com o caminho que pediu. O exame de saúde
+   (`/healthz`), que o Render chama pelo nome do próprio serviço, continua a
+   responder 200.
+5. **Supabase → Authentication → URL Configuration:** *Site URL*
+   `https://istnsj.org` e, em *Redirect URLs*, acrescentar
+   `https://istnsj.org/**`. Sem isto, os emails de confirmação de conta
+   continuam a levar ao endereço antigo. Manter o endereço antigo na lista
+   durante uns dias não faz mal.
+6. Verificar:
+
+```bash
+curl -sI https://istnsj.org/ | head -1
+curl -sI https://ANTIGO.onrender.com/igrejas | grep -i "^location"
+```
+
+O primeiro deve responder `HTTP/2 200`; o segundo deve mostrar
+`location: https://istnsj.org/igrejas`.
+
+## 5. Verificar depois de publicar
 
 Substituir `APP` pelo endereço público.
 
