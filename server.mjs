@@ -4,6 +4,7 @@ import { createGzip, gzipSync } from 'node:zlib';
 import { join } from 'node:path';
 import { APP_ROUTES, resolvePublicPath, isTextType } from './lib/static.mjs';
 import { PREVIEW_BOTS, previewFor, sectionPreview, withPreview } from './lib/link-preview.mjs';
+import { canonicalRedirect } from './lib/canonical.mjs';
 import { securityHeaders } from './lib/security.mjs';
 import { createProviderLookup, supabaseConfig } from './lib/supabase.mjs';
 import { latestVideos } from './lib/youtube.mjs';
@@ -15,6 +16,8 @@ import { loadEnvFile } from './lib/env.mjs';
 const root = process.cwd();
 loadEnvFile(root);
 const port = Number(process.env.PORT || 4173);
+// The address the app answers by. Everything else redirects to it.
+const canonicalHost = (process.env.CANONICAL_HOST || '').trim();
 const config = supabaseConfig();
 const publicData = createPublicData({ config, root });
 const signInProviders = createProviderLookup(config);
@@ -74,6 +77,9 @@ async function handle(request, response) {
   if (request.method !== 'GET' && request.method !== 'HEAD') {
     return send(request, response, 405, 'Method not allowed', { Allow: 'GET, HEAD' });
   }
+
+  const canonical = canonicalRedirect({ host: request.headers.host, pathname: url.pathname, search: url.search, canonicalHost, https });
+  if (canonical) return send(request, response, 301, 'Moved permanently', { Location: canonical, 'Cache-Control': 'no-cache' });
 
   if (url.pathname === '/healthz') return sendJson(request, response, 200, { ok: true }, 'no-store');
 
