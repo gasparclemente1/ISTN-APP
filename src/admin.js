@@ -1,7 +1,7 @@
 import { WEEKDAY_LABELS, recurrenceLabel } from './meetings.js';
 import { uploadPhoto } from './upload.js';
 import { badgeTier, isMinisterRole, quietCheck, roleLabel, rolesForGender, servantName, verifiedSeal } from './roles.js';
-import { countryName } from './countries.js';
+import { ISTN_COUNTRIES, countryList, countryName } from './countries.js';
 import { escapeHtml, safeUrl } from './html.js';
 import { renderInto } from './dom.js';
 import { PUBLISH_SCOPES, authorName, formatPostDate } from './posts.js';
@@ -525,7 +525,7 @@ function churchesView() {
       .map(([id, label]) => `<button class="filter ${state.filter === id ? 'selected' : ''}" data-filter="${id}">${label}</button>`).join('')}</div>
     <ul class="admin-list">${visible.map((church) => `<li>
       <button data-edit="${church.id}">
-        <span><strong>${escapeHtml(church.name || church.locality || church.country || 'Sem localidade')}</strong><small>${escapeHtml([SEAT_LABELS[church.seat], church.region, church.country || church.country_code].filter(Boolean).join(' · ') || church.modality)}</small></span>
+        <span><strong>${escapeHtml(church.name || church.locality || church.country || 'Sem localidade')}</strong><small>${escapeHtml([SEAT_LABELS[church.seat], church.region, church.country || countryName(church.country_code)].filter(Boolean).join(' · ') || church.modality)}</small></span>
         <span class="status-badge ${church.verification_status}">${church.verification_status === 'verified' ? 'Verificado' : 'A confirmar'}</span>
       </button>
     </li>`).join('') || '<li class="admin-empty">Nenhum registo corresponde.</li>'}</ul>
@@ -546,6 +546,7 @@ function churchEditor() {
       <option value="casa_de_oracao" ${church.place_type === 'casa_de_oracao' ? 'selected' : ''}>Casa de oração</option>
     </select></label>
     <label data-when-church="igreja">Passou a igreja em<input type="date" name="became_church_on" value="${escapeHtml(church.became_church_on || '')}" /></label>
+    ${countryField(church)}
     <div class="admin-row">
       <label>Localidade<input type="text" name="locality" value="${escapeHtml(church.locality || '')}" /></label>
       <label>Região<input type="text" name="region" value="${escapeHtml(church.region || '')}" /></label>
@@ -576,6 +577,21 @@ function churchEditor() {
       <button class="button button-gold" type="submit" ${state.busy ? 'disabled' : ''}>${state.busy ? 'A guardar…' : 'Guardar'}</button>
     </div>
   </form></div>`;
+}
+
+// The country is chosen from the list every part of the app shares, never
+// typed: written by hand, the same country arrives as "Brasil", "brasil" and
+// "Brazil", and the directory shows three groups where there is one.
+function countryField(church) {
+  const option = (country) => `<option value="${country.code}" ${church.country_code === country.code ? 'selected' : ''}>${escapeHtml(country.name)}</option>`;
+  const all = countryList();
+  const written = church.country && church.country !== countryName(church.country_code);
+  return `<label>País<select name="country_code" required>
+      ${church.country_code ? '' : '<option value="">— por escolher —</option>'}
+      <optgroup label="Onde a ISTN-SJ está presente">${all.filter((country) => ISTN_COUNTRIES.includes(country.code)).map(option).join('')}</optgroup>
+      <optgroup label="Todos os países">${all.map(option).join('')}</optgroup>
+    </select></label>
+    ${written ? `<p class="admin-hint">A lista de origem escreveu «${escapeHtml(church.country)}», que é o nome mostrado hoje. Se mudar o país aqui, passa a ser «${escapeHtml(countryName(church.country_code) || '')}».</p>` : ''}`;
 }
 
 // The seat speaks for the whole ISTN, so only the central team changes it; the
@@ -1010,7 +1026,7 @@ function bind() {
     guard(async () => {
       await rest('rpc/save_church', {
         method: 'POST',
-        body: JSON.stringify({ p_church: church.id, p_services: servicos,
+        body: JSON.stringify({ p_church: church.id, p_services: servicos, p_country_code: values.country_code || null,
           p_details: {
             name: values.name.trim() || null,
             place_type: values.place_type || null,

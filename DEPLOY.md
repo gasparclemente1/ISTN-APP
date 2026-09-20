@@ -55,6 +55,15 @@ migração corre **instrução a instrução**, como o editor SQL do Supabase a
 executa: uma migração que dependa de uma tabela temporária, por exemplo, falha
 nos testes em vez de falhar no editor.
 
+**Migração `20260920030000_church_country_from_list` (país de uma lista).** O
+país de uma igreja passa a ser escolhido no painel a partir da lista de
+`src/countries.js` (ISO 3166, nomes em português europeu) e deixa de poder ser
+escrito à mão: escrito à mão, o mesmo país chega como «Brasil», «brasil» e
+«Brazil», e o diretório mostra três grupos onde há um. A base de dados recusa
+qualquer coisa que não seja um código de duas letras. Ao mudar o país de um
+lugar, o nome que a lista de origem escrevia («Inglaterra») sai com ele, para
+que o nome mostrado venha sempre do código.
+
 **Migração `20260919160000_diretorio_lista_geral` (diretório da lista geral).**
 Traz a lista geral de cultos da equipa para a base de dados: 135 linhas da folha
 passam a **73 lugares** (63 presenciais e 10 igrejas online, em 18 países), cada
