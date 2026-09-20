@@ -75,7 +75,7 @@ que o nome mostrado venha sempre do código.
 **Migração `20260919160000_diretorio_lista_geral` (diretório da lista geral).**
 Traz a lista geral de cultos da equipa para a base de dados: 135 linhas da folha
 passam a **73 lugares** (63 presenciais e 10 igrejas online, em 18 países), cada
-um com todos os seus dias de culto e a morada quando a folha a indica. Acrescenta
+um com todos os seus dias de culto e o endereço quando a folha o indica. Acrescenta
 a sede (mundial ou nacional), os outros responsáveis de um lugar e os
 identificadores antigos de cada lugar, para que links partilhados e «A minha
 ISTN» continuem a funcionar.

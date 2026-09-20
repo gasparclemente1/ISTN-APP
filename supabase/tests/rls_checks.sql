@@ -49,7 +49,7 @@ begin
     raise exception 'FALHOU: Kifica esqueceu os identificadores que tinha';
   end if;
   if kifica.address is null or kifica.seat <> 'mundial' then
-    raise exception 'FALHOU: Kifica ficou sem morada ou sem a sede mundial';
+    raise exception 'FALHOU: Kifica ficou sem endereço ou sem a sede mundial';
   end if;
   if (select count(*) from public.church_services where church_id = kifica.id) <> 3 then
     raise exception 'FALHOU: Kifica devia ter os cultos de quinta, sábado e domingo';

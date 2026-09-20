@@ -4,7 +4,7 @@ Gerado por `scripts/import_churches.py` a partir de `ISTN-SJ_Cultos_Geral_Endere
 
 135 linhas da folha → **73 lugares**: 63 presenciais e 10 igrejas online, em 18 países.
 
-As moradas são o texto da própria folha. Um lugar cuja «morada» é apenas o seu nome fica sem morada, em vez de lhe ser atribuída uma.
+Os endereços são o texto da própria folha. Um lugar cujo «endereço» é apenas o seu nome fica sem endereço, em vez de lhe ser atribuído um.
 
 ## Sedes — proposta a confirmar
 
@@ -57,15 +57,15 @@ Erros de digitação e uma abreviatura.
 - br-vicentinopolis: região «Góias» escrita «Goiás».
 - br-belo-horizonte: região «MG» escrita «Minas Gerais».
 
-## Moradas diferentes para o mesmo lugar
+## Endereços diferentes para o mesmo lugar
 
-Ficou a mais completa.
+Ficou o mais completo.
 
 _Nada a assinalar._
 
-## Com morada
+## Com endereço
 
-Lugares cuja folha indica uma morada.
+Lugares cuja folha indica um endereço.
 
 - Kifica (Angola): Rua 149, Bairro Kifica, Distrito do Benfica. Município de Talatona. Luanda,Angola.
 - Sede - Bairro da Fronteira (Angola): Bairro da Massangarala( No Ex. Salão de festa Ndayaka defronte à Escola Deolinda Rodrigues).
@@ -85,9 +85,9 @@ Lugares cuja folha indica uma morada.
 - Calomanda (Angola): Bairro da Calomanda, por detrás da IECA, ao lado da praça.
 - Cacuaco - Calé (Angola): Bairro do Calé, na entrada do Novo Ginásio
 
-## Sem morada na folha
+## Sem endereço na folha
 
-Aparecem com «Morada a confirmar com o responsável».
+Aparecem com «Endereço a confirmar com o responsável».
 
 - Baía Farta - Vila da Baía (Benguela)
 - Quibala - Cambango (Cuanza Sul)

@@ -21,13 +21,13 @@ test('a lista geral: um registo por lugar, com todos os cultos e os ids de antes
   assert.equal(byId('online-estados-unidos-da-america').formerIds[0], 'online_record_001');
 });
 
-test('nada é inventado: moradas, nomes e números como a equipa os escreveu', () => {
+test('nada é inventado: endereços, nomes e números como a equipa os escreveu', () => {
   const kifica = byId('ao-kifica');
   assert.equal(kifica.address, 'Rua 149, Bairro Kifica, Distrito do Benfica. Município de Talatona. Luanda,Angola.');
   assert.equal(kifica.leaderName, 'Bp. Rufino Boaz');
   assert.equal(kifica.leaderPhone, '+244 922 846 000');
   assert.equal(kifica.verificationStatus, 'needs_review');
-  // A "morada" que é só o nome do lugar não é uma morada.
+  // Um "endereço" que é só o nome do lugar não é um endereço.
   assert.equal(byId('ao-sapu-2').address, null);
   assert.equal(churches.filter((church) => church.modality === 'physical' && church.address).length, 17);
 });
@@ -100,7 +100,7 @@ test('pesquisa sem acentos, por palavras, só nos campos que as pessoas procuram
   assert.equal(filterChurches(churches, { query: 'phone' }).length, 0);
   assert.equal(filterChurches(churches, { query: 'modality' }).length, 0);
   assert.ok(filterChurches(churches, { query: 'sao paulo' }).length > 0);
-  // A morada também se procura: o bairro escrito na morada da sede mundial.
+  // O endereço também se procura: o bairro escrito no endereço da sede mundial.
   assert.ok(filterChurches(churches, { query: 'talatona' }).some((church) => church.id === 'ao-kifica'));
 });
 

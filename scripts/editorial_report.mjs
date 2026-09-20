@@ -53,13 +53,13 @@ section('Localidades repetidas no mesmo país',
   [...byPlace.values()].filter((list) => list.length > 1)
     .map((list) => `- ${list.map((church) => `${label(church)} · ${church.services.map(serviceLabel).join('; ') || 'sem horário'}`).join(' / ')}`));
 
-section('Moradas a rever',
-  'A morada aparece tal como está na lista da equipa. Estas parecem ter um erro de digitação: confirme com o responsável e corrija no painel.',
+section('Endereços a rever',
+  'O endereço aparece tal como está na lista da equipa. Estas parecem ter um erro de digitação: confirme com o responsável e corrija no painel.',
   churches.filter((church) => church.address && church.countryCode === 'PT' && /\b\d{4}-\d{1,2}\b/.test(church.address))
     .map((church) => `- ${label(church)} — «${church.address}»: o código postal português tem sete algarismos (0000-000).`));
 
-section('Sem morada',
-  'A lista não indica morada: a página diz «Morada a confirmar com o responsável».',
+section('Sem endereço',
+  'A lista não indica endereço: a página diz «Endereço a confirmar com o responsável».',
   churches.filter((church) => church.modality === 'physical' && !church.address).map((church) => `- ${label(church)}`));
 
 // Places: the same name once accents, spacing and a silent "h" are ignored
