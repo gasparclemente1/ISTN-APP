@@ -9,7 +9,7 @@ Anotar para cada linha: ✅ funciona · ⚠️ funciona com problema (descrever)
 
 | # | Passo | Resultado esperado | Android | iPhone |
 | --- | --- | --- | --- | --- |
-| 1 | Abrir o endereço público pela primeira vez, com dados móveis | A página inicial aparece em menos de 5 s; o logótipo e o texto «ELIAS ISTN-SJ» são legíveis sem ampliar | | |
+| 1 | Abrir o endereço público pela primeira vez, com dados móveis | A página inicial aparece em menos de 5 s; o logótipo e o nome «ISTN-SJ» são legíveis sem ampliar | | |
 | 2 | Deslizar a página inicial até ao fim | Nada sai para os lados; não há deslocamento horizontal da página | | |
 | 3 | Tocar em **Ensinos**, escrever «isaias» devagar | A lista filtra enquanto escreve; o cursor não salta; aparecem pregações de Isaías | | |
 | 4 | Tocar no coração de uma pregação, depois em **Guardadas** | A pregação aparece; volta a aparecer depois de fechar e reabrir o browser | | |
@@ -45,7 +45,7 @@ Anotar para cada linha: ✅ funciona · ⚠️ funciona com problema (descrever)
 | # | Passo | Resultado esperado | Resultado |
 | --- | --- | --- | --- |
 | P1 | Entrar em `/admin` com uma conta da equipa central | Aparecem os separadores Reuniões, Diretório, Servos, Pedidos, Histórico | |
-| P2 | Editar uma igreja, mudar a morada e acrescentar um horário de sábado sem hora; gravar | Grava; na aplicação, a igreja mostra a morada e «Sábado, hora a confirmar» | |
+| P2 | Editar uma igreja, mudar o endereço e acrescentar um horário de sábado sem hora; gravar | Grava; na aplicação, a igreja mostra o endereço e «Sábado, hora a confirmar» | |
 | P3 | Editar uma igreja, escrever alterações e desligar a internet; gravar | Aparece um erro e **o formulário mantém o que foi escrito** | |
 | P4 | Carregar uma fotografia a meio de uma edição | A fotografia muda; os outros campos escritos mantêm-se | |
 | P5 | Mudar a hora de uma reunião | Em menos de um minuto, «Ao vivo» mostra a nova hora; o calendário subscrito atualiza-se nas horas seguintes | |

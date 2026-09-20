@@ -31,7 +31,7 @@ Três decisões da equipa atravessam todo o modelo:
 | `country` | text | O nome do país como a lista de origem o escreveu («Inglaterra»). Vazio: usa-se o nome do código («Reino Unido»). Mudar o país no painel limpa-o, para os dois não se contradizerem. |
 | `region` | text | **Manter.** Preenchida em 75 registos; o diretório filtra por ela. |
 | `locality` | text | |
-| `address` | text | **A acrescentar.** Morada, para quem se desloca. |
+| `address` | text | **A acrescentar.** Endereço, para quem se desloca. |
 | `whatsapp_group_url` | text | **A acrescentar.** Convite para o grupo. Diferente do contacto do líder. |
 | `photo_url` | text | **A acrescentar.** Ver nota sobre imagens. |
 | `leader_name` `leader_phone` | text | Origem até existir `servos`. Não normalizar: a abreviatura é a única indicação de função. |

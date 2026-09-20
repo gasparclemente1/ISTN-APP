@@ -8,11 +8,11 @@ Gerado por `npm run report:editorial` a partir dos ficheiros em `data/`. Não al
 
 Muitas vezes é o mesmo responsável anunciado para vários lugares; às vezes é um erro de cópia. Confirme com o responsável antes de verificar.
 
-- **+244 923 409 830** — ISTN — Sede - Bairro da Fronteira (Benguela, Angola) `ao-sede-bairro-da-fronteira` · Bp. Rui Vaz; ISTN — Wolfsburg (Alemanha) `de-wolfsburg` · Bp. Rui Vaz; ISTN — Canadá (Canadá) `online-canada` · Bp. Rui Vaz; ISTN — Estados Unidos da América (Estados Unidos da América) `online-estados-unidos-da-america` · Bp. Rui Vaz
+- **+244 923 409 830** — ISTN — Sede - Bairro da Fronteira (Benguela, Angola) `ao-sede-bairro-da-fronteira` · Bp. Rui Vaz; ISTN — Wolfsburg (Alemanha) `de-wolfsburg` · Bp. Rui Vaz; ISTN — Canadá (Canadá) `online-canada` · Bp. Rui Vaz; ISTN — Estados Unidos (Estados Unidos) `online-estados-unidos-da-america` · Bp. Rui Vaz
 - **+244 922 846 000** — ISTN — Kifica (Luanda, Angola) `ao-kifica` · Bp. Rufino Boaz; ISTN — África do Sul (África do Sul) `online-africa-do-sul` · Bp. Rufino Boaz
 - **+244 940 954 658** — ISTN — Estalagem (Luanda, Angola) `ao-estalagem` · Bp. Panzo Bento; ISTN — Suíça (Suíça) `online-suica` · Bp. Panzo Bento
 - **+55 11 9 86107003** — ISTN — Belo Horizonte (Minas Gerais, Brasil) `br-belo-horizonte` · Bp. Aux. Gil Faustino; ISTN — Diadema (São Paulo, Brasil) `br-diadema` · Bp. Aux. Gil Faustino
-- **+47 906 64 958** — ISTN — Congo (Congo) `online-congo` · Pr. Gaspar Clemente; ISTN — Noruega (Noruega) `online-noruega` · Pr. Gaspar Clemente
+- **+47 906 64 958** — ISTN — Noruega (Noruega) `online-noruega` · Pr. Gaspar Clemente; ISTN — República Democrática do Congo (República Democrática do Congo) `online-congo` · Pr. Gaspar Clemente
 - **+244 929 184 966** — ISTN — Quénia (Quénia) `online-quenia` · Pr. Nilton Silva; ISTN — Tanzânia (Tanzânia) `online-tanzania` · Pr. Nilton Silva
 
 ## Indicativo diferente do país do registo
@@ -22,9 +22,9 @@ Pode estar certo (um responsável em Angola que acompanha uma comunidade noutro 
 - ISTN — Wolfsburg (Alemanha) `de-wolfsburg` — +244 923 409 830
 - ISTN — África do Sul (África do Sul) `online-africa-do-sul` — +244 922 846 000
 - ISTN — Canadá (Canadá) `online-canada` — +244 923 409 830
-- ISTN — Congo (Congo) `online-congo` — +47 906 64 958
-- ISTN — Estados Unidos da América (Estados Unidos da América) `online-estados-unidos-da-america` — +244 923 409 830
+- ISTN — Estados Unidos (Estados Unidos) `online-estados-unidos-da-america` — +244 923 409 830
 - ISTN — Quénia (Quénia) `online-quenia` — +244 929 184 966
+- ISTN — República Democrática do Congo (República Democrática do Congo) `online-congo` — +47 906 64 958
 - ISTN — Senegal (Senegal) `online-senegal` — +351 967 377 074
 - ISTN — Suíça (Suíça) `online-suica` — +244 940 954 658
 - ISTN — Tanzânia (Tanzânia) `online-tanzania` — +244 929 184 966
@@ -43,15 +43,15 @@ A importação juntou os horários de cada lugar num só registo (ver data/impor
 
 _Nada a assinalar._
 
-## Moradas a rever
+## Endereços a rever
 
-A morada aparece tal como está na lista da equipa. Estas parecem ter um erro de digitação: confirme com o responsável e corrija no painel.
+O endereço aparece tal como está na lista da equipa. Estas parecem ter um erro de digitação: confirme com o responsável e corrija no painel.
 
 - ISTN — Pontinha (Lisboa, Portugal) `pt-pontinha` — «Travessa Quinta das Arrombas 99, 1675-76 Serra da Luz - Pontinha»: o código postal português tem sete algarismos (0000-000).
 
-## Sem morada
+## Sem endereço
 
-A lista não indica morada: a página diz «Morada a confirmar com o responsável».
+A lista não indica endereço: a página diz «Endereço a confirmar com o responsável».
 
 - ISTN — Baía Farta - Vila da Baía (Benguela, Angola) `ao-baia-farta-vila-da-baia`
 - ISTN — Bailundo - Espírito Santo (Huambo, Angola) `ao-bailundo-espirito-santo`
@@ -79,8 +79,6 @@ A lista não indica morada: a página diz «Morada a confirmar com o responsáve
 - ISTN — Terra Nova (Bahia, Brasil) `br-terra-nova`
 - ISTN — Vicentinópolis (Goiás, Brasil) `br-vicentinopolis`
 - ISTN — Paris (França) `fr-paris`
-- ISTN — Leeds (Inglaterra) `gb-leeds`
-- ISTN — Londres (Inglaterra) `gb-londres`
 - ISTN — Lualane (Moçambique) `mz-lualane`
 - ISTN — Chongoene (Gaza, Moçambique) `mz-chongoene`
 - ISTN — Cidade da Beira (Sofala, Moçambique) `mz-cidade-da-beira`
@@ -97,6 +95,8 @@ A lista não indica morada: a página diz «Morada a confirmar com o responsáve
 - ISTN — Caranguejeira (Leiria, Portugal) `pt-caranguejeira`
 - ISTN — Covilhã (Castelo Branco, Portugal) `pt-covilha`
 - ISTN — Porto (Portugal) `pt-porto`
+- ISTN — Leeds (Reino Unido) `gb-leeds`
+- ISTN — Londres (Reino Unido) `gb-londres`
 - ISTN — Neves (São Tomé e Príncipe) `st-neves`
 - ISTN — Capital (São Tomé e Príncipe) `st-capital`
 

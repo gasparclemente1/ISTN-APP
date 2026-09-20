@@ -7,7 +7,7 @@ const churches = rowsFromDirectoryFile(JSON.parse(readFileSync(new URL('../data/
 const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
 const load = { directory: async () => ({ churches }), posts: async () => ({ posts: [{ id: 'p1', title: '', body: 'Vigília na sede. https://youtu.be/SBntJhzgKDM', images: [] }] }) };
 
-test('um link de uma igreja mostra o nome, a sede, os dias e a morada', async () => {
+test('um link de uma igreja mostra o nome, a sede, os dias e o endereço', async () => {
   const preview = await previewFor('/igrejas/ao-kifica', load);
   assert.equal(preview.title, 'ISTN — Kifica · Sede mundial');
   assert.match(preview.description, /^Quinta, 15:00 · Sábado, 09:00 · Domingo, 09:00 — Rua 149/);
@@ -15,7 +15,7 @@ test('um link de uma igreja mostra o nome, a sede, os dias e a morada', async ()
   const former = await previewFor('/igrejas/source_record_064', load);
   assert.equal(former.title, 'ISTN — Kifica · Sede mundial');
   assert.match(withPreview(html, former, { origin: 'https://app.istn.test', pathname: '/igrejas/source_record_064' }), /og:url" content="https:\/\/app\.istn\.test\/igrejas\/ao-kifica"/);
-  // Sem morada, a região e o país.
+  // Sem endereço, a região e o país.
   assert.match(churchPreview(churches.find((church) => church.id === 'ao-sapu-2')).description, /Luanda, Angola$/);
 });
 

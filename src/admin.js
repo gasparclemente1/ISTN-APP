@@ -335,7 +335,7 @@ const FIELD_LABELS = {
   title: 'Título', kind: 'Tipo', start_time: 'Hora de início', time_note: 'Explicação da hora', recurrence: 'Recorrência',
   weekdays: 'Dias da semana', event_date: 'Data', zoom_url: 'Link do Zoom', zoom_meeting_id: 'ID do Zoom', zoom_passcode: 'Senha do Zoom',
   name: 'Nome da igreja', active: 'Ativo', sort_order: 'Ordem', place_type: 'Tipo de lugar', became_church_on: 'Passou a igreja em', locality: 'Localidade',
-  region: 'Região', address: 'Morada', leader_name: 'Responsável', leader_phone: 'Telefone', whatsapp_group_url: 'Grupo de WhatsApp',
+  region: 'Região', address: 'Endereço', leader_name: 'Responsável', leader_phone: 'Telefone', whatsapp_group_url: 'Grupo de WhatsApp',
   seat: 'Sede', other_leaders: 'Outros responsáveis', photo_url: 'Fotografia', note: 'Nota', verification_status: 'Verificação', verified_at: 'Verificado em', full_name: 'Nome',
   gender: 'Género', role: 'Função', phone: 'Telefone', weekday: 'Dia', label: 'Descrição'
 };
@@ -560,7 +560,7 @@ function churchEditor() {
       <label>Localidade<input type="text" name="locality" value="${escapeHtml(church.locality || '')}" /></label>
       <label>Região<input type="text" name="region" value="${escapeHtml(church.region || '')}" /></label>
     </div>
-    <label>Morada<input type="text" name="address" value="${escapeHtml(church.address || '')}" placeholder="Para quem se desloca pela primeira vez" /></label>
+    <label>Endereço<input type="text" name="address" value="${escapeHtml(church.address || '')}" placeholder="Para quem se desloca pela primeira vez" /></label>
     ${isNew ? '' : seatField(church)}
     <div class="admin-row">
       <label>Responsável<input type="text" name="leader_name" value="${escapeHtml(church.leader_name || '')}" /></label>

@@ -181,7 +181,7 @@ def build(workbook):
         addresses = sorted({row['Endereço/Local do culto'] for row in rows if not place['online'] and says_more(row)},
                            key=len, reverse=True)
         if len(addresses) > 1:
-            notes['addresses'].append(f'{record_id}: {len(addresses)} moradas diferentes; ficou a mais completa. {addresses}')
+            notes['addresses'].append(f'{record_id}: {len(addresses)} endereços diferentes; ficou o mais completo. {addresses}')
         address = addresses[0] if addresses else None
 
         # Responsibles, highest rank first. One person is one name or one
@@ -320,7 +320,7 @@ def report(churches, notes, unmatched, workbook):
         f'{sum(len(church["lines"]) for church in churches)} linhas da folha → **{len(churches)} lugares**: '
         f'{len(physical)} presenciais e {len(online)} igrejas online, em {len({church["country"] for church in churches})} países.',
         '',
-        'As moradas são o texto da própria folha. Um lugar cuja «morada» é apenas o seu nome fica sem morada, em vez de lhe ser atribuída uma.',
+        'Os endereços são o texto da própria folha. Um lugar cujo «endereço» é apenas o seu nome fica sem endereço, em vez de lhe ser atribuído um.',
         '',
     ]
 
@@ -338,10 +338,10 @@ def report(churches, notes, unmatched, workbook):
     section('Números diferentes para a mesma pessoa', 'Ficou o número que aparece em mais linhas (o de domingo, em caso de empate). Confirme com o responsável.', notes['phones'])
     section('Grafias diferentes do mesmo nome', 'Ficou a grafia mais frequente.', notes['names'])
     section('Regiões corrigidas', 'Erros de digitação e uma abreviatura.', notes['regions'])
-    section('Moradas diferentes para o mesmo lugar', 'Ficou a mais completa.', notes['addresses'])
-    section('Com morada', 'Lugares cuja folha indica uma morada.',
+    section('Endereços diferentes para o mesmo lugar', 'Ficou o mais completo.', notes['addresses'])
+    section('Com endereço', 'Lugares cuja folha indica um endereço.',
             [f'{church["locality"]} ({church["country"]}): {church["address"]}' for church in physical if church['address']])
-    section('Sem morada na folha', 'Aparecem com «Morada a confirmar com o responsável».',
+    section('Sem endereço na folha', 'Aparecem com «Endereço a confirmar com o responsável».',
             [f'{church["locality"]} ({church["region"] or church["country"]})' for church in physical if not church['address']])
     section('Registos anteriores sem correspondência', 'Estavam na base de dados e não aparecem na folha. A migração não os apaga: confirme se ainda existem.', unmatched)
     return '\n'.join(lines).rstrip() + '\n'

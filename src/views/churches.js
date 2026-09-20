@@ -238,9 +238,9 @@ export function churchPage(state, id, now = new Date()) {
 
     <section class="info-list" aria-label="Informações">
       ${infoRow('clock', online ? 'Cultos online' : 'Dias de culto', servicesTable(church, now))}
-      ${online ? '' : infoRow('pin', 'Morada', church.address
+      ${online ? '' : infoRow('pin', 'Endereço', church.address
         ? `<strong>${escapeHtml(church.address)}</strong>${map ? `<a class="text-button" ${externalLinkAttrs(map)}>${icon('navigation', { size: 16 })}Como chegar${externalHint}</a>` : ''}`
-        : `<strong>Morada a confirmar com o responsável</strong><span class="muted">${escapeHtml(where(church))}</span>`)}
+        : `<strong>Endereço a confirmar com o responsável</strong><span class="muted">${escapeHtml(where(church))}</span>`)}
       ${leaderRows(church)}
       ${church.servants.length ? infoRow('users', 'Servos', `<ul class="servant-list">${church.servants.map((servant) => `<li><strong>${escapeHtml(servant.name)}</strong><span>${escapeHtml(servant.roleLabel)}</span>${servant.phone ? `<a class="strong-link" href="${telHref(servant.phone)}">${escapeHtml(servant.phone)}</a>` : ''}</li>`).join('')}</ul>`) : ''}
     </section>
@@ -262,7 +262,7 @@ export function churchShareText(church) {
     `${churchTitle(church)}${church.seat ? ` (${SEAT_LABELS[church.seat]})` : ''}`,
     where(church),
     church.services.length ? church.services.map(serviceLabel).join(' · ') : '',
-    church.address ? `Morada: ${church.address}` : '',
+    church.address ? `Endereço: ${church.address}` : '',
     church.leaderName ? `Responsável: ${church.leaderName}${church.leaderPhone ? ` (${church.leaderPhone})` : ''}` : ''
   ].filter(Boolean).join('\n');
 }
