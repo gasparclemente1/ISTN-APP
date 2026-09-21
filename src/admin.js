@@ -2,6 +2,7 @@ import { WEEKDAY_LABELS, recurrenceLabel } from './meetings.js';
 import { uploadPhoto } from './upload.js';
 import { badgeTier, isMinisterRole, quietCheck, roleLabel, rolesForGender, servantName, verifiedSeal } from './roles.js';
 import { ISTN_COUNTRIES, countryList, countryName } from './countries.js';
+import { DEFAULT_COUNTRY, phoneControl, phoneFromFields, phoneFromValues } from './phones.js';
 import { escapeHtml, safeUrl } from './html.js';
 import { slugify } from './text.js';
 import { renderInto } from './dom.js';
@@ -472,6 +473,10 @@ function photoField(url, folder, id) {
   </div>`;
 }
 
+// The country a place is in, so a contact opens on the code it most likely
+// has: the church's own, and the church's country when there is no place yet.
+const countryOf = (churchId) => (state.churches || []).find((church) => church.id === churchId)?.country_code || DEFAULT_COUNTRY;
+
 function servoEditor() {
   const servo = state.servo;
   const isNew = !servo.id;
@@ -492,7 +497,7 @@ function servoEditor() {
     <p class="admin-hint" id="servo-minister-hint"></p>
     <p class="admin-hint">Só o próprio servo, na sua conta verificada, decide se o número aparece no diretório. Se mudar o número aqui, ele volta a ficar privado até o servo escolher de novo.</p>
     <div class="admin-row">
-      <label>Contacto <small>(${servo.phone_public ? 'visível no diretório, por escolha do servo' : 'privado'})</small><input type="tel" name="phone" value="${escapeHtml(servo.phone || '')}" /></label>
+      <label>Contacto <small>(${servo.phone_public ? 'visível no diretório, por escolha do servo' : 'privado'})</small>${phoneControl({ value: servo.phone || '', country: countryOf(servo.church_id) })}</label>
       <label>Igreja onde serve<select name="church_id">
         <option value="">— sem igreja —</option>
         ${igrejas.map((church) => `<option value="${church.id}" ${servo.church_id === church.id ? 'selected' : ''}>${escapeHtml(church.name || church.locality || church.country || church.record_id)}</option>`).join('')}
@@ -567,10 +572,10 @@ function churchEditor() {
     ${isNew ? '' : seatField(church)}
     <div class="admin-row">
       <label>Responsável<input type="text" name="leader_name" value="${escapeHtml(church.leader_name || '')}" /></label>
-      <label>Telefone<input type="text" name="leader_phone" value="${escapeHtml(church.leader_phone || '')}" /></label>
+      <label>Telefone${phoneControl({ name: 'leader_phone', value: church.leader_phone || '', country: church.country_code || DEFAULT_COUNTRY })}</label>
     </div>
     ${phoneSharedWith(church)}
-    <div id="leader-rows">${(Array.isArray(church.other_leaders) ? church.other_leaders : []).map(leaderRow).join('')}</div>
+    <div id="leader-rows">${(Array.isArray(church.other_leaders) ? church.other_leaders : []).map((leader) => leaderRow(leader, church.country_code || DEFAULT_COUNTRY)).join('')}</div>
     <button class="text-button" type="button" data-action="add-leader">+ Acrescentar outro responsável</button>
     <label>Grupo de WhatsApp<input type="url" name="whatsapp_group_url" value="${escapeHtml(church.whatsapp_group_url || '')}" placeholder="https://chat.whatsapp.com/..." /></label>
     ${isNew ? '' : photoField(church.photo_url, 'igrejas', church.id)}
@@ -626,10 +631,10 @@ function seatField(church) {
 
 // Someone else responsible for the place, as the announcements publish them:
 // a name and a number, shown on the church's page with the main contact.
-function leaderRow(leader = {}) {
+function leaderRow(leader = {}, country = DEFAULT_COUNTRY) {
   return `<div class="admin-row" data-leader-row>
     <label>Outro responsável<input type="text" data-leader-name value="${escapeHtml(leader.name || '')}" placeholder="Pr. Nome" /></label>
-    <label>Telefone<input type="text" data-leader-phone value="${escapeHtml(leader.phone || '')}" /></label>
+    <label>Telefone${phoneControl({ name: '', value: leader.phone || '', country })}</label>
     <button class="text-button admin-danger" type="button" data-remove-leader>remover</button>
   </div>`;
 }
@@ -897,7 +902,7 @@ function bind() {
       church_id: values.church_id || null,
       active: !!values.active
     };
-    const phone = (values.phone || '').trim() || null;
+    const phone = phoneFromValues(values) || null;
     guard(async () => {
       const saved = state.servo.id
         ? await rest(`servos?id=eq.${state.servo.id}`, { method: 'PATCH', headers: { Prefer: 'return=representation' }, body: JSON.stringify(body) })
@@ -959,7 +964,9 @@ function bind() {
   }
   bindServiceRemoval();
   document.querySelector('[data-action="add-leader"]')?.addEventListener('click', () => {
-    document.querySelector('#leader-rows').insertAdjacentHTML('beforeend', leaderRow());
+    // A new row opens on the country the place is in, like the ones already there.
+    const pais = document.querySelector('#church-form [name="country_code"]')?.value || state.editing?.country_code || DEFAULT_COUNTRY;
+    document.querySelector('#leader-rows').insertAdjacentHTML('beforeend', leaderRow({}, pais));
     bindLeaderRemoval();
   });
   function bindLeaderRemoval() {
@@ -1038,7 +1045,7 @@ function bind() {
     const repeated = servicos.find((servico, index) => servicos.findIndex((other) => other.weekday === servico.weekday && other.start_time === servico.start_time) !== index);
     if (repeated) { toast(`Há dois horários iguais: ${WEEKDAY_LABELS[repeated.weekday]}${repeated.start_time ? ` às ${repeated.start_time}` : ' sem hora'}.`, 'erro'); return; }
     const outros = [...form.querySelectorAll('[data-leader-row]')]
-      .map((row) => ({ name: row.querySelector('[data-leader-name]').value.trim(), phone: row.querySelector('[data-leader-phone]').value.trim() }))
+      .map((row) => ({ name: row.querySelector('[data-leader-name]').value.trim(), phone: phoneFromFields(row) }))
       .filter((leader) => leader.name || leader.phone);
     const seat = values.seat || null;
     const details = {
@@ -1047,7 +1054,7 @@ function bind() {
       became_church_on: values.place_type === 'igreja' && values.became_church_on ? values.became_church_on : null,
       locality: values.locality || null, region: values.region || null,
       address: values.address || null,
-      leader_name: values.leader_name || null, leader_phone: values.leader_phone || null,
+      leader_name: values.leader_name || null, leader_phone: phoneFromValues(values, 'leader_phone') || null,
       other_leaders: outros,
       whatsapp_group_url: safeUrl(values.whatsapp_group_url) || null,
       note: values.note || null,
