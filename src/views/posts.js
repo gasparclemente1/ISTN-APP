@@ -7,7 +7,7 @@ import { findChurch } from '../directory.js';
 import { escapeHtml, safeUrl } from '../html.js';
 import { icon } from '../icons.js';
 import { prefs } from '../prefs.js';
-import { REACTIONS, reactionFor, authorName, canComment, canPublish, formatPostDate, isHighlighted, publishScopeOf, reactionGroups, sortPosts, videosIn, visiblePosts } from '../posts.js';
+import { REACTIONS, reactionFor, authorName, canComment, canModerate, canPublish, formatPostDate, isHighlighted, publishScopeOf, reactionGroups, sortPosts, videosIn, visiblePosts } from '../posts.js';
 import { verifiedSeal } from '../roles.js';
 import { emptyState, errorState, externalHint, loadingState, page, personLink, sectionHeading } from './shared.js';
 
@@ -107,20 +107,31 @@ function emojiTools(target) {
   </div>`;
 }
 
-// Gerir o anúncio onde ele está. Quem o escreveu trata dele a partir do feed;
-// esconder o que outros escreveram continua a ser do painel, que é onde fica
-// registado quem escondeu e quando.
-function ownerMenu(state, post) {
-  if (!state.profile || post.authorId !== state.profile.id) return '';
-  const id = escapeHtml(post.id);
+// Gerir o anúncio onde ele está, em vez de ir ao painel para o fazer. Quem o
+// escreveu edita-o; quem modera aquela igreja esconde-o e apaga-o. A base de
+// dados volta a decidir em cada escrita: isto só decide o que oferecer.
+export function actionMenu(id, label, items) {
+  const found = items.filter(Boolean);
+  if (!found.length) return '';
   return `<details class="post-menu" data-post-menu>
-    <summary aria-label="Opções deste anúncio" data-focus-key="post-menu:${id}">⋯</summary>
-    <div class="post-menu-items" role="group" aria-label="Opções deste anúncio">
-      <button type="button" data-action="edit-post" data-id="${id}">${icon('edit', { size: 16 })}Editar</button>
-      <button type="button" data-action="toggle-highlight" data-id="${id}">${icon('sun', { size: 16 })}${isHighlighted(post) ? 'Retirar destaque' : 'Destacar'}</button>
-      <button type="button" class="danger" data-action="delete-post" data-id="${id}">${icon('close', { size: 16 })}Eliminar</button>
-    </div>
+    <summary aria-label="${escapeHtml(label)}" data-focus-key="post-menu:${escapeHtml(id)}">${icon('more', { size: 20 })}</summary>
+    <div class="post-menu-items" role="group" aria-label="${escapeHtml(label)}">${found.join('')}</div>
   </details>`;
+}
+
+const menuItem = (action, id, iconName, label, danger = false) =>
+  `<button type="button" class="${danger ? 'danger' : ''}" data-action="${action}" data-id="${escapeHtml(id)}">${icon(iconName, { size: 16 })}${label}</button>`;
+
+function ownerMenu(state, post) {
+  const mine = Boolean(state.profile) && post.authorId === state.profile.id;
+  const moderates = canModerate(state.admin, post);
+  if (!mine && !moderates) return '';
+  return actionMenu(post.id, 'Opções deste anúncio', [
+    mine && menuItem('edit-post', post.id, 'edit', 'Editar'),
+    menuItem('toggle-highlight', post.id, 'sun', isHighlighted(post) ? 'Retirar destaque' : 'Destacar'),
+    moderates && !mine && menuItem('hide-post', post.id, 'eyeOff', 'Esconder'),
+    menuItem('delete-post', post.id, 'close', 'Eliminar', true)
+  ]);
 }
 
 export function postCard(state, post) {
@@ -283,8 +294,12 @@ function commentList(state, post) {
     const author = state.postAuthors?.get(comment.author_id);
     const name = authorName(author);
     const photo = safeUrl(author?.photo_url);
+    const mine = Boolean(state.profile) && comment.author_id === state.profile.id;
+    const menu = actionMenu(comment.id, 'Opções deste comentário', [
+      (mine || canModerate(state.admin, post)) && menuItem('hide-comment', comment.id, 'eyeOff', 'Esconder')
+    ]);
     return `<li><span class="post-avatar comment-avatar">${photo ? `<img src="${escapeHtml(photo)}" alt="" loading="lazy" />` : escapeHtml((name || '·').slice(0, 1))}</span><div class="comment-content"><div class="comment-bubble">
-      <strong>${personLink(comment.author_id, `${escapeHtml(name)}${author?.verified ? verifiedSeal(author.servo_role) : ''}`)}</strong>
+      <strong>${personLink(comment.author_id, `${escapeHtml(name)}${author?.verified ? verifiedSeal(author.servo_role) : ''}`)}</strong>${menu}
       <div>${bodyHtml(comment.body)}</div></div>
       <small>${escapeHtml(formatPostDate(comment.created_at))}</small></div>
     </li>`;

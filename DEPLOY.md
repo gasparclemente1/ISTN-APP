@@ -307,3 +307,32 @@ pela primeira vez — sem conta e sem igreja escolhida — e passa a uma faixa
 estreita, com a mesma fotografia e a mesma saudação, para quem já vive na
 aplicação. A fotografia é a mesma que o servidor já pré-carrega, por isso não
 se descarrega nada de novo em nenhum dos casos.
+
+## Blocos mais estreitos e a administração dentro da aplicação — 21/09/2026
+
+**Sem migração.** Nada muda na base de dados.
+
+A aplicação passa a ler a sua própria linha de `admin_profiles` (que o
+`schema.sql` já permitia: «uma pessoa autenticada vê só o seu próprio perfil»).
+Com isso sabe se quem está a usar é da equipa central ou editor local, e
+oferece, no sítio onde a coisa está:
+
+- no «⋯» de um anúncio — editar (o autor), destacar, esconder e eliminar
+  (quem modera aquela igreja);
+- no «⋯» de um comentário — esconder;
+- na página das Orações — um «+» na barra de cima para acrescentar uma
+  gravação, e um «⋯» em cada oração para editar, esconder ou eliminar.
+
+A base de dados volta a decidir em cada escrita (`can_moderate`,
+`can_manage_prayers`): isto só decide o que oferecer. **Esconder continua a
+repor-se no painel**, que é onde a linha escondida continua à vista e onde fica
+registado quem escondeu e quando. O perfil de quem é da equipa passa a ter um
+atalho para o painel, que continua a ser o sítio do diretório, das reuniões,
+dos pedidos e do histórico.
+
+Ao mesmo tempo, uma passagem de densidade em toda a aplicação: menos altura por
+bloco, botões com ícone e palavra em vez de três botões de largura inteira, e o
+«⋯» onde antes havia uma fila de botões. Um cartão de oração passou de cerca de
+270 px para 126 px; o bloco da próxima reunião e a caixa de publicar encolheram
+na mesma medida. Nenhuma área de toque ficou abaixo dos 40 px, e todos os
+ícones sem palavra levam `aria-label` e `title`.

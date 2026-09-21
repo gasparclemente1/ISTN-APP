@@ -199,6 +199,43 @@ export async function removeFavorite(teachingId, session = readSession()) {
   await rest(`favorites?user_id=eq.${session.user.id}&teaching_id=eq.${encodeURIComponent(teachingId)}`, { method: 'DELETE' }, session);
 }
 
+// Whether this account is on the team, and which church it looks after. The
+// table already lets a signed-in person read their own line (schema.sql), so
+// the app can ask without a new door being opened for it.
+export async function loadAdminProfile(session = readSession()) {
+  if (!session?.user?.id) return null;
+  const rows = await rest(`admin_profiles?select=id,full_name,role,church_id&id=eq.${session.user.id}`, {}, session).catch(() => []);
+  return rows?.[0] || null;
+}
+
+// Hiding a post or a comment from inside the app. The database checks again on
+// every write (migration 009): this only decides what to offer.
+export function hidePost(id, hidden, session = readSession()) {
+  return rest(`posts?id=eq.${id}`, { method: 'PATCH', headers: { Prefer: 'return=minimal' }, body: JSON.stringify({ hidden }) }, session);
+}
+
+// ------------------------------------------------------------- orações ----
+
+export async function createPrayer(fields, session = readSession()) {
+  const rows = await rest('prayers', { method: 'POST', headers: { Prefer: 'return=representation' }, body: JSON.stringify(fields) }, session);
+  if (!rows?.length) throw new Error('Não tem permissão para acrescentar orações.');
+  return rows[0];
+}
+
+export async function updatePrayer(id, fields, session = readSession()) {
+  const rows = await rest(`prayers?id=eq.${id}`, { method: 'PATCH', headers: { Prefer: 'return=representation' }, body: JSON.stringify(fields) }, session);
+  if (!rows?.length) throw new Error('Não tem permissão para alterar esta oração.');
+  return rows[0];
+}
+
+export function deletePrayer(id, session = readSession()) {
+  return rest(`prayers?id=eq.${id}`, { method: 'DELETE' }, session);
+}
+
+export function hidePrayer(id, hidden, session = readSession()) {
+  return rest(`prayers?id=eq.${id}`, { method: 'PATCH', headers: { Prefer: 'return=minimal' }, body: JSON.stringify({ hidden }) }, session);
+}
+
 export async function requestServantBadge(note, session = readSession()) {
   return saveProfile({ servo_claim_status: 'pendente', servo_claim_note: note || null }, session);
 }

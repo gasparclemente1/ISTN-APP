@@ -100,4 +100,7 @@ test('acrescentar orações é de quem fala por toda a ISTN', () => {
   assert.equal(canManagePrayers({ servo_claim_status: 'aprovado', servo: { role: 'apostolo' } }), true);
   // Um pedido por aprovar não dá o direito.
   assert.equal(canManagePrayers({ servo_claim_status: 'pendente', servo: { role: 'apostolo' } }), false);
+  // E a equipa central, que não tem publish_scope nenhum, pode na mesma.
+  assert.equal(canManagePrayers(null, { role: 'central' }), true);
+  assert.equal(canManagePrayers(null, { role: 'local', church_id: 'c1' }), false);
 });
