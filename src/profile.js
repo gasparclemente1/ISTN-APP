@@ -4,6 +4,7 @@
 // phone number.
 import { badgeFor, loadProfile, saveProfile, signOut } from './account.js';
 import { ISTN_COUNTRIES, countryList, countryName } from './countries.js';
+import { DEFAULT_COUNTRY, phoneControl, phoneFromValues } from './phones.js';
 import { claimableRoles, isMinisterRole, rankPrefixOf, roleLabel, verifiedSeal } from './roles.js';
 import { uploadPhoto } from './upload.js';
 import { safeUrl } from './html.js';
@@ -206,7 +207,8 @@ function sheetView({ state, escapeHtml }) {
       break;
     case 'phone':
       title = 'Telefone';
-      body = `<label class="sheet-field">Número, com o indicativo do país<input type="tel" name="phone" value="${escapeHtml(profile.phone || '')}" autocomplete="tel" placeholder="+244 900 000 000" inputmode="tel" /></label>`;
+      body = `<label class="sheet-field">Número de telefone${phoneControl({ value: profile.phone || '', country: profile.country_code || DEFAULT_COUNTRY })}</label>
+        <p class="sheet-hint">Escolha o indicativo do seu país na lista e escreva só o resto do número.</p>`;
       break;
     case 'country_code': {
       title = 'País';
@@ -396,7 +398,7 @@ export function bindProfile({ state, render, showToast }) {
 
     const changes = {
       display_name: { display_name: text('display_name') },
-      phone: { phone: text('phone') },
+      phone: { phone: phoneFromValues(values) || null },
       country_code: { country_code: values.country_code || null },
       city: { city: text('city') },
       home_church_id: { home_church_id: values.home_church_id || null },
