@@ -934,3 +934,87 @@ begin
   end if;
 end $$;
 reset role;
+
+-- ------------------------------------- orações do Profeta, 21/09/2026 ------
+
+set role anon;
+set request.jwt.claim.sub = '';
+do $$ begin
+  if (select count(*) from public.prayer_themes) <> 6 then
+    raise exception 'FALHOU: os seis temas de oração não são públicos (há %)', (select count(*) from public.prayer_themes);
+  end if;
+  if (select string_agg(name, ' | ' order by sort_order) from public.prayer_themes)
+     <> 'Finanças e portas abertas | Libertação Geral | Câncer & Coma | Doenças | Oração geral | Outros' then
+    raise exception 'FALHOU: os temas não são os da equipa, ou não estão pela ordem dela';
+  end if;
+end $$;
+
+-- Ninguém acrescenta orações por iniciativa própria: a voz do Profeta não é
+-- uma coisa que qualquer conta possa publicar em nome dele.
+do $$
+declare recusado boolean := false;
+begin
+  begin
+    insert into public.prayers (title, audio_url) values ('Inventada', 'https://x/y.mp3');
+  exception when others then recusado := true; end;
+  if not recusado then raise exception 'FALHOU: um visitante acrescentou uma oração'; end if;
+end $$;
+reset role;
+
+set role authenticated;
+set request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000a1';
+do $$
+declare recusado boolean := false;
+begin
+  begin
+    insert into public.prayers (title, audio_url) values ('Do membro', 'https://x/y.mp3');
+  exception when others then recusado := true; end;
+  if not recusado or exists (select 1 from public.prayers where title = 'Do membro') then
+    raise exception 'FALHOU: um membro acrescentou uma oração';
+  end if;
+end $$;
+reset role;
+
+-- A equipa central acrescenta, e quem ela autorizou a falar para toda a ISTN
+-- também: é a mesma autorização, não um direito novo.
+set role authenticated;
+set request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000c1';
+do $$
+declare doencas uuid := (select id from public.prayer_themes where slug = 'doencas');
+begin
+  insert into public.prayers (title, description, theme_id, audio_url, duration_seconds)
+  values ('Oração pelos enfermos', 'Para quem está internado.', doencas, 'https://arquivo.istn/enfermos.mp3', 244);
+  if not exists (select 1 from public.prayers where title = 'Oração pelos enfermos') then
+    raise exception 'FALHOU: a equipa central não conseguiu acrescentar uma oração';
+  end if;
+end $$;
+update public.app_users set publish_scope = 'global' where id = '00000000-0000-0000-0000-0000000000a2';
+reset role;
+
+set role authenticated;
+set request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000a2';
+do $$ begin
+  insert into public.prayers (title, theme_id, audio_url)
+  values ('Quebra de maldições', (select id from public.prayer_themes where slug = 'libertacao-geral'), 'https://arquivo.istn/libertacao.mp3');
+  if not exists (select 1 from public.prayers where title = 'Quebra de maldições') then
+    raise exception 'FALHOU: quem publica para toda a ISTN não conseguiu acrescentar uma oração';
+  end if;
+  -- E esconder é reversível: quem esconde continua a ver a linha para a repor.
+  update public.prayers set hidden = true where title = 'Quebra de maldições';
+  if not exists (select 1 from public.prayers where title = 'Quebra de maldições') then
+    raise exception 'FALHOU: quem escondeu a oração deixou de a ver, e já não a pode repor';
+  end if;
+end $$;
+reset role;
+
+set role anon;
+set request.jwt.claim.sub = '';
+do $$ begin
+  if exists (select 1 from public.prayers where title = 'Quebra de maldições') then
+    raise exception 'FALHOU: uma oração escondida continua à vista de toda a gente';
+  end if;
+  if not exists (select 1 from public.prayers where title = 'Oração pelos enfermos') then
+    raise exception 'FALHOU: as orações deixaram de se poder ler sem conta';
+  end if;
+end $$;
+reset role;

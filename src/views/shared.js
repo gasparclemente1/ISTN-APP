@@ -27,17 +27,22 @@ function accountAvatar() {
     : `<span>${escapeHtml(initials)}</span>`}</a>`;
 }
 
+// Six is what a thumb can hit on a phone; a seventh would make every one of
+// them smaller. Anúncios gave up its place because the home page is now the
+// feed itself — and Orações earned one, being the only part of the app used
+// in someone else's name, often in a hurry.
 const NAV = [
   ['home', 'home', 'Início'],
-  ['posts', 'megaphone', 'Anúncios'],
+  ['prayers', 'pray', 'Orações'],
   ['teachings', 'book', 'Ensinos'],
   ['live', 'live', 'Ao vivo'],
   ['churches', 'church', 'Igrejas'],
   ['profile', 'user', 'Perfil']
 ];
 
-// Which tab a page belongs to: a church's detail lives under Igrejas.
-const SECTION = { source: 'teachings', church: 'churches', post: 'posts' };
+// Which tab a page belongs to: a church's detail lives under Igrejas, and the
+// announcements, which no longer have a tab, under Início.
+const SECTION = { source: 'teachings', church: 'churches', posts: 'home', post: 'home', prayer: 'prayers' };
 
 export function header({ title = '', back = '', action = '' } = {}) {
   const backPath = back ? pathFor(back) : '';

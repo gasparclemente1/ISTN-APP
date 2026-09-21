@@ -17,6 +17,7 @@ const PATHS = {
   arrowRight: '<path d="M5 12h14M13 6l6 6-6 6"/>',
   arrowLeft: '<path d="M19 12H5M11 6l-6 6 6 6"/>',
   play: '<path d="M8.5 5.5v13l10-6.5z" fill="currentColor"/>',
+  pause: '<path d="M9 5.5v13M15 5.5v13" stroke-width="2.6"/>',
   calendar: '<rect x="4" y="5.5" width="16" height="14.5" rx="2"/><path d="M4 10h16M8.5 3.5v4M15.5 3.5v4"/>',
   clock: '<circle cx="12" cy="12" r="8"/><path d="M12 7.5V12l3 2"/>',
   phone: '<path d="M6.5 4h3l1.5 4-2 1.3a10 10 0 0 0 5.7 5.7L16 13l4 1.5v3A2 2 0 0 1 18 19.5C10.5 19 5 13.5 4.5 6A2 2 0 0 1 6.5 4z"/>',
@@ -43,6 +44,7 @@ const PATHS = {
   mail: '<rect x="3.8" y="6" width="16.4" height="12" rx="2"/><path d="M4.5 7l7.5 6 7.5-6"/>',
   logout: '<path d="M14 5H6.5v14H14"/><path d="M11 12h9M17 8.5l3.5 3.5-3.5 3.5"/>',
   badge: '<path d="M12 3.5l2.2 1.6 2.7-.2.9 2.6 2.2 1.6-.9 2.6.9 2.6-2.2 1.6-.9 2.6-2.7-.2L12 20.5l-2.2-1.6-2.7.2-.9-2.6-2.2-1.6.9-2.6-.9-2.6 2.2-1.6.9-2.6 2.7.2z"/><path d="M8.8 12.2l2.2 2.2 4.2-4.4"/>',
+  pray: '<path d="M12 20.5c-2.6 0-4.6-1.2-4.6-1.2l2-3.1M12 20.5c2.6 0 4.6-1.2 4.6-1.2l-2-3.1"/><path d="M9.4 16.2 8 8.6a1.6 1.6 0 0 1 3.1-.7l.9 3.1.9-3.1a1.6 1.6 0 0 1 3.1.7l-1.4 7.6z"/><path d="M12 11V4.2"/>',
   megaphone: '<path d="M4 13.5v-3.2l11-3.8v10.8z"/><path d="M6.8 14.3v4.2h2.6v-3.3"/><path d="M17.5 9.8a3 3 0 0 1 0 4.4"/>',
   edit: '<path d="M5 19h3.2l9-9-3.2-3.2-9 9z"/><path d="M14.5 5.5 17 3l3.5 3.5-2.5 2.5"/>',
   sun: '<path d="M12 3.2l2.1 6.7 6.7 2.1-6.7 2.1L12 20.8l-2.1-6.7L3.2 12l6.7-2.1z" fill="currentColor" stroke="none"/>'

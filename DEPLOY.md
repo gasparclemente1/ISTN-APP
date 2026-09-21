@@ -244,3 +244,33 @@ esta versão. Traz três coisas, e nenhuma delas funciona sem ela:
 
 Antes de publicar, confirmar no editor SQL que `select slug, name from
 public.communities order by sort_order` devolve as três comunidades.
+
+## Orações do Profeta Elias — 21/09/2026
+
+Aplicar `20260921180000_oracoes.sql` **antes** de publicar esta versão. Traz:
+
+- `prayer_themes`, já com os seis temas que a equipa nomeou e pela ordem dela —
+  Finanças e portas abertas, Libertação Geral, Câncer & Coma, Doenças, Oração
+  geral, Outros — e `prayers`, o catálogo dos áudios.
+- O *bucket* `oracoes` no Storage, público para ler, com 25 MB por ficheiro.
+  Voz em 64 kbps mono dá meio megabyte por minuto: 25 MB chegam para uma oração
+  de quarenta minutos.
+- `can_manage_prayers()`: quem acrescenta e corrige orações é a equipa central,
+  o Apóstolo, e quem tem autorização para publicar para toda a ISTN. É a mesma
+  autorização que o painel já atribui — não há um direito novo para distribuir.
+
+Ler não precisa de conta, como o resto da aplicação.
+
+**Depois da migração**, confirmar no editor SQL que `select name from
+public.prayer_themes order by sort_order` devolve os seis temas, e carregar uma
+oração pelo painel (separador «Orações») para ver o ficheiro chegar ao Storage.
+
+**Atenção ao tráfego.** Os áudios são servidos pelo Supabase, e cada partilha
+custa um download a quem envia — a partir daí o ficheiro viaja pelo WhatsApp,
+não pelo projeto. Uma oração guardada não volta a ser descarregada. Ainda
+assim, vale a pena ver o consumo do projeto na primeira semana: é a única parte
+da aplicação que serve ficheiros pesados.
+
+A política de conteúdo passou a permitir `media-src` do projeto Supabase e de
+`blob:` (lib/security.mjs). Sem isso o navegador recusa tocar os áudios — foi
+assim que este erro apareceu em testes.

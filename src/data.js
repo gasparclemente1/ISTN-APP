@@ -41,6 +41,12 @@ export async function loadPosts({ fresh = false } = {}) {
   return response.json();
 }
 
+export async function loadPrayers() {
+  const response = await fetch('/api/oracoes');
+  if (!response.ok) throw new Error('Não foi possível carregar as orações.');
+  return response.json();
+}
+
 export async function loadTeachingLibrary() {
   const response = await fetch('/data/youtube-teachings.json');
   if (!response.ok) throw new Error('Não foi possível carregar o acervo de ensinos.');

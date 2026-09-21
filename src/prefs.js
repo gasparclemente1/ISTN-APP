@@ -9,9 +9,14 @@ const KEY = 'elias-preferencias-v1';
 function read() {
   try {
     const stored = JSON.parse(localStorage.getItem(KEY) || '{}');
-    return { favorites: Array.isArray(stored.favorites) ? stored.favorites.filter((id) => typeof id === 'string') : [], myChurch: typeof stored.myChurch === 'string' ? stored.myChurch : null };
+    const ids = (value) => (Array.isArray(value) ? value.filter((id) => typeof id === 'string') : []);
+    return {
+      favorites: ids(stored.favorites),
+      prayers: ids(stored.prayers),
+      myChurch: typeof stored.myChurch === 'string' ? stored.myChurch : null
+    };
   } catch {
-    return { favorites: [], myChurch: null };
+    return { favorites: [], prayers: [], myChurch: null };
   }
 }
 
@@ -37,6 +42,13 @@ export const prefs = {
     const merged = [...new Set([...current.favorites, ...ids])];
     if (merged.length !== current.favorites.length) write({ ...current, favorites: merged });
   },
+  // Prayers kept on this phone, to be sent again without paying for the same
+  // download twice — and to be sent at all where there is no network.
+  get savedPrayers() { return new Set(current.prayers); },
+  isSavedPrayer: (id) => current.prayers.includes(id),
+  rememberPrayer(id) { if (!current.prayers.includes(id)) write({ ...current, prayers: [...current.prayers, id] }); },
+  forgetPrayer(id) { if (current.prayers.includes(id)) write({ ...current, prayers: current.prayers.filter((item) => item !== id) }); },
+
   get myChurch() { return current.myChurch; },
   setMyChurch(id) { write({ ...current, myChurch: id || null }); },
   subscribe(listener) { listeners.add(listener); return () => listeners.delete(listener); }
