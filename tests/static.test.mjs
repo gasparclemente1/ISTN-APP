@@ -41,7 +41,9 @@ test('um endereço impossível de descodificar é 400, não um erro que derruba 
 test('a política de conteúdo só deixa correr scripts do próprio servidor', () => {
   const policy = contentSecurityPolicy({ supabaseUrl: 'https://abc.supabase.co/' });
   assert.match(policy, /script-src 'self';/);
-  assert.match(policy, /connect-src 'self' https:\/\/abc\.supabase\.co/);
+  assert.match(policy, /connect-src 'self' blob: https:\/\/abc\.supabase\.co/);
+  // As orações tocam a partir do projeto, ou do ficheiro que este telemóvel já guardou.
+  assert.match(policy, /media-src 'self' blob: https:\/\/abc\.supabase\.co/);
   assert.match(policy, /frame-ancestors 'none'/);
   assert.doesNotMatch(contentSecurityPolicy(), /undefined/);
 });

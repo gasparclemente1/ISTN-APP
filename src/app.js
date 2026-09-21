@@ -1,9 +1,9 @@
 // The public app: state, data loading, routing and interaction. Pages are drawn
 // by the modules in ./views from the state kept here.
-import { APP_CONFIG, backendConfig, loadDirectory, loadLatestVideos, loadMeetings, loadPosts, loadTeachingLibrary } from './data.js';
+import { APP_CONFIG, backendConfig, loadDirectory, loadLatestVideos, loadMeetings, loadPosts, loadPrayers, loadTeachingLibrary } from './data.js';
 import {
   addComment, addFavorite, addPostImages, availableProviders, createPost, deletePost, finishSocialSignIn, loadChurchOptions,
-  loadComments, loadFavorites, loadMyReactions, loadPostAuthors, loadProfile, loadReactionPeople, readSession, register, removeFavorite,
+  loadComments, loadFavorites, loadMyReactions, loadPerson, loadPostAuthors, loadProfile, loadReactionPeople, readSession, register, removeFavorite,
   saveProfile, setReaction, signIn, signInWithProvider, signOut, updatePost
 } from './account.js';
 import { announce, copyText, debounce, renderInto, toast } from './dom.js';
@@ -12,7 +12,10 @@ import { filterTeachings } from './library.js';
 import { nextMeeting } from './meetings.js';
 import { rankPrefixOf } from './roles.js';
 import { prefs } from './prefs.js';
-import { canPublish, postShareText, publishScopeOf, visiblePosts } from './posts.js';
+import { authorName, canPublish, postShareText, publishScopeOf, visiblePosts } from './posts.js';
+import { filterPrayers } from './prayers.js';
+import { dropPrayer, downloadPrayer, sharePrayer } from './prayer-audio.js';
+import { onPlayerChange, playPrayer, whenPlaybackFails } from './player.js';
 import { uploadPhoto } from './upload.js';
 import { registerServiceWorker } from './pwa.js';
 import { startRouter } from './router.js';
@@ -23,6 +26,8 @@ import { bindProfile, profilePage } from './views/profile.js';
 import { setAccount, TIME_ZONE } from './views/shared.js';
 import { sourcePage, teachingResults, teachingsPage } from './views/teachings.js';
 import { myChurchDbId, postPage, postsPage } from './views/posts.js';
+import { prayerPage, prayersPage, prayerUrl } from './views/prayers.js';
+import { personPage } from './views/person.js';
 
 const app = document.querySelector('#app');
 
@@ -35,6 +40,9 @@ const state = {
   meetings: null, meetingsError: false,
   posts: null, postsError: false, comments: {}, postAuthors: null, myReactions: {},
   communities: [], postCommunity: '', reactionSheet: null, reactionPeople: {},
+  people: {},
+  prayers: null, prayersError: false, prayerThemes: [], prayerFilters: { query: '', theme: '' },
+  prayerBusy: {}, prayerPlaying: '',
   commentDrafts: {}, reactionSaving: {}, postDraft: null, postSaving: false, postUploading: false, commentSaving: false,
   latestVideos: {}, videosLoading: true,
   accountsAvailable: false, authMode: 'entrar', authBusy: false, providers: null,
@@ -50,6 +58,9 @@ const PAGES = {
   source: () => sourcePage(state, state.route.params.id),
   live: () => livePage(state),
   posts: () => postsPage(state),
+  prayers: () => prayersPage(state),
+  prayer: () => prayerPage(state, state.route.params.id),
+  person: () => personPage(state, state.route.params.id),
   post: () => postPage(state, state.route.params.id),
   churches: () => churchesPage(state),
   church: () => churchPage(state, state.route.params.id),
@@ -70,13 +81,19 @@ const USES = {
   teachings: ['teachings'],
   directory: ['home', 'churches', 'church', 'profile'],
   meetings: ['home', 'live'],
-  posts: ['home', 'posts', 'post'],
+  posts: ['home', 'posts', 'post', 'person'],
+  prayers: ['home', 'prayers', 'prayer'],
   videos: ['home', 'live', 'source'],
-  account: ['home', 'profile']
+  account: ['home', 'profile'],
+  people: ['person']
 };
 const renderIfShowing = (kind) => { if (USES[kind].includes(state.route.name)) render(); };
 
 function pageTitle(route) {
+  if (route.name === 'person') {
+    const person = state.people?.[route.params.id];
+    if (person) return `${authorName(person)} · ISTN-SJ`;
+  }
   if (route.name === 'church') {
     const church = findChurch(state.directory?.churches, route.params.id);
     if (church) return `${churchTitle(church)} · ISTN-SJ`;
@@ -92,6 +109,7 @@ function onRoute(route, { scrollY, navigated }) {
   }
   if (route.name === 'profile') { ensureChurchOptions(); askForNameIfMissing(); }
   if (route.name === 'post') ensureComments(route.params.id);
+  if (route.name === 'person') ensurePerson(route.params.id);
   if (route.name === 'posts' && canPublish(state.profile)) ensureChurchOptions();
   render();
   document.title = pageTitle(route);
@@ -150,6 +168,17 @@ function refreshPosts({ fresh = false } = {}) {
 
 // Comments are read straight from the database, not through the server's cache:
 // someone who has just written one must see it.
+// Whoever a name points at, fetched once and kept: the same person signs many
+// announcements, and their page opens at once the second time.
+function ensurePerson(id) {
+  if (!id || id in state.people) return;
+  state.people = { ...state.people, [id]: undefined };
+  loadPerson(id)
+    .then((person) => { state.people = { ...state.people, [id]: person }; })
+    .catch(() => { state.people = { ...state.people, [id]: null }; })
+    .finally(() => { renderIfShowing('people'); if (state.route.name === 'person') document.title = pageTitle(state.route); });
+}
+
 function ensureComments(postId) {
   if (!postId || state.comments[postId]) return;
   Promise.all([loadComments(postId), state.postAuthors ? null : loadPostAuthors()])
@@ -176,6 +205,14 @@ function openReactions(postId, { again = false } = {}) {
 }
 
 const closeReactions = () => { if (state.reactionSheet) { state.reactionSheet = null; render(); } };
+
+function refreshPrayers() {
+  state.prayersError = false;
+  return loadPrayers()
+    .then(({ prayers, themes }) => { state.prayers = prayers; state.prayerThemes = themes || []; })
+    .catch(() => { state.prayersError = true; })
+    .finally(() => renderIfShowing('prayers'));
+}
 
 function refreshMeetings() {
   state.meetingsError = false;
@@ -308,11 +345,32 @@ const searchChurches = debounce(() => { updateChurchResults(); announceChurches(
 
 const setTeachingFilters = (changes) => { state.teachingFilters = { ...state.teachingFilters, ...changes, page: 1 }; render(); };
 
+const findPrayer = (id) => state.prayers?.find((item) => item.id === id) || null;
+
+function announcePrayers() {
+  const count = filterPrayers(state.prayers || [], state.prayerFilters).length;
+  announce(count === 1 ? '1 oração encontrada' : `${count} orações encontradas`);
+}
+const searchPrayers = debounce(() => { render(); announcePrayers(); }, 220);
+
+// Every prayer action needs the audio in hand, and the button must say it is
+// working: on mobile data a few megabytes are not instant.
+function withPrayer(id, work, whenItFails) {
+  const prayer = findPrayer(id);
+  if (!prayer || state.prayerBusy[id]) return;
+  state.prayerBusy = { ...state.prayerBusy, [id]: true };
+  render();
+  work(prayer)
+    .catch(() => toast(whenItFails))
+    .finally(() => { delete state.prayerBusy[id]; render(); });
+}
+
 const actions = {
   'retry-meetings': refreshMeetings,
   'retry-directory': refreshDirectory,
   'retry-teachings': refreshTeachings,
   'retry-posts': refreshPosts,
+  'retry-prayers': refreshPrayers,
 
   // ------------------------------------------------------------ anúncios --
   'new-post': () => {
@@ -329,6 +387,16 @@ const actions = {
     ensureChurchOptions();
     state.postDraft = { id: post.id, title: post.title, body: post.body, churchId: post.churchId, communityId: post.communityId, highlighted: post.highlighted, highlightUntil: post.highlightUntil, images: [] };
     render();
+  },
+  // Destacar a partir do feed: quem escreveu o anúncio trata dele onde ele
+  // está, sem ter de abrir o painel.
+  'toggle-highlight': (element) => {
+    const post = state.posts?.find((item) => item.id === element.dataset.id);
+    if (!post) return;
+    const next = !post.highlighted;
+    updatePost(post.id, { highlighted: next, highlight_until: next ? post.highlightUntil : null }, state.session)
+      .then(() => { toast(next ? 'Anúncio destacado.' : 'Destaque retirado.'); return refreshPosts({ fresh: true }); })
+      .catch((error) => toast(error.message));
   },
   'delete-post': (element) => {
     if (!window.confirm('Eliminar este anúncio? Esta ação não pode ser anulada.')) return;
@@ -423,6 +491,33 @@ const actions = {
       render();
     }
   },
+
+  // ---------------------------------------------------------- orações --
+  'prayer-theme': (element) => {
+    state.prayerFilters = { ...state.prayerFilters, theme: element.dataset.id || '' };
+    render();
+    announcePrayers();
+  },
+  'clear-prayers': () => { state.prayerFilters = { query: '', theme: '' }; render(); },
+  'play-prayer': (element) => {
+    const prayer = findPrayer(element.dataset.id);
+    if (prayer) playPrayer(prayer).catch(() => toast('Não foi possível tocar esta oração.'));
+  },
+  // The file itself, into WhatsApp. It has to be in hand before it can be
+  // handed over, and several megabytes take a moment: the button says so.
+  'share-prayer': (element) => withPrayer(element.dataset.id, async (prayer) => {
+    const how = await sharePrayer(prayer, prayerUrl(prayer));
+    if (how === 'link') toast('Este telemóvel não envia o ficheiro; foi o link da oração.');
+    else if (how === 'ficheiro') announce('Oração enviada.');
+  }, 'Não foi possível preparar o áudio para enviar.'),
+  'download-prayer': (element) => withPrayer(element.dataset.id, async (prayer) => {
+    await downloadPrayer(prayer);
+    toast('Áudio transferido. Fica também guardado nesta aplicação.');
+  }, 'Não foi possível transferir o áudio.'),
+  'drop-prayer': (element) => withPrayer(element.dataset.id, async (prayer) => {
+    await dropPrayer(prayer);
+    toast('Removida deste telemóvel.');
+  }, 'Não foi possível remover.'),
 
   category: (element) => setTeachingFilters({ category: element.dataset.value, savedOnly: false }),
   'saved-only': () => setTeachingFilters({ savedOnly: !state.teachingFilters.savedOnly }),
@@ -525,6 +620,9 @@ app.addEventListener('input', (event) => {
   if (event.target.id === 'teaching-search') {
     state.teachingFilters = { ...state.teachingFilters, query: event.target.value, page: 1 };
     searchTeachings();
+  } else if (event.target.id === 'prayer-search') {
+    state.prayerFilters = { ...state.prayerFilters, query: event.target.value };
+    searchPrayers();
   } else if (event.target.id === 'church-search') {
     state.churchFilters = { ...state.churchFilters, query: event.target.value };
     searchChurches();
@@ -552,20 +650,21 @@ app.addEventListener('click', (event) => {
 
 // Native details provides click, touch and keyboard access to the compact picker.
 // Close it on an outside click or Escape, and keep only one picker open.
+const POPOVERS = '[data-reaction-picker], [data-post-menu]';
 app.addEventListener('toggle', (event) => {
-  if (!event.target.matches('[data-reaction-picker]') || !event.target.open) return;
-  app.querySelectorAll('[data-reaction-picker][open]').forEach((picker) => {
+  if (!event.target.matches(POPOVERS) || !event.target.open) return;
+  app.querySelectorAll(`${POPOVERS.split(', ').map((one) => `${one}[open]`).join(', ')}`).forEach((picker) => {
     if (picker !== event.target) picker.open = false;
   });
 }, true);
 document.addEventListener('click', (event) => {
-  app.querySelectorAll('[data-reaction-picker][open]').forEach((picker) => {
+  app.querySelectorAll('[data-reaction-picker][open], [data-post-menu][open]').forEach((picker) => {
     if (!picker.contains(event.target)) picker.open = false;
   });
 });
 app.addEventListener('keydown', (event) => {
   if (event.key !== 'Escape') return;
-  const picker = event.target.closest('[data-reaction-picker][open]');
+  const picker = event.target.closest('[data-reaction-picker][open], [data-post-menu][open]');
   if (picker) { event.preventDefault(); picker.open = false; picker.querySelector('summary').focus(); return; }
   if (state.reactionSheet) { event.preventDefault(); closeReactions(); }
 });
@@ -704,9 +803,19 @@ registerServiceWorker({
   onUpdate: (reload) => toast('Há uma nova versão da aplicação.', { actionLabel: 'Atualizar', onAction: reload, duration: 0 })
 });
 
+// The player draws itself outside #app and survives every redraw; the pages
+// only need to know which prayer is sounding, to mark it.
+whenPlaybackFails((message) => toast(message));
+onPlayerChange((id) => {
+  if (state.prayerPlaying === id) return;
+  state.prayerPlaying = id;
+  renderIfShowing('prayers');
+});
+
 const router = startRouter(onRoute);
 refreshMeetings();
 refreshPosts();
+refreshPrayers();
 refreshDirectory();
 refreshTeachings();
 refreshVideos();

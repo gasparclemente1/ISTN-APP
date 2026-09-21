@@ -9,6 +9,9 @@ const ROUTES = [
   { name: 'live', pattern: /^\/ao-vivo\/?$/, title: 'Ao vivo' },
   { name: 'posts', pattern: /^\/anuncios\/?$/, title: 'Anúncios' },
   { name: 'post', pattern: /^\/anuncios\/([\w-]+)\/?$/, keys: ['id'], title: 'Anúncio' },
+  { name: 'person', pattern: /^\/pessoas\/([\w-]+)\/?$/, keys: ['id'], title: 'Pessoa' },
+  { name: 'prayers', pattern: /^\/oracoes\/?$/, title: 'Orações' },
+  { name: 'prayer', pattern: /^\/oracoes\/([\w-]+)\/?$/, keys: ['id'], title: 'Oração' },
   { name: 'churches', pattern: /^\/igrejas\/?$/, title: 'Igrejas' },
   { name: 'church', pattern: /^\/igrejas\/([\w-]+)\/?$/, keys: ['id'], title: 'Igreja' },
   { name: 'profile', pattern: /^\/perfil\/?$/, title: 'Perfil' }
@@ -21,6 +24,9 @@ const PATHS = {
   live: () => '/ao-vivo',
   posts: () => '/anuncios',
   post: ({ id }) => `/anuncios/${encodeURIComponent(id)}`,
+  person: ({ id }) => `/pessoas/${encodeURIComponent(id)}`,
+  prayers: () => '/oracoes',
+  prayer: ({ id }) => `/oracoes/${encodeURIComponent(id)}`,
   churches: () => '/igrejas',
   church: ({ id }) => `/igrejas/${encodeURIComponent(id)}`,
   profile: () => '/perfil'

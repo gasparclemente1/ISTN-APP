@@ -1,5 +1,5 @@
 import { WEEKDAY_LABELS, recurrenceLabel } from './meetings.js';
-import { uploadPhoto } from './upload.js';
+import { uploadPhoto, uploadAudio, audioDuration, AUDIO_TYPES } from './upload.js';
 import { badgeTier, isMinisterRole, quietCheck, roleLabel, rolesForGender, servantName, verifiedSeal } from './roles.js';
 import { ISTN_COUNTRIES, countryList, countryName } from './countries.js';
 import { DEFAULT_COUNTRY, phoneControl, phoneFromFields, phoneFromValues } from './phones.js';
@@ -7,6 +7,7 @@ import { escapeHtml, safeUrl } from './html.js';
 import { slugify } from './text.js';
 import { renderInto } from './dom.js';
 import { PUBLISH_SCOPES, authorName, formatPostDate } from './posts.js';
+import { formatDuration, normalizePrayer, normalizeThemes, sortPrayers } from './prayers.js';
 import { SEAT_LABELS, normalizeChurch, sharedPhones } from './directory.js';
 
 const root = document.querySelector('#admin');
@@ -18,7 +19,8 @@ const state = {
   query: '', filter: 'todas', editing: null, meeting: null, servo: null, uploading: false,
   servos: null, services: null, busy: false,
   audit: null, auditNames: {}, auditTable: '', auditHasMore: false,
-  posts: null, postComments: null, postAuthors: null, publishers: null, communities: null
+  posts: null, postComments: null, postAuthors: null, publishers: null, communities: null,
+  prayers: null, prayerThemes: null, prayerDraft: null, prayerUploading: false
 };
 
 function readSession() {
@@ -198,7 +200,7 @@ function loginView() {
 function shell(content) {
   const role = isCentral() ? 'Equipa central' : 'Editor local';
   const pending = state.claims?.length || 0;
-  const tabs = [['meetings', 'Reuniões'], ['churches', 'Diretório'], ['servos', 'Servos'], ['posts', 'Anúncios'], ['claims', 'Pedidos'], ['history', 'Histórico']]
+  const tabs = [['meetings', 'Reuniões'], ['churches', 'Diretório'], ['servos', 'Servos'], ['posts', 'Anúncios'], ['prayers', 'Orações'], ['claims', 'Pedidos'], ['history', 'Histórico']]
     .filter(([id]) => !['meetings', 'claims', 'history'].includes(id) || isCentral())
     .map(([id, label]) => `<button class="admin-tab ${state.view === id ? 'selected' : ''}" data-view="${id}">${label}${id === 'claims' && pending ? `<span class="tab-count">${pending}</span>` : ''}</button>`).join('');
   return `<header class="admin-bar">
@@ -384,6 +386,81 @@ function historyView() {
     }).join('') || '<li class="admin-empty">Sem alterações registadas.</li>'}</ul>
     ${state.auditHasMore ? '<button class="button button-outline" type="button" data-action="audit-more">Ver mais antigas</button>' : ''}
   </div>`;
+}
+
+// ---------------------------------------------------------------- orações --
+
+// The Prophet's prayers. The team uploads the recording, names it and files it
+// under one of its own themes; everything a pastor needs to find it later is
+// written here and nowhere else.
+async function loadPrayers() {
+  const [rows, themes] = await Promise.all([
+    rest('prayers?select=id,theme_id,title,description,audio_url,duration_seconds,file_bytes,hidden,published_at&order=published_at.desc&limit=400'),
+    rest('prayer_themes?select=id,slug,name,sort_order&order=sort_order.asc')
+  ]);
+  state.prayerThemes = normalizeThemes(themes);
+  state.prayers = (rows || []).map((row) => ({ ...normalizePrayer(row, { themes: state.prayerThemes }), hidden: Boolean(row.hidden) }));
+}
+
+const megabytes = (bytes) => (bytes ? `${(bytes / 1048576).toFixed(1)} MB` : '');
+
+function prayersView() {
+  if (!state.prayers) return '<p class="admin-empty">A carregar…</p>';
+  const themes = state.prayerThemes || [];
+  const counted = (theme) => state.prayers.filter((prayer) => prayer.themeId === theme.id).length;
+  return `<div class="admin-card">
+    <h2>Orações</h2>
+    <p class="admin-hint">Os áudios do Profeta Elias, arrumados pelos temas da equipa. São estes ficheiros que os pastores enviam a quem precisa — o título e a descrição são por eles que se procura.</p>
+    <button class="button button-gold" type="button" data-action="new-prayer">+ Acrescentar oração</button>
+    <ul class="admin-list">${sortPrayers(state.prayers).map((prayer) => `<li>
+      <div class="admin-row-wide">
+        <span>
+          <strong>${escapeHtml(prayer.title)}${prayer.hidden ? ' · escondida' : ''}</strong>
+          <small>${escapeHtml([prayer.theme?.name || 'Sem tema', formatDuration(prayer.duration), megabytes(prayer.bytes)].filter(Boolean).join(' · '))}</small>
+        </span>
+        <span class="admin-row-actions">
+          <a class="text-button" href="${escapeHtml(safeUrl(prayer.audioUrl) || '#')}" target="_blank" rel="noopener noreferrer">Ouvir</a>
+          <button class="text-button" type="button" data-prayer-edit="${prayer.id}">Editar</button>
+          <button class="text-button" type="button" data-prayer-hide="${prayer.id}">${prayer.hidden ? 'Repor' : 'Esconder'}</button>
+          <button class="text-button admin-danger" type="button" data-prayer-delete="${prayer.id}">Eliminar</button>
+        </span>
+      </div>
+    </li>`).join('') || '<li class="admin-empty">Ainda não há orações.</li>'}</ul>
+
+    <h3>Temas</h3>
+    <p class="admin-hint">A ordem é a que a equipa deu, e é por ela que os temas aparecem na aplicação. Para acrescentar ou renomear um tema, fale com quem trata da base de dados.</p>
+    <ul class="admin-list">${themes.map((theme) => `<li><div class="admin-row-wide">
+      <span><strong>${escapeHtml(theme.name)}</strong><small>${counted(theme)} ${counted(theme) === 1 ? 'oração' : 'orações'}</small></span>
+    </div></li>`).join('') || '<li class="admin-empty">Nenhum tema definido.</li>'}</ul>
+  </div>`;
+}
+
+function prayerEditor() {
+  const draft = state.prayerDraft;
+  const themes = state.prayerThemes || [];
+  const isNew = !draft.id;
+  return `<div class="admin-overlay"><form id="prayer-form" class="admin-card admin-dialog">
+    <h2>${isNew ? 'Nova oração' : escapeHtml(draft.title || 'Oração')}</h2>
+    <label>Título<input type="text" name="title" value="${escapeHtml(draft.title || '')}" required placeholder="Oração pelos enfermos" /></label>
+    <label>Tema<select name="theme_id">
+      <option value="">— sem tema —</option>
+      ${themes.map((theme) => `<option value="${theme.id}" ${draft.themeId === theme.id ? 'selected' : ''}>${escapeHtml(theme.name)}</option>`).join('')}
+    </select></label>
+    <label>Em que caso se usa <small>(é por aqui que se procura)</small>
+      <input type="text" name="description" value="${escapeHtml(draft.description || '')}" placeholder="Para quem está internado ou em coma" /></label>
+    <label>Áudio
+      <input type="file" name="audio" accept="${AUDIO_TYPES.join(',')}" ${isNew ? 'required' : ''} data-prayer-audio />
+    </label>
+    <p class="admin-hint">${draft.audioUrl && !draft.pendingName
+      ? `Gravação atual: ${escapeHtml(formatDuration(draft.duration) || 'duração por saber')}${draft.bytes ? ` · ${megabytes(draft.bytes)}` : ''}. Escolha um ficheiro só se quiser substituí-la.`
+      : draft.pendingName
+        ? `Escolhido: ${escapeHtml(draft.pendingName)}${draft.duration ? ` · ${escapeHtml(formatDuration(draft.duration))}` : ''}`
+        : 'MP3, M4A, AAC, OGG ou WAV, até 25 MB. Voz em 64 kbps mono chega e sobra: meio megabyte por minuto.'}</p>
+    <div class="admin-dialog-actions">
+      <button class="text-button" type="button" data-action="close-prayer">Cancelar</button>
+      <button class="button button-gold" type="submit" ${state.prayerUploading ? 'disabled' : ''}>${state.prayerUploading ? 'A enviar o áudio…' : 'Guardar'}</button>
+    </div>
+  </form></div>`;
 }
 
 function feedView() {
@@ -680,8 +757,9 @@ function render() {
     : state.view === 'claims' ? claimsView()
     : state.view === 'history' ? historyView()
     : state.view === 'posts' ? feedView()
+    : state.view === 'prayers' ? prayersView()
     : churchesView();
-  renderInto(root, shell(content) + (state.editing ? churchEditor() : '') + (state.meeting ? meetingEditor() : '') + (state.servo ? servoEditor() : ''));
+  renderInto(root, shell(content) + (state.editing ? churchEditor() : '') + (state.meeting ? meetingEditor() : '') + (state.servo ? servoEditor() : '') + (state.prayerDraft ? prayerEditor() : ''));
   bind();
 }
 
@@ -737,6 +815,7 @@ function bind() {
     render();
     if (state.view === 'history') guard(() => loadAudit());
     if (state.view === 'posts') guard(async () => { await loadFeed(); if (isCentral()) await loadPublishers(); });
+    if (state.view === 'prayers') guard(() => loadPrayers());
   }));
 
   root.querySelectorAll('[data-post-hide]').forEach((button) => button.addEventListener('click', () => {
@@ -765,6 +844,98 @@ function bind() {
       toast('Anúncio eliminado.');
     });
   }));
+
+  // ------------------------------------------------------------ orações --
+
+  root.querySelector('[data-action="new-prayer"]')?.addEventListener('click', () => {
+    state.prayerDraft = { title: '', description: '', themeId: '', audioUrl: '', duration: 0, bytes: 0 };
+    render();
+  });
+
+  root.querySelectorAll('[data-prayer-edit]').forEach((button) => button.addEventListener('click', () => {
+    const prayer = state.prayers.find((item) => item.id === button.dataset.prayerEdit);
+    if (prayer) { state.prayerDraft = { ...prayer }; render(); }
+  }));
+
+  root.querySelector('[data-action="close-prayer"]')?.addEventListener('click', () => {
+    if (state.prayerUploading) return;
+    state.prayerDraft = null;
+    render();
+  });
+
+  root.querySelectorAll('[data-prayer-hide]').forEach((button) => button.addEventListener('click', () => {
+    const prayer = state.prayers.find((item) => item.id === button.dataset.prayerHide);
+    guard(async () => {
+      await rest(`prayers?id=eq.${prayer.id}`, { method: 'PATCH', headers: { Prefer: 'return=minimal' }, body: JSON.stringify({ hidden: !prayer.hidden }) });
+      await loadPrayers();
+      toast(prayer.hidden ? 'Oração reposta.' : 'Oração escondida.');
+    });
+  }));
+
+  root.querySelectorAll('[data-prayer-delete]').forEach((button) => button.addEventListener('click', () => {
+    if (!confirm('Eliminar esta oração? O áudio deixa de estar disponível para quem já tem o link. Esconder é reversível.')) return;
+    guard(async () => {
+      await rest(`prayers?id=eq.${button.dataset.prayerDelete}`, { method: 'DELETE' });
+      await loadPrayers();
+      toast('Oração eliminada.');
+    });
+  }));
+
+  // The length is read from the recording itself: nobody should count minutes
+  // by hand, and a number typed wrong would mislead whoever chooses what to send.
+  root.querySelector('[data-prayer-audio]')?.addEventListener('change', async (event) => {
+    const file = event.target.files?.[0];
+    if (!file || !state.prayerDraft) return;
+    state.prayerDraft.pendingName = file.name;
+    state.prayerDraft.duration = (await audioDuration(file)) || 0;
+    const input = root.querySelector('#prayer-form [name="title"]');
+    // Um título por preencher começa pelo nome do ficheiro, que é quase sempre o certo.
+    if (input && !input.value.trim()) input.value = file.name.replace(/\.[^.]+$/, '').replace(/[-_]+/g, ' ').trim();
+    state.prayerDraft.title = input?.value || state.prayerDraft.title;
+    root.querySelector('#prayer-form .admin-hint').textContent = `Escolhido: ${file.name}${state.prayerDraft.duration ? ` · ${formatDuration(state.prayerDraft.duration)}` : ''}`;
+  });
+
+  root.querySelector('#prayer-form')?.addEventListener('submit', (event) => {
+    event.preventDefault();
+    if (state.prayerUploading) return;
+    const form = event.target;
+    const values = formValues(form);
+    const file = form.querySelector('[data-prayer-audio]')?.files?.[0] || null;
+    const draft = state.prayerDraft;
+    if (!values.title.trim()) { toast('Dê um título à oração.', 'erro'); return; }
+    if (!file && !draft.audioUrl) { toast('Escolha o ficheiro de áudio.', 'erro'); return; }
+    state.prayerUploading = Boolean(file);
+    if (state.prayerUploading) render();
+    guard(async () => {
+      try {
+        let audio = { url: draft.audioUrl, bytes: draft.bytes };
+        let duration = draft.duration;
+        if (file) {
+          audio = await uploadAudio(file, state.session);
+          duration = (await audioDuration(file)) || duration;
+        }
+        const body = {
+          title: values.title.trim(),
+          description: values.description.trim() || null,
+          theme_id: values.theme_id || null,
+          audio_url: audio.url,
+          duration_seconds: duration || null,
+          file_bytes: audio.bytes || null
+        };
+        const saved = draft.id
+          ? await rest(`prayers?id=eq.${draft.id}`, { method: 'PATCH', headers: { Prefer: 'return=representation' }, body: JSON.stringify(body) })
+          : await rest('prayers', { method: 'POST', headers: { Prefer: 'return=representation' }, body: JSON.stringify(body) });
+        if (!saved?.length) throw new Error('Não tem permissão para guardar orações.');
+        state.prayerDraft = null;
+        await loadPrayers();
+        toast('Oração guardada.');
+      } finally {
+        // Um envio falhado tem de devolver o botão: o áudio pode ser grande e
+        // a pessoa vai querer tentar outra vez.
+        state.prayerUploading = false;
+      }
+    });
+  });
 
   root.querySelectorAll('[data-comment-hide]').forEach((button) => button.addEventListener('click', () => {
     const comment = state.postComments.find((item) => item.id === button.dataset.commentHide);

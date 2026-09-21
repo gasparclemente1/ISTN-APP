@@ -109,6 +109,14 @@ async function handle(request, response) {
     }
   }
 
+  if (url.pathname === '/api/oracoes') {
+    try {
+      return sendJson(request, response, 200, await publicData.prayers());
+    } catch {
+      return sendJson(request, response, 502, { error: 'Não foi possível carregar as orações.' }, 'no-store');
+    }
+  }
+
   if (url.pathname === '/api/directory') {
     try {
       return sendJson(request, response, 200, await publicData.directory());
@@ -150,7 +158,7 @@ async function handle(request, response) {
     const host = /^[\w.-]+(:\d+)?$/.test(request.headers.host || '') ? request.headers.host : 'localhost';
     let preview = sectionPreview(url.pathname);
     if (PREVIEW_BOTS.test(request.headers['user-agent'] || '')) {
-      const load = { directory: () => publicData.directory(), posts: () => publicData.posts() };
+      const load = { directory: () => publicData.directory(), posts: () => publicData.posts(), prayers: () => publicData.prayers() };
       const late = new Promise((resolve) => { setTimeout(() => resolve(preview), 2500).unref(); });
       preview = await Promise.race([previewFor(url.pathname, load).catch(() => preview), late]);
     }

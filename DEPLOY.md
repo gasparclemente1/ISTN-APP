@@ -244,3 +244,66 @@ esta versão. Traz três coisas, e nenhuma delas funciona sem ela:
 
 Antes de publicar, confirmar no editor SQL que `select slug, name from
 public.communities order by sort_order` devolve as três comunidades.
+
+## Orações do Profeta Elias — 21/09/2026
+
+Aplicar `20260921180000_oracoes.sql` **antes** de publicar esta versão. Traz:
+
+- `prayer_themes`, já com os seis temas que a equipa nomeou e pela ordem dela —
+  Finanças e portas abertas, Libertação Geral, Câncer & Coma, Doenças, Oração
+  geral, Outros — e `prayers`, o catálogo dos áudios.
+- O *bucket* `oracoes` no Storage, público para ler, com 25 MB por ficheiro.
+  Voz em 64 kbps mono dá meio megabyte por minuto: 25 MB chegam para uma oração
+  de quarenta minutos.
+- `can_manage_prayers()`: quem acrescenta e corrige orações é a equipa central,
+  o Apóstolo, e quem tem autorização para publicar para toda a ISTN. É a mesma
+  autorização que o painel já atribui — não há um direito novo para distribuir.
+
+Ler não precisa de conta, como o resto da aplicação.
+
+**Depois da migração**, confirmar no editor SQL que `select name from
+public.prayer_themes order by sort_order` devolve os seis temas, e carregar uma
+oração pelo painel (separador «Orações») para ver o ficheiro chegar ao Storage.
+
+**Atenção ao tráfego.** Os áudios são servidos pelo Supabase, e cada partilha
+custa um download a quem envia — a partir daí o ficheiro viaja pelo WhatsApp,
+não pelo projeto. Uma oração guardada não volta a ser descarregada. Ainda
+assim, vale a pena ver o consumo do projeto na primeira semana: é a única parte
+da aplicação que serve ficheiros pesados.
+
+A política de conteúdo passou a permitir `media-src` do projeto Supabase e de
+`blob:` (lib/security.mjs). Sem isso o navegador recusa tocar os áudios — foi
+assim que este erro apareceu em testes.
+
+## Páginas de autor e o Início como feed — 21/09/2026
+
+Aplicar `20260921200000_pagina_de_autor.sql`. Mexe numa vista, não em dados:
+
+- `post_authors` passa a incluir também quem apenas reagiu — não para dar
+  perfil a toda a gente, mas porque o nome de quem reage já aparece na
+  aplicação, e um nome que se toca e não abre nada é uma porta pintada na
+  parede.
+- E ganha a igreja, **só de quem tem o selo**. A igreja onde um servo serve já
+  é pública, está no diretório ao lado do nome dele; a de um membro não é, e
+  continua a não ser. `app_users` fica fechada como estava.
+
+A migração `009_posts.sql` foi corrigida ao mesmo tempo: criava a vista com
+`create or replace`, e um `replace` que perdesse colunas é recusado pelo
+PostgreSQL — o que impediria 009 de voltar a correr, como este ficheiro exige.
+Passou a `drop view if exists` seguido de `create view`. Correr 009 outra vez
+recria a vista antiga; a migração de 21/09 recria-a completa a seguir, e a
+ordem dos ficheiros garante isso.
+
+**Sem migração, mas visível para toda a gente:** o menu de baixo deixou de ter
+«Anúncios» e passou a ter «Orações». Os anúncios não desapareceram — o Início
+passou a ser o feed, com a caixa de publicar em cima e os anúncios a seguir;
+`/anuncios` continua a existir, com todos, e o Início liga-lhe no fim da lista.
+Quem escreveu um anúncio passa a poder editá-lo, destacá-lo ou eliminá-lo pelo
+«⋯» do próprio cartão, sem abrir o painel. Esconder o que outros escreveram
+continua a ser do painel, que é onde fica registado quem escondeu e quando.
+
+O cartaz de boas-vindas com o Profeta Elias continua inteiro para quem chega
+pela primeira vez — sem conta e sem igreja escolhida — e passa a uma faixa
+estreita, com a mesma fotografia e a mesma saudação, para quem já vive na
+aplicação. A fotografia é a mesma que o servidor já pré-carrega, por isso não
+se descarrega nada de novo em nenhum dos casos.

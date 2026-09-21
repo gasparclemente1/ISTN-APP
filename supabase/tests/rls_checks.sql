@@ -934,3 +934,142 @@ begin
   end if;
 end $$;
 reset role;
+
+-- ------------------------------------- orações do Profeta, 21/09/2026 ------
+
+set role anon;
+set request.jwt.claim.sub = '';
+do $$ begin
+  if (select count(*) from public.prayer_themes) <> 6 then
+    raise exception 'FALHOU: os seis temas de oração não são públicos (há %)', (select count(*) from public.prayer_themes);
+  end if;
+  if (select string_agg(name, ' | ' order by sort_order) from public.prayer_themes)
+     <> 'Finanças e portas abertas | Libertação Geral | Câncer & Coma | Doenças | Oração geral | Outros' then
+    raise exception 'FALHOU: os temas não são os da equipa, ou não estão pela ordem dela';
+  end if;
+end $$;
+
+-- Ninguém acrescenta orações por iniciativa própria: a voz do Profeta não é
+-- uma coisa que qualquer conta possa publicar em nome dele.
+do $$
+declare recusado boolean := false;
+begin
+  begin
+    insert into public.prayers (title, audio_url) values ('Inventada', 'https://x/y.mp3');
+  exception when others then recusado := true; end;
+  if not recusado then raise exception 'FALHOU: um visitante acrescentou uma oração'; end if;
+end $$;
+reset role;
+
+set role authenticated;
+set request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000a1';
+do $$
+declare recusado boolean := false;
+begin
+  begin
+    insert into public.prayers (title, audio_url) values ('Do membro', 'https://x/y.mp3');
+  exception when others then recusado := true; end;
+  if not recusado or exists (select 1 from public.prayers where title = 'Do membro') then
+    raise exception 'FALHOU: um membro acrescentou uma oração';
+  end if;
+end $$;
+reset role;
+
+-- A equipa central acrescenta, e quem ela autorizou a falar para toda a ISTN
+-- também: é a mesma autorização, não um direito novo.
+set role authenticated;
+set request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000c1';
+do $$
+declare doencas uuid := (select id from public.prayer_themes where slug = 'doencas');
+begin
+  insert into public.prayers (title, description, theme_id, audio_url, duration_seconds)
+  values ('Oração pelos enfermos', 'Para quem está internado.', doencas, 'https://arquivo.istn/enfermos.mp3', 244);
+  if not exists (select 1 from public.prayers where title = 'Oração pelos enfermos') then
+    raise exception 'FALHOU: a equipa central não conseguiu acrescentar uma oração';
+  end if;
+end $$;
+update public.app_users set publish_scope = 'global' where id = '00000000-0000-0000-0000-0000000000a2';
+reset role;
+
+set role authenticated;
+set request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000a2';
+do $$ begin
+  insert into public.prayers (title, theme_id, audio_url)
+  values ('Quebra de maldições', (select id from public.prayer_themes where slug = 'libertacao-geral'), 'https://arquivo.istn/libertacao.mp3');
+  if not exists (select 1 from public.prayers where title = 'Quebra de maldições') then
+    raise exception 'FALHOU: quem publica para toda a ISTN não conseguiu acrescentar uma oração';
+  end if;
+  -- E esconder é reversível: quem esconde continua a ver a linha para a repor.
+  update public.prayers set hidden = true where title = 'Quebra de maldições';
+  if not exists (select 1 from public.prayers where title = 'Quebra de maldições') then
+    raise exception 'FALHOU: quem escondeu a oração deixou de a ver, e já não a pode repor';
+  end if;
+end $$;
+reset role;
+
+set role anon;
+set request.jwt.claim.sub = '';
+do $$ begin
+  if exists (select 1 from public.prayers where title = 'Quebra de maldições') then
+    raise exception 'FALHOU: uma oração escondida continua à vista de toda a gente';
+  end if;
+  if not exists (select 1 from public.prayers where title = 'Oração pelos enfermos') then
+    raise exception 'FALHOU: as orações deixaram de se poder ler sem conta';
+  end if;
+end $$;
+reset role;
+
+-- ------------------------------------------ páginas de autor, 21/09/2026 ---
+
+-- A vista passou a incluir quem só reagiu, para que nenhum nome que a
+-- aplicação mostra leve a uma página que não existe. E ganhou a igreja — só de
+-- quem tem o selo, porque a igreja de um servo já está no diretório ao lado do
+-- nome dele, e a de um membro não está.
+set role authenticated;
+set request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000a1';
+insert into public.post_reactions (post_id, user_id, kind)
+select id, auth.uid(), 'gosto' from public.posts where title = 'Vigília'
+on conflict (post_id, user_id) do update set kind = 'gosto';
+reset role;
+
+set role authenticated;
+set request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000a2';
+insert into public.post_reactions (post_id, user_id, kind)
+select id, auth.uid(), 'oracao' from public.posts where title = 'Vigília'
+on conflict (post_id, user_id) do update set kind = 'oracao';
+reset role;
+
+set role anon;
+set request.jwt.claim.sub = '';
+do $$
+declare
+  membro public.post_authors;
+  servo public.post_authors;
+  colunas text;
+begin
+  select * into membro from public.post_authors where id = '00000000-0000-0000-0000-0000000000a1';
+  if membro.id is null then
+    raise exception 'FALHOU: quem só reagiu não tem página, e o nome dele aparece na aplicação';
+  end if;
+  -- Um membro sem selo não mostra igreja nenhuma: essa é a linha que não se atravessa.
+  if membro.verified or membro.church_name is not null then
+    raise exception 'FALHOU: a página de um membro mostra-o como servo, ou mostra a igreja dele';
+  end if;
+
+  select * into servo from public.post_authors where id = '00000000-0000-0000-0000-0000000000a2';
+  if servo.id is null or not servo.verified then
+    raise exception 'FALHOU: um servo verificado não aparece com selo na sua página';
+  end if;
+  if servo.church_name is null then
+    raise exception 'FALHOU: a página de um servo verificado não diz onde ele serve';
+  end if;
+
+  -- E nada do que app_users guarda além do que já era público noutro sítio.
+  select string_agg(column_name, ',' order by column_name) into colunas
+    from information_schema.columns
+   where table_schema = 'public' and table_name = 'post_authors';
+  if colunas <> 'church_id,church_name,display_name,id,photo_url,servo_role,verified' then
+    raise exception 'FALHOU: a vista dos autores mostra colunas a mais ou a menos: %', colunas;
+  end if;
+end $$;
+reset role;

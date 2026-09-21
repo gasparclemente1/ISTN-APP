@@ -27,17 +27,22 @@ function accountAvatar() {
     : `<span>${escapeHtml(initials)}</span>`}</a>`;
 }
 
+// Six is what a thumb can hit on a phone; a seventh would make every one of
+// them smaller. Anúncios gave up its place because the home page is now the
+// feed itself — and Orações earned one, being the only part of the app used
+// in someone else's name, often in a hurry.
 const NAV = [
   ['home', 'home', 'Início'],
-  ['posts', 'megaphone', 'Anúncios'],
+  ['prayers', 'pray', 'Orações'],
   ['teachings', 'book', 'Ensinos'],
   ['live', 'live', 'Ao vivo'],
   ['churches', 'church', 'Igrejas'],
   ['profile', 'user', 'Perfil']
 ];
 
-// Which tab a page belongs to: a church's detail lives under Igrejas.
-const SECTION = { source: 'teachings', church: 'churches', post: 'posts' };
+// Which tab a page belongs to: a church's detail lives under Igrejas, and the
+// announcements, which no longer have a tab, under Início.
+const SECTION = { source: 'teachings', church: 'churches', posts: 'home', post: 'home', prayer: 'prayers' };
 
 export function header({ title = '', back = '', action = '' } = {}) {
   const backPath = back ? pathFor(back) : '';
@@ -58,6 +63,14 @@ export function navigation(routeName) {
 
 export function page(routeName, { title, back, action, mainClass = 'page-content', body }) {
   return `${header({ title, back, action })}<main id="conteudo" class="${mainClass}" tabindex="-1">${body}</main>${navigation(routeName)}`;
+}
+
+// The name of whoever wrote, commented or reacted, as a link to their page.
+// Here, and not in one of the views, so that the feed, the comments and the
+// list of who reacted all say it the same way — and so no view has to import
+// another one back.
+export function personLink(id, inner) {
+  return id ? `<a class="person-link" href="/pessoas/${escapeHtml(id)}">${inner}</a>` : inner;
 }
 
 export function statusBadge(status) {
