@@ -65,6 +65,14 @@ export function page(routeName, { title, back, action, mainClass = 'page-content
   return `${header({ title, back, action })}<main id="conteudo" class="${mainClass}" tabindex="-1">${body}</main>${navigation(routeName)}`;
 }
 
+// The name of whoever wrote, commented or reacted, as a link to their page.
+// Here, and not in one of the views, so that the feed, the comments and the
+// list of who reacted all say it the same way — and so no view has to import
+// another one back.
+export function personLink(id, inner) {
+  return id ? `<a class="person-link" href="/pessoas/${escapeHtml(id)}">${inner}</a>` : inner;
+}
+
 export function statusBadge(status) {
   return status === 'verified'
     ? `<span class="status-badge verified">${icon('check', { size: 12 })}Verificado</span>`

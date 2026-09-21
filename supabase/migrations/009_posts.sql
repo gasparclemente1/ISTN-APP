@@ -279,7 +279,11 @@ create policy post_reactions_self on public.post_reactions
 -- A post or comment shows its author's name and, for a servant, their rank and
 -- seal. app_users itself stays private, so this view exposes exactly those
 -- fields and nothing else (no email, phone, city or church).
-create or replace view public.post_authors as
+-- "drop" e não "create or replace": uma migração posterior acrescenta colunas a
+-- esta vista, e um "replace" que as perdesse seria recusado pelo PostgreSQL —
+-- o que impediria esta migração de voltar a correr, como DEPLOY.md exige.
+drop view if exists public.post_authors;
+create view public.post_authors as
   select u.id,
          coalesce(nullif(btrim(u.display_name), ''), 'Sem nome') as display_name,
          u.photo_url,

@@ -8,8 +8,9 @@ import { icon } from '../icons.js';
 import { prefs } from '../prefs.js';
 import { seatSeal, serviceChips } from './churches.js';
 import { liveCard, liveChip } from './live.js';
-import { composerSheet, feedSection, reactionSheet } from './posts.js';
-import { page, sectionHeading } from './shared.js';
+import { composerButton, composerSheet, postCard, reactionSheet } from './posts.js';
+import { sortPosts, visiblePosts } from '../posts.js';
+import { loadingState, page, sectionHeading } from './shared.js';
 import { sourceCard } from './teachings.js';
 import { latestVideosSection } from './videos.js';
 
@@ -17,16 +18,13 @@ function myChurchCard(state) {
   if (!prefs.myChurch || !state.directory) return '';
   const church = findChurch(state.directory.churches, prefs.myChurch);
   if (!church) return '';
-  return `<section class="content-section">
-    ${sectionHeading('A minha ISTN', churchTitle(church))}
-    <a class="my-church" href="/igrejas/${escapeHtml(church.id)}">
+  return `<a class="my-church home-card" href="/igrejas/${escapeHtml(church.id)}">
       <span class="round-icon">${church.seat ? seatSeal(church.seat, { size: 28 }) : icon(church.modality === 'online' ? 'globe' : 'church', { size: 22 })}</span>
       <span><small>${escapeHtml(church.seat ? SEAT_LABELS[church.seat] : placeKindLabel(church))}${church.region ? ` · ${escapeHtml(church.region)}` : ''}</small>
         ${church.services.length ? serviceChips(church) : '<strong>Horário a confirmar</strong>'}
         ${church.leaderName ? `<span>${escapeHtml(church.leaderName)}</span>` : ''}</span>
       ${icon('chevron', { size: 20 })}
-    </a>
-  </section>`;
+  </a>`;
 }
 
 function savedLink() {
@@ -35,7 +33,23 @@ function savedLink() {
   return `<a class="saved-link" href="/ensinos?guardadas=1">${icon('heart', { size: 18 })}<span>${count === 1 ? '1 pregação guardada' : `${count} pregações guardadas`}</span>${icon('chevron', { size: 18 })}</a>`;
 }
 
-// The welcome keeps the supplied portrait prominent and the next live visible.
+// A newcomer gets the welcome; someone who already lives in the app gets the
+// news. The portrait and the greeting stay either way — it was asked for, and
+// it is the church's face — but for a returning member they are a strip above
+// the feed instead of a wall in front of it. The picture is the same file the
+// server already preloads, so nothing extra is downloaded for either of them.
+const newcomer = (state) => !prefs.myChurch && !state.profile;
+
+function welcomeStrip(state) {
+  return `<section class="hero-strip">
+    <img src="/design/assets/photos/elias-destaque.png" width="433" height="576" alt="Profeta Elias" fetchpriority="high" />
+    <div>
+      <p>Bem-vindo à <span class="brand-mark">ISTN-SJ</span></p>
+      ${liveChip(state)}
+    </div>
+  </section>`;
+}
+
 function welcome(state) {
   return `<section class="hero" aria-labelledby="hero-title">
     <div class="hero-copy">
@@ -56,13 +70,44 @@ function welcome(state) {
   </section>`;
 }
 
+// The home page is the feed. What used to sit under it — the reader's church,
+// the prayers, the newest videos — now travels inside it, as cards between the
+// announcements: still found, and no longer in front of the news.
+const HOME_FEED = 8;
+
+function feed(state) {
+  if (state.postsError) return '';
+  if (!state.posts) return loadingState('A carregar os anúncios…');
+  const mine = sortPosts(visiblePosts(state.posts, { churchDbId: state.myChurchDbId }));
+  const between = { 1: myChurchCard(state), 3: prayersCard(), 5: latestVideosSection(state) };
+  const items = [];
+  mine.slice(0, HOME_FEED).forEach((post, index) => {
+    items.push(postCard(state, post));
+    if (between[index]) items.push(between[index]);
+  });
+  // Nothing published yet: the cards still have to appear, or the home page
+  // would be empty but for a greeting.
+  if (!mine.length) items.push(...Object.values(between).filter(Boolean));
+  return `<div class="home-feed">${items.filter(Boolean).join('')}</div>
+    ${mine.length > HOME_FEED ? `<a class="button button-outline full-width" href="/anuncios">Ver todos os anúncios${icon('arrowRight', { size: 18 })}</a>` : ''}`;
+}
+
+function prayersCard() {
+  return `<a class="home-card" href="/oracoes">
+    <span class="round-icon">${icon('pray', { size: 22 })}</span>
+    <span><small>ORAÇÕES DO PROFETA ELIAS</small>
+      <strong>Uma oração para o que se está a viver.</strong>
+      <span>Doença, libertação, finanças. Oiça, e envie a quem precisa.</span></span>
+    ${icon('chevron', { size: 20 })}
+  </a>`;
+}
+
 export function homePage(state) {
   const body = `
-    ${welcome(state)}
+    ${newcomer(state) ? welcome(state) : welcomeStrip(state)}
     <section class="content-section">${liveCard(state)}</section>
-    ${feedSection(state)}
-    ${myChurchCard(state)}
-    ${latestVideosSection(state)}
+    ${composerButton(state)}
+    ${feed(state)}
     <section class="content-section">
       ${sectionHeading('Biblioteca', 'Canais do YouTube', '<a class="link-button" href="/ensinos">Todas as pregações</a>')}
       ${savedLink()}

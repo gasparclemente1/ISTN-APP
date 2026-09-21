@@ -250,8 +250,18 @@ export function loadReactionPeople(postId) {
   return rest(`post_reaction_people?select=user_id,kind,display_name,photo_url,servo_role,verified&post_id=eq.${encodeURIComponent(postId)}&order=created_at.desc&limit=200`);
 }
 
+const AUTHOR_COLUMNS = 'id,display_name,photo_url,servo_role,verified,church_id,church_name';
+
 export function loadPostAuthors() {
-  return rest('post_authors?select=id,display_name,photo_url,servo_role,verified');
+  return rest(`post_authors?select=${AUTHOR_COLUMNS}`);
+}
+
+// One person, for their own page. Read on its own rather than with the whole
+// list: a link shared into a group opens straight on that page, and waiting
+// for everyone who ever reacted would be waiting for nothing.
+export async function loadPerson(id) {
+  const rows = await rest(`post_authors?select=${AUTHOR_COLUMNS}&id=eq.${encodeURIComponent(id)}`);
+  return rows?.[0] || null;
 }
 
 export async function addComment(postId, body, session = readSession()) {

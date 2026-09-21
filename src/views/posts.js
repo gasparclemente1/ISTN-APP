@@ -9,7 +9,7 @@ import { icon } from '../icons.js';
 import { prefs } from '../prefs.js';
 import { REACTIONS, reactionFor, authorName, canComment, canPublish, formatPostDate, isHighlighted, publishScopeOf, reactionGroups, sortPosts, videosIn, visiblePosts } from '../posts.js';
 import { verifiedSeal } from '../roles.js';
-import { emptyState, errorState, externalHint, loadingState, page, sectionHeading } from './shared.js';
+import { emptyState, errorState, externalHint, loadingState, page, personLink, sectionHeading } from './shared.js';
 
 // The community an announcement is from — ML, Acção Social, Grupo Jovem. It is
 // a label, not a wall: everyone reads every announcement, and the chips above
@@ -18,7 +18,7 @@ const communityTag = (post) => (post.community
   ? `<span class="post-community">${escapeHtml(post.community.shortName || post.community.name)}</span>`
   : '');
 
-function authorLine(post) {
+function authorLine(post, menu = '') {
   const author = post.author;
   const name = authorName(author);
   const photo = safeUrl(author?.photo_url);
@@ -26,10 +26,10 @@ function authorLine(post) {
   return `<div class="post-author">
     <span class="post-avatar">${photo ? `<img src="${escapeHtml(photo)}" alt="" loading="lazy" />` : `<span>${escapeHtml(initials || '·')}</span>`}</span>
     <span class="post-byline">
-      <strong>${escapeHtml(name)}${author?.verified ? verifiedSeal(author.servo_role) : ''}</strong>
+      <strong>${personLink(post.authorId, `${escapeHtml(name)}${author?.verified ? verifiedSeal(author.servo_role) : ''}`)}</strong>
       <small>${escapeHtml(post.scope)} · ${escapeHtml(formatPostDate(post.publishedAt))}</small>
     </span>
-    <span class="post-flags">${communityTag(post)}${isHighlighted(post) ? '<span class="post-pin">Em destaque</span>' : ''}</span>
+    <span class="post-flags">${communityTag(post)}${isHighlighted(post) ? '<span class="post-pin">Em destaque</span>' : ''}${menu}</span>
   </div>`;
 }
 
@@ -107,9 +107,25 @@ function emojiTools(target) {
   </div>`;
 }
 
-function postCard(state, post) {
+// Gerir o anúncio onde ele está. Quem o escreveu trata dele a partir do feed;
+// esconder o que outros escreveram continua a ser do painel, que é onde fica
+// registado quem escondeu e quando.
+function ownerMenu(state, post) {
+  if (!state.profile || post.authorId !== state.profile.id) return '';
+  const id = escapeHtml(post.id);
+  return `<details class="post-menu" data-post-menu>
+    <summary aria-label="Opções deste anúncio" data-focus-key="post-menu:${id}">⋯</summary>
+    <div class="post-menu-items" role="group" aria-label="Opções deste anúncio">
+      <button type="button" data-action="edit-post" data-id="${id}">${icon('edit', { size: 16 })}Editar</button>
+      <button type="button" data-action="toggle-highlight" data-id="${id}">${icon('sun', { size: 16 })}${isHighlighted(post) ? 'Retirar destaque' : 'Destacar'}</button>
+      <button type="button" class="danger" data-action="delete-post" data-id="${id}">${icon('close', { size: 16 })}Eliminar</button>
+    </div>
+  </details>`;
+}
+
+export function postCard(state, post) {
   return `<article class="post-card ${isHighlighted(post) ? 'is-highlighted' : ''}">
-    ${authorLine(post)}
+    ${authorLine(post, ownerMenu(state, post))}
     <a class="post-open" href="/anuncios/${escapeHtml(post.id)}">
       ${post.title ? `<h3>${escapeHtml(post.title)}</h3>` : ''}
       <div class="post-body is-clamped">${bodyHtml(post.body)}</div>
@@ -121,7 +137,7 @@ function postCard(state, post) {
   </article>`;
 }
 
-function composerButton(state) {
+export function composerButton(state) {
   if (!canPublish(state.profile)) return '';
   return `<button class="post-new" type="button" data-action="new-post">
     <span class="post-avatar">${icon('edit', { size: 20 })}</span>
@@ -172,32 +188,6 @@ export function composerSheet(state) {
   </div>`;
 }
 
-// The feed on the home page, as the team asked: every announcement, highlighted
-// or not, newest first — the highlighted ones simply come at the top. Five is
-// what fits before the rest of the home page; the link opens the whole feed.
-const HOME_FEED = 5;
-
-export function feedSection(state) {
-  if (state.postsError) return '';
-  const mine = state.posts ? sortPosts(visiblePosts(state.posts, { churchDbId: state.myChurchDbId })) : null;
-  const body = mine === null
-    ? loadingState('A carregar os anúncios…')
-    : `<div class="post-list">${mine.slice(0, HOME_FEED).map((post) => postCard(state, post)).join('')}</div>
-      ${mine.length > HOME_FEED ? `<a class="button button-outline full-width" href="/anuncios">Ver todos os anúncios${icon('arrowRight', { size: 18 })}</a>` : ''}`;
-  if (mine && !mine.length) {
-    if (!canPublish(state.profile)) return '';
-    return `<section class="content-section">
-      ${sectionHeading('Da comunidade', 'Anúncios')}
-      ${composerButton(state)}
-    </section>`;
-  }
-  return `<section class="content-section">
-    ${sectionHeading('Da comunidade', 'Anúncios', '<a class="link-button" href="/anuncios">Ver todos</a>')}
-    ${composerButton(state)}
-    ${body}
-  </section>`;
-}
-
 // Who reacted, by name — the same gesture as on Facebook: tap "12 reações" and
 // the people are there, with tabs for each reaction. The list is fetched only
 // when it is opened, so the feed itself stays light.
@@ -208,7 +198,7 @@ function reactionPerson(person) {
   const initials = name.trim().split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join('').toUpperCase();
   return `<li>
     <span class="post-avatar">${photo ? `<img src="${escapeHtml(photo)}" alt="" loading="lazy" />` : `<span>${escapeHtml(initials || '·')}</span>`}</span>
-    <strong>${escapeHtml(name)}${person.verified ? verifiedSeal(person.servo_role) : ''}</strong>
+    <strong>${personLink(person.user_id, `${escapeHtml(name)}${person.verified ? verifiedSeal(person.servo_role) : ''}`)}</strong>
     ${reaction ? `<span class="reaction-person-mark ${reaction.special ? 'is-special' : ''}" title="${escapeHtml(reaction.label)}"><span aria-hidden="true">${reaction.emoji}</span><span class="sr-only">${escapeHtml(reaction.label)}</span></span>` : ''}
   </li>`;
 }
@@ -294,7 +284,7 @@ function commentList(state, post) {
     const name = authorName(author);
     const photo = safeUrl(author?.photo_url);
     return `<li><span class="post-avatar comment-avatar">${photo ? `<img src="${escapeHtml(photo)}" alt="" loading="lazy" />` : escapeHtml((name || '·').slice(0, 1))}</span><div class="comment-content"><div class="comment-bubble">
-      <strong>${escapeHtml(name)}${author?.verified ? verifiedSeal(author.servo_role) : ''}</strong>
+      <strong>${personLink(comment.author_id, `${escapeHtml(name)}${author?.verified ? verifiedSeal(author.servo_role) : ''}`)}</strong>
       <div>${bodyHtml(comment.body)}</div></div>
       <small>${escapeHtml(formatPostDate(comment.created_at))}</small></div>
     </li>`;
@@ -325,7 +315,7 @@ export function postPage(state, id) {
   }
   const mine = state.profile && post.authorId === state.profile.id;
   const body = `<article class="post-full ${isHighlighted(post) ? 'is-highlighted' : ''}">
-      ${authorLine(post)}
+      ${authorLine(post, ownerMenu(state, post))}
       ${post.title ? `<h1>${escapeHtml(post.title)}</h1>` : ''}
       <div class="post-body">${linkedBodyHtml(post.body)}</div>
       ${postVideos(post)}

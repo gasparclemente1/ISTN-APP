@@ -1018,3 +1018,58 @@ do $$ begin
   end if;
 end $$;
 reset role;
+
+-- ------------------------------------------ páginas de autor, 21/09/2026 ---
+
+-- A vista passou a incluir quem só reagiu, para que nenhum nome que a
+-- aplicação mostra leve a uma página que não existe. E ganhou a igreja — só de
+-- quem tem o selo, porque a igreja de um servo já está no diretório ao lado do
+-- nome dele, e a de um membro não está.
+set role authenticated;
+set request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000a1';
+insert into public.post_reactions (post_id, user_id, kind)
+select id, auth.uid(), 'gosto' from public.posts where title = 'Vigília'
+on conflict (post_id, user_id) do update set kind = 'gosto';
+reset role;
+
+set role authenticated;
+set request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000a2';
+insert into public.post_reactions (post_id, user_id, kind)
+select id, auth.uid(), 'oracao' from public.posts where title = 'Vigília'
+on conflict (post_id, user_id) do update set kind = 'oracao';
+reset role;
+
+set role anon;
+set request.jwt.claim.sub = '';
+do $$
+declare
+  membro public.post_authors;
+  servo public.post_authors;
+  colunas text;
+begin
+  select * into membro from public.post_authors where id = '00000000-0000-0000-0000-0000000000a1';
+  if membro.id is null then
+    raise exception 'FALHOU: quem só reagiu não tem página, e o nome dele aparece na aplicação';
+  end if;
+  -- Um membro sem selo não mostra igreja nenhuma: essa é a linha que não se atravessa.
+  if membro.verified or membro.church_name is not null then
+    raise exception 'FALHOU: a página de um membro mostra-o como servo, ou mostra a igreja dele';
+  end if;
+
+  select * into servo from public.post_authors where id = '00000000-0000-0000-0000-0000000000a2';
+  if servo.id is null or not servo.verified then
+    raise exception 'FALHOU: um servo verificado não aparece com selo na sua página';
+  end if;
+  if servo.church_name is null then
+    raise exception 'FALHOU: a página de um servo verificado não diz onde ele serve';
+  end if;
+
+  -- E nada do que app_users guarda além do que já era público noutro sítio.
+  select string_agg(column_name, ',' order by column_name) into colunas
+    from information_schema.columns
+   where table_schema = 'public' and table_name = 'post_authors';
+  if colunas <> 'church_id,church_name,display_name,id,photo_url,servo_role,verified' then
+    raise exception 'FALHOU: a vista dos autores mostra colunas a mais ou a menos: %', colunas;
+  end if;
+end $$;
+reset role;

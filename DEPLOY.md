@@ -274,3 +274,36 @@ da aplicação que serve ficheiros pesados.
 A política de conteúdo passou a permitir `media-src` do projeto Supabase e de
 `blob:` (lib/security.mjs). Sem isso o navegador recusa tocar os áudios — foi
 assim que este erro apareceu em testes.
+
+## Páginas de autor e o Início como feed — 21/09/2026
+
+Aplicar `20260921200000_pagina_de_autor.sql`. Mexe numa vista, não em dados:
+
+- `post_authors` passa a incluir também quem apenas reagiu — não para dar
+  perfil a toda a gente, mas porque o nome de quem reage já aparece na
+  aplicação, e um nome que se toca e não abre nada é uma porta pintada na
+  parede.
+- E ganha a igreja, **só de quem tem o selo**. A igreja onde um servo serve já
+  é pública, está no diretório ao lado do nome dele; a de um membro não é, e
+  continua a não ser. `app_users` fica fechada como estava.
+
+A migração `009_posts.sql` foi corrigida ao mesmo tempo: criava a vista com
+`create or replace`, e um `replace` que perdesse colunas é recusado pelo
+PostgreSQL — o que impediria 009 de voltar a correr, como este ficheiro exige.
+Passou a `drop view if exists` seguido de `create view`. Correr 009 outra vez
+recria a vista antiga; a migração de 21/09 recria-a completa a seguir, e a
+ordem dos ficheiros garante isso.
+
+**Sem migração, mas visível para toda a gente:** o menu de baixo deixou de ter
+«Anúncios» e passou a ter «Orações». Os anúncios não desapareceram — o Início
+passou a ser o feed, com a caixa de publicar em cima e os anúncios a seguir;
+`/anuncios` continua a existir, com todos, e o Início liga-lhe no fim da lista.
+Quem escreveu um anúncio passa a poder editá-lo, destacá-lo ou eliminá-lo pelo
+«⋯» do próprio cartão, sem abrir o painel. Esconder o que outros escreveram
+continua a ser do painel, que é onde fica registado quem escondeu e quando.
+
+O cartaz de boas-vindas com o Profeta Elias continua inteiro para quem chega
+pela primeira vez — sem conta e sem igreja escolhida — e passa a uma faixa
+estreita, com a mesma fotografia e a mesma saudação, para quem já vive na
+aplicação. A fotografia é a mesma que o servidor já pré-carrega, por isso não
+se descarrega nada de novo em nenhum dos casos.

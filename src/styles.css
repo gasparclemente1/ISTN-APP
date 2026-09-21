@@ -528,6 +528,7 @@ button.menu-row:focus-visible { outline:3px solid var(--gold); outline-offset:-3
 /* ------------------------------------------------------------- anúncios -- */
 
 .post-new { margin: 6px 0 18px; }
+.home > .post-new, .home > .button-outline { margin-left: 20px; margin-right: 20px; width: calc(100% - 40px); }
 .post-list { display: grid; gap: 14px; }
 .post-card, .post-full { padding: 16px; border: 1px solid var(--line); border-radius: 18px; background: var(--white); }
 .post-card.is-highlighted, .post-full.is-highlighted { border-color: var(--gold); box-shadow: 0 0 0 3px var(--gold-soft); }
@@ -896,8 +897,8 @@ button.menu-row:focus-visible { outline:3px solid var(--gold); outline-offset:-3
 @media (max-width: 699px) {
   .hero { grid-template-columns: minmax(0, 1fr); padding: 20px 20px 0; }
   .hero-copy, .hero-art { min-width: 0; }
-  .home .post-list { grid-template-columns: minmax(0, 1fr); }
-  .home .post-card { min-width: 0; }
+  .home .post-list, .home .home-feed { grid-template-columns: minmax(0, 1fr); }
+  .home .post-card, .home .home-card { min-width: 0; }
   .hero h1 { font-size: clamp(2rem, 8.5vw, 2.8rem); }
   .hero p { font-size: .9rem; margin-bottom: 12px; }
   .hero-art { grid-template-columns: minmax(0, .8fr) minmax(0, 1.6fr); align-items: end; margin: 12px 0 0; }
@@ -949,3 +950,53 @@ button.menu-row:focus-visible { outline:3px solid var(--gold); outline-offset:-3
 .prayer-bar-back { min-width: 38px; font: 600 .72rem "DM Sans", sans-serif; }
 .prayer-bar-close { min-width: 32px; font-size: 1rem; color: var(--muted); }
 @media (min-width: 760px) { .prayer-bar { max-width: 720px; margin: 0 auto; } }
+
+/* ------------------------------------------------------- página de autor -- */
+
+.person-card { display: grid; justify-items: center; gap: 6px; padding: 24px 18px 20px; margin-bottom: 8px; border: 1px solid var(--line); border-radius: 20px; background: var(--white); text-align: center; }
+.person-avatar { width: 86px; height: 86px; display: grid; place-items: center; overflow: hidden; border-radius: 50%; background: var(--deep); color: var(--gold); font: 700 1.6rem "DM Sans", sans-serif; }
+.person-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.person-card h1 { display: inline-flex; align-items: center; gap: 8px; margin: 8px 0 0; font-size: clamp(1.4rem, 5.5vw, 1.9rem); }
+.person-role { margin: 0; font: 600 .82rem "DM Sans", sans-serif; color: var(--muted); }
+.person-church { display: inline-flex; align-items: center; gap: 6px; margin: 4px 0 0; font-size: .86rem; color: var(--muted); }
+.person-church a { color: var(--teal); font-weight: 600; }
+/* O nome de quem escreveu leva à página dele, sem parecer um link a mais no
+   meio do anúncio: sublinha-se quando se toca, e não antes. */
+/* O nome e o selo são uma coisa só: dentro do link, não podem partir-se em
+   duas linhas. */
+.person-link { color: inherit; display: inline-flex; align-items: center; gap: 6px; }
+.person-link:hover, .person-link:focus-visible { text-decoration: underline; }
+
+/* --------------------------------------------------- o início é o feed --- */
+
+.home-feed { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; margin: 14px 20px 16px; }
+.home-feed > * { min-width: 0; }
+.home-feed .content-section { margin: 0; }
+/* Um cartão do feed que não é um anúncio: a igreja do leitor, as orações. */
+.home-card { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border: 1px solid var(--line); border-radius: 18px; background: var(--white); color: inherit; }
+.home-card > span:nth-child(2) { flex: 1; min-width: 0; display: grid; gap: 3px; }
+.home-card small { font: 600 .66rem/1.3 "DM Mono", monospace; letter-spacing: .08em; color: var(--muted); }
+.home-card strong { font-size: .98rem; color: var(--deep); }
+.home-card > span:nth-child(2) > span { font-size: .85rem; color: var(--muted); }
+.home-card .ui-icon:last-child { color: var(--muted); }
+
+/* O cartaz para quem já cá vive: o Profeta e a saudação continuam, mas numa
+   faixa em cima das novidades, e não numa parede à frente delas. */
+.hero-strip { display: flex; align-items: center; gap: 14px; padding: 10px 14px; margin-bottom: 12px; border: 1px solid var(--line); border-radius: 18px; background: var(--white); }
+.hero-strip img { width: 52px; height: 66px; flex: 0 0 auto; object-fit: cover; object-position: top center; border-radius: 12px; background: var(--paper); }
+.hero-strip > div { flex: 1; min-width: 0; display: grid; gap: 6px; }
+.hero-strip > div > * { min-width: 0; }
+.hero-strip p { margin: 0; font: 600 .95rem "DM Sans", sans-serif; color: var(--deep); }
+.hero-strip .live-chip { border-color: var(--line); background: #eef3f2; color: var(--deep); }
+.hero-strip .live-chip > span:not(.live-dot) { color: var(--muted); }
+.hero-strip .live-chip strong { color: #8a6100; }
+
+/* O "⋯" de quem escreveu o anúncio. */
+.post-menu { position: relative; flex: 0 0 auto; }
+.post-menu > summary { list-style: none; width: 34px; height: 34px; display: grid; place-items: center; border-radius: 50%; color: var(--muted); font-size: 1.1rem; cursor: pointer; }
+.post-menu > summary::-webkit-details-marker { display: none; }
+.post-menu > summary:hover, .post-menu[open] > summary { background: #eef3f2; color: var(--deep); }
+.post-menu-items { position: absolute; right: 0; top: 38px; z-index: 30; display: grid; min-width: 11rem; padding: 6px; border: 1px solid var(--line); border-radius: 14px; background: var(--white); box-shadow: 0 10px 30px #0b2b2f26; }
+.post-menu-items button { display: flex; align-items: center; gap: 9px; min-height: 42px; padding: 0 10px; border: 0; border-radius: 10px; background: none; color: var(--deep); font: 600 .86rem "DM Sans", sans-serif; text-align: left; cursor: pointer; }
+.post-menu-items button:hover { background: #eef3f2; }
+.post-menu-items button.danger { color: #9b3434; }
