@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { REACTIONS, reactionFor, authorName, canComment, canPublish, formatPostDate, isHighlighted, linksIn, normalizePost, postShareText, publishScopeOf, sortPosts, videosIn, visiblePosts } from '../src/posts.js';
+import { REACTIONS, reactionFor, authorName, canComment, canPublish, formatPostDate, isHighlighted, linksIn, normalizeCommunities, normalizePost, postShareText, publishScopeOf, reactionGroups, sortPosts, videosIn, visiblePosts } from '../src/posts.js';
 
 const authors = new Map([['u1', { id: 'u1', display_name: 'Rufino Boaz', servo_role: 'bispo', verified: true }],
   ['u2', { id: 'u2', display_name: 'Membro Comum', servo_role: null, verified: false }]]);
@@ -53,6 +53,54 @@ test('cada pessoa vê o que é para toda a ISTN e o da sua igreja', () => {
   const posts = [{ id: 'a', churchId: null }, { id: 'b', churchId: 'c1' }, { id: 'c', churchId: 'c2' }];
   assert.deepEqual(visiblePosts(posts, { churchDbId: 'c1' }).map((post) => post.id), ['a', 'b']);
   assert.deepEqual(visiblePosts(posts).map((post) => post.id), ['a']);
+});
+
+test('as comunidades da ISTN: ML, Acção Social, Grupo Jovem', () => {
+  const rows = [
+    { id: 'k1', slug: 'ml', name: 'Mulher no Lar', short_name: 'ML', description: 'Movimento das mulheres da igreja.' },
+    { id: 'k2', slug: 'accao-social', name: 'Acção Social' },
+    { id: 'sem-nome', slug: 'x' }
+  ];
+  const communities = normalizeCommunities(rows);
+  assert.deepEqual(communities.map((community) => community.shortName), ['ML', 'Acção Social']);
+  // Sem nome não é comunidade nenhuma; uma etiqueta sem palavra não etiqueta nada.
+  assert.equal(communities.length, 2);
+});
+
+test('a etiqueta da comunidade acompanha o anúncio', () => {
+  const communities = normalizeCommunities([{ id: 'k1', slug: 'ml', name: 'Mulher no Lar', short_name: 'ML' }]);
+  const post = normalizePost({ id: 'p1', body: 'Encontro do ML', community_id: 'k1' }, { communities });
+  assert.equal(post.communityId, 'k1');
+  assert.equal(post.community.shortName, 'ML');
+  // Uma comunidade que já não existe não inventa etiqueta, e o anúncio continua a ler-se.
+  assert.equal(normalizePost({ id: 'p2', body: 'x', community_id: 'apagada' }, { communities }).community, null);
+  assert.equal(normalizePost({ id: 'p3', body: 'x' }, { communities }).community, null);
+});
+
+test('filtrar o feed por comunidade não esconde o que é da igreja de cada um', () => {
+  const posts = [
+    { id: 'a', churchId: null, communityId: 'k1' },
+    { id: 'b', churchId: 'c1', communityId: 'k1' },
+    { id: 'c', churchId: 'c1', communityId: null },
+    { id: 'd', churchId: 'c2', communityId: 'k1' }
+  ];
+  assert.deepEqual(visiblePosts(posts, { churchDbId: 'c1', community: 'k1' }).map((post) => post.id), ['a', 'b']);
+  assert.deepEqual(visiblePosts(posts, { churchDbId: 'c1', community: '' }).map((post) => post.id), ['a', 'b', 'c']);
+});
+
+test('quem reagiu, junto por reação e o maior grupo à frente', () => {
+  const people = [
+    { user_id: 'u1', kind: 'gosto', display_name: 'Ana' },
+    { user_id: 'u2', kind: 'curtir', display_name: 'Bento' },
+    { user_id: 'u3', kind: 'gosto', display_name: 'Célia' },
+    { user_id: 'u4', kind: 'amem', display_name: 'Dinis' },
+    { user_id: 'u5', kind: 'inventada', display_name: 'Ninguém' }
+  ];
+  const groups = reactionGroups(people);
+  assert.deepEqual(groups.map((group) => [group.reaction.kind, group.people.length]), [['gosto', 2], ['curtir', 1], ['amem', 1]]);
+  assert.deepEqual(groups[0].people.map((person) => person.display_name), ['Ana', 'Célia']);
+  assert.deepEqual(reactionGroups([]), []);
+  assert.deepEqual(reactionGroups(), []);
 });
 
 test('quem pode publicar e quem pode comentar', () => {

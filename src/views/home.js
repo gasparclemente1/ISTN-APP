@@ -1,5 +1,6 @@
-// The home page: what is happening next, the reader's own church, the newest
-// videos, and a way into everything else.
+// The home page: what is happening next, the announcements the church is
+// reading right now, the reader's own church, the newest videos, and a way into
+// everything else.
 import { APP_CONFIG } from '../data.js';
 import { SEAT_LABELS, churchTitle, findChurch, placeKindLabel } from '../directory.js';
 import { escapeHtml } from '../html.js';
@@ -7,7 +8,7 @@ import { icon } from '../icons.js';
 import { prefs } from '../prefs.js';
 import { seatSeal, serviceChips } from './churches.js';
 import { liveCard, liveChip } from './live.js';
-import { highlightSection } from './posts.js';
+import { composerSheet, feedSection, reactionSheet } from './posts.js';
 import { page, sectionHeading } from './shared.js';
 import { sourceCard } from './teachings.js';
 import { latestVideosSection } from './videos.js';
@@ -59,7 +60,7 @@ export function homePage(state) {
   const body = `
     ${welcome(state)}
     <section class="content-section">${liveCard(state)}</section>
-    ${highlightSection(state)}
+    ${feedSection(state)}
     ${myChurchCard(state)}
     ${latestVideosSection(state)}
     <section class="content-section">
@@ -77,5 +78,6 @@ export function homePage(state) {
       <div><span class="eyebrow">ISTN-SJ Mundial</span><h2>A sua igreja pode estar mais perto.</h2><p>Procure por país, região, cidade ou dia de culto.</p></div>
       <a class="button button-dark" href="/igrejas">${icon('search', { size: 18 })}Encontrar a minha igreja</a>
     </section>`}`;
-  return page('home', { mainClass: 'home', body, action: `<a class="icon-button" href="/ensinos" aria-label="Pesquisar ensinos">${icon('search', { size: 22 })}</a>` });
+  return page('home', { mainClass: 'home', body, action: `<a class="icon-button" href="/ensinos" aria-label="Pesquisar ensinos">${icon('search', { size: 22 })}</a>` })
+    + composerSheet(state) + reactionSheet(state);
 }

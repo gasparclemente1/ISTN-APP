@@ -2,7 +2,7 @@
 // below, each row opening a sheet that edits one thing. One field per sheet
 // keeps every save small, and nobody has to scroll a long form to change a
 // phone number.
-import { badgeFor, loadProfile, saveProfile, saveServoContact, signOut } from './account.js';
+import { badgeFor, loadProfile, saveProfile, signOut } from './account.js';
 import { ISTN_COUNTRIES, countryList, countryName } from './countries.js';
 import { claimableRoles, isMinisterRole, rankPrefixOf, roleLabel, verifiedSeal } from './roles.js';
 import { uploadPhoto } from './upload.js';
@@ -93,9 +93,11 @@ export function profileView({ state, escapeHtml, header, navigation, extraSectio
         ${row('display_name', 'user', 'Nome', value(profile.display_name), 'green')}
         ${row('gender', 'gender', 'Género', value({ masculino: 'Masculino', feminino: 'Feminino' }[profile.gender]), 'green')}
         ${row('phone', 'phone', 'Telefone', value(profile.phone), 'green')}
+        ${phoneVisibilityRow({ state })}
         ${row('country_code', 'globe', 'País', value(countryName(profile.country_code)), 'green')}
         ${row('city', 'pin', 'Cidade', value(profile.city), 'green')}
       </ul>
+      <p class="menu-footnote">${contactFootnote(profile, claim)}</p>
     </section>
 
     <section class="menu-group">
@@ -109,11 +111,7 @@ export function profileView({ state, escapeHtml, header, navigation, extraSectio
       <h2 class="menu-heading">Serviço na ISTN</h2>
       <ul class="menu-list">
         ${row('service', 'badge', 'Função', serviceValue, 'blue')}
-        ${claim === 'aprovado' && profile.servo_id ? phoneVisibilityRow({ state, escapeHtml }) : ''}
       </ul>
-      ${claim === 'aprovado' && profile.servo_id ? `<p class="menu-footnote">${state.servoContact?.phone_public
-        ? `O seu número (${escapeHtml(state.servoContact.phone || profile.phone || '')}) aparece junto do seu nome na página da igreja.`
-        : 'O seu número está privado: só a equipa ISTN-SJ o vê. A escolha é sua.'}</p>` : ''}
     </section>
 
     <section class="menu-group">
@@ -149,16 +147,30 @@ export function profileView({ state, escapeHtml, header, navigation, extraSectio
   </main>${state.profileSheet ? sheetView({ state, escapeHtml }) : ''}${navigation()}`;
 }
 
-// Whether a verified servant's number shows in the public directory. The
-// default is private, and only the servant can change it.
+// Said plainly, and only what is true: today the app shows a contact in one
+// place — the church's page in the directory, and only of those who serve
+// there. For everyone else the switch records the answer for the day it
+// matters, and promises nothing in the meantime.
+function contactFootnote(profile, claim) {
+  if (!profile.phone_public) {
+    return 'O seu contacto está oculto: só a equipa ISTN-SJ o vê. A escolha é sua, e pode mudá-la quando quiser.';
+  }
+  return claim === 'aprovado' && profile.servo_id
+    ? 'O seu número aparece junto do seu nome na página da sua igreja.'
+    : 'Autorizou a ISTN-SJ a mostrar o seu número. Por agora a aplicação só mostra o contacto de quem serve na igreja: até lá, o seu continua a ser visto apenas pela equipa.';
+}
+
+// Whether the person's number may be shown to anyone else. Every account
+// decides for itself, and the answer is no until it says otherwise — for a
+// verified servant the directory follows the same switch (migração de
+// 21/09/2026), so there is one choice and not two.
 function phoneVisibilityRow({ state }) {
-  const phone = state.servoContact?.phone || state.profile.phone;
-  const on = Boolean(state.servoContact?.phone_public);
+  const { phone, phone_public: on } = state.profile;
   return `<li><div class="menu-row is-static">
-    <span class="menu-icon tone-blue">${svg('phone')}</span>
-    <span class="menu-label">Mostrar o meu número</span>
+    <span class="menu-icon tone-blue">${svg('eye')}</span>
+    <span class="menu-label">Mostrar o meu contacto</span>
     ${phone
-      ? `<button class="switch" role="switch" aria-checked="${on}" aria-label="Mostrar o meu número no diretório" data-servo-phone-toggle ${state.servoContactLoading ? 'disabled' : ''}><i></i></button>`
+      ? `<button class="switch" role="switch" aria-checked="${Boolean(on)}" aria-label="Mostrar o meu contacto a outras pessoas" data-profile-toggle="phone_public"><i></i></button>`
       : '<span class="menu-value empty">Indique primeiro o telefone</span>'}
   </div></li>`;
 }
@@ -395,12 +407,6 @@ export function bindProfile({ state, render, showToast }) {
       const rank = rankPrefixOf(changes.display_name);
       if (rank) { showToast(`Escreva o nome sem «${rank}»: a função é acrescentada pela aplicação.`); return; }
     }
-    // A servant who chose to show their number shows the one they just gave.
-    if (key === 'phone' && state.servoContact?.phone_public && changes.phone && state.profile.servo_id) {
-      saveServoContact(state.profile.servo_id, { phone: changes.phone }, state.session)
-        .then((contact) => { if (contact) state.servoContact = contact; })
-        .catch(() => showToast('O telefone foi guardado, mas o do diretório não foi atualizado.'));
-    }
     if (changes) save(changes, 'Guardado.');
   });
 
@@ -408,29 +414,25 @@ export function bindProfile({ state, render, showToast }) {
     save({ servo_claim_status: 'nenhum' }, 'Pedido retirado.');
   });
 
+  const TOGGLE_SAID = {
+    phone_public: [
+      'O seu contacto passa a estar visível.',
+      'O seu contacto ficou oculto.'
+    ]
+  };
+
   document.querySelectorAll('[data-profile-toggle]').forEach((toggle) => toggle.addEventListener('click', () => {
     const field = toggle.dataset.profileToggle;
     const next = toggle.getAttribute('aria-checked') !== 'true';
     toggle.setAttribute('aria-checked', String(next));
     saveProfile({ [field]: next })
-      .then((profile) => { state.profile = profile || state.profile; })
+      .then((profile) => {
+        state.profile = profile || state.profile;
+        const said = TOGGLE_SAID[field];
+        if (said) { showToast(next ? said[0] : said[1]); render(); }
+      })
       .catch((error) => { toggle.setAttribute('aria-checked', String(!next)); showToast(error.message); });
   }));
-
-  document.querySelector('[data-servo-phone-toggle]')?.addEventListener('click', async (event) => {
-    const toggle = event.currentTarget;
-    const next = toggle.getAttribute('aria-checked') !== 'true';
-    const phone = state.servoContact?.phone || state.profile.phone;
-    toggle.setAttribute('aria-checked', String(next));
-    try {
-      state.servoContact = await saveServoContact(state.profile.servo_id, { phone, phone_public: next }, state.session) || state.servoContact;
-      showToast(next ? 'O seu número passa a aparecer no diretório.' : 'O seu número deixou de aparecer no diretório.');
-    } catch (error) {
-      toggle.setAttribute('aria-checked', String(!next));
-      showToast(error.message);
-    }
-    render();
-  });
 
   document.querySelector('[data-profile-photo]')?.addEventListener('change', async (event) => {
     const file = event.target.files?.[0];

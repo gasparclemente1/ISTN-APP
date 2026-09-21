@@ -753,3 +753,184 @@ begin
   end if;
 end $$;
 reset role;
+
+-- ------------------------------------------- comunidades, 21/09/2026 -------
+
+set role anon;
+set request.jwt.claim.sub = '';
+do $$ begin
+  if (select count(*) from public.communities) <> 3 then
+    raise exception 'FALHOU: as três comunidades não são públicas (há %)', (select count(*) from public.communities);
+  end if;
+  if not exists (select 1 from public.communities where slug = 'ml' and short_name = 'ML') then
+    raise exception 'FALHOU: o ML não ficou registado como comunidade';
+  end if;
+end $$;
+do $$
+declare recusado boolean := false;
+begin
+  begin
+    insert into public.communities (slug, name) values ('anonima', 'Inventada por um visitante');
+  exception when others then recusado := true; end;
+  if not recusado then raise exception 'FALHOU: um visitante criou uma comunidade'; end if;
+end $$;
+reset role;
+
+-- Uma etiqueta que qualquer um pudesse inventar não etiquetaria nada: só a
+-- equipa central acrescenta ou renomeia comunidades.
+set role authenticated;
+set request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000a2';
+do $$
+declare recusado boolean := false;
+begin
+  begin
+    insert into public.communities (slug, name) values ('do-membro', 'Inventada por um membro');
+  exception when others then recusado := true; end;
+  if not recusado or exists (select 1 from public.communities where slug = 'do-membro') then
+    raise exception 'FALHOU: um membro criou uma comunidade';
+  end if;
+  recusado := false;
+  begin
+    update public.communities set name = 'Outro nome' where slug = 'ml';
+  exception when others then recusado := true; end;
+  if (select name from public.communities where slug = 'ml') <> 'Mulher no Lar' then
+    raise exception 'FALHOU: um membro renomeou o ML';
+  end if;
+end $$;
+reset role;
+
+set role authenticated;
+set request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000c1';
+do $$
+declare ml uuid := (select id from public.communities where slug = 'ml');
+begin
+  insert into public.communities (slug, name, short_name, sort_order) values ('coral', 'Coral da ISTN', 'Coral', 4);
+  if not exists (select 1 from public.communities where slug = 'coral') then
+    raise exception 'FALHOU: a equipa central não conseguiu acrescentar uma comunidade';
+  end if;
+  delete from public.communities where slug = 'coral';
+
+  -- A etiqueta acompanha o anúncio, e apagar a comunidade não apaga o anúncio.
+  insert into public.posts (body, community_id) values ('Encontro do ML no sábado às 15:00.', ml);
+  if (select community_id from public.posts where body like 'Encontro do ML%') <> ml then
+    raise exception 'FALHOU: o anúncio não guardou a comunidade';
+  end if;
+end $$;
+reset role;
+
+-- --------------------------------------------- quem reagiu, pelo nome ------
+
+set role anon;
+set request.jwt.claim.sub = '';
+do $$
+declare nomes text;
+begin
+  if not exists (select 1 from public.post_reaction_people) then
+    raise exception 'FALHOU: ninguém consegue ver quem reagiu';
+  end if;
+  if not exists (select 1 from public.post_reaction_people where display_name <> 'Sem nome') then
+    raise exception 'FALHOU: quem reagiu aparece sem nome';
+  end if;
+  -- O nome e o selo, e nada do que app_users guarda além disso.
+  select string_agg(column_name, ',' order by column_name) into nomes
+    from information_schema.columns
+   where table_schema = 'public' and table_name = 'post_reaction_people';
+  if nomes <> 'created_at,display_name,kind,photo_url,post_id,servo_role,user_id,verified' then
+    raise exception 'FALHOU: a vista de quem reagiu mostra colunas a mais ou a menos: %', nomes;
+  end if;
+end $$;
+reset role;
+
+-- Um anúncio escondido leva consigo os nomes de quem lhe reagiu.
+set role authenticated;
+set request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000c1';
+update public.posts set hidden = true where title = 'Vigília';
+reset role;
+set role anon;
+set request.jwt.claim.sub = '';
+do $$ begin
+  if exists (select 1 from public.post_reaction_people p
+              join public.posts o on o.id = p.post_id and o.title = 'Vigília') then
+    raise exception 'FALHOU: as reações de um anúncio escondido continuam à vista';
+  end if;
+end $$;
+reset role;
+set role authenticated;
+set request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000c1';
+update public.posts set hidden = false where title = 'Vigília';
+reset role;
+
+-- ------------------------------ ocultar o contacto, qualquer conta ---------
+
+-- A escolha vive na conta. Para um servo verificado, a linha do diretório
+-- segue-a — uma escolha, não duas.
+set role authenticated;
+set request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000a2';
+do $$
+declare mine uuid := (select servo_id from public.app_users where id = '00000000-0000-0000-0000-0000000000a2');
+begin
+  update public.servo_contacts set phone_public = false where servo_id = mine;
+  update public.app_users set phone = '+244 900 000 019', phone_public = true where id = auth.uid();
+  if not (select phone_public from public.servo_contacts where servo_id = mine) then
+    raise exception 'FALHOU: o servo mostrou o contacto na conta e o diretório não seguiu';
+  end if;
+  if (select phone from public.servo_contacts where servo_id = mine) <> '+244 900 000 019' then
+    raise exception 'FALHOU: o número novo do servo não chegou ao diretório';
+  end if;
+
+  update public.app_users set phone_public = false where id = auth.uid();
+  if (select phone_public from public.servo_contacts where servo_id = mine) then
+    raise exception 'FALHOU: ocultar o contacto na conta não o ocultou no diretório';
+  end if;
+end $$;
+reset role;
+
+-- Um número corrigido pela equipa volta a privado (regra de 007), e a conta
+-- fica a saber, para que o interruptor no perfil não diga o contrário.
+set role authenticated;
+set request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000a2';
+update public.app_users set phone_public = true where id = auth.uid();
+reset role;
+set role authenticated;
+set request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000c1';
+update public.servo_contacts set phone = '+244 900 000 020'
+ where servo_id = (select servo_id from public.app_users where id = '00000000-0000-0000-0000-0000000000a2');
+reset role;
+do $$
+declare mine uuid := (select servo_id from public.app_users where id = '00000000-0000-0000-0000-0000000000a2');
+begin
+  if (select phone_public from public.servo_contacts where servo_id = mine) then
+    raise exception 'FALHOU: um número corrigido pela equipa continuou público';
+  end if;
+  if (select phone_public from public.app_users where id = '00000000-0000-0000-0000-0000000000a2') then
+    raise exception 'FALHOU: a conta continua a dizer que o contacto está visível';
+  end if;
+end $$;
+
+-- Uma conta sem selo nenhum decide na mesma, e ninguém decide por ela.
+set role authenticated;
+set request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000a1';
+insert into public.app_users (id, display_name, phone) values (auth.uid(), 'Membro Comum', '+244 900 000 030');
+do $$ begin
+  if (select phone_public from public.app_users where id = auth.uid()) then
+    raise exception 'FALHOU: o contacto de uma conta nova nasce visível';
+  end if;
+  update public.app_users set phone_public = true where id = auth.uid();
+  if not (select phone_public from public.app_users where id = auth.uid()) then
+    raise exception 'FALHOU: um membro sem selo não consegue mostrar o seu contacto';
+  end if;
+end $$;
+reset role;
+set role authenticated;
+set request.jwt.claim.sub = '00000000-0000-0000-0000-0000000000c1';
+do $$
+declare recusado boolean := false;
+begin
+  begin
+    update public.app_users set phone_public = false where id = '00000000-0000-0000-0000-0000000000a1';
+  exception when others then recusado := true; end;
+  if not recusado and not (select phone_public from public.app_users where id = '00000000-0000-0000-0000-0000000000a1') then
+    raise exception 'FALHOU: a equipa decidiu pelo membro se o contacto dele aparece';
+  end if;
+end $$;
+reset role;

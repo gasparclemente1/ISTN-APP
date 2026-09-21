@@ -92,3 +92,30 @@ test('o diretório pede e publica o nome e a sede guardados pelo Admin', async (
   assert.ok(selection.includes('name'));
   assert.ok(selection.includes('seat'));
 });
+
+test('o feed traz as comunidades e a etiqueta de cada anúncio', async () => {
+  const { fetchJson } = fakeSupabase({
+    posts: [{ id: 'p1', body: 'Encontro do ML', community_id: 'k1', published_at: '2026-09-21T09:00:00Z' },
+      { id: 'p2', body: 'Culto', community_id: null, published_at: '2026-09-20T09:00:00Z' }],
+    post_authors: [], post_reactions: [], post_comments: [],
+    communities: [{ id: 'k1', slug: 'ml', name: 'Mulher no Lar', short_name: 'ML', sort_order: 1 }],
+    churches: [], servos: [], servo_contacts: []
+  });
+  const feed = await createPublicData({ config, fetchJson, readLocal }).posts();
+  assert.deepEqual(feed.communities.map((community) => community.shortName), ['ML']);
+  assert.equal(feed.posts.find((post) => post.id === 'p1').community.name, 'Mulher no Lar');
+  assert.equal(feed.posts.find((post) => post.id === 'p2').community, null);
+});
+
+test('sem a lista de comunidades o feed lê-se na mesma, sem etiquetas', async () => {
+  const { fetchJson } = fakeSupabase({
+    posts: [{ id: 'p1', body: 'Encontro do ML', community_id: 'k1', published_at: '2026-09-21T09:00:00Z' }],
+    post_authors: [], post_reactions: [], post_comments: [],
+    communities: new Error('down'),
+    churches: [], servos: [], servo_contacts: []
+  });
+  const feed = await createPublicData({ config, fetchJson, readLocal }).posts();
+  assert.deepEqual(feed.communities, []);
+  assert.equal(feed.posts[0].community, null);
+  assert.equal(feed.posts[0].communityId, 'k1');
+});

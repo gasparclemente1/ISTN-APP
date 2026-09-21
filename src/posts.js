@@ -20,6 +20,34 @@ export const REACTIONS = [
 export const reactionFor = (kind) => REACTIONS.find((reaction) => reaction.kind === kind)
   || (kind === 'amem' ? { kind: 'amem', label: 'Amém', emoji: '🙌' } : null);
 
+// The communities the church named — ML (Mulher no Lar), Acção Social, Grupo
+// Jovem. They are the same across the whole ISTN and work as a label on an
+// announcement: who it is from, and what to filter the feed by.
+export function normalizeCommunities(rows = []) {
+  return (rows || [])
+    .map((row) => ({
+      id: row.id,
+      slug: row.slug || '',
+      name: row.name || '',
+      shortName: row.short_name || row.shortName || row.name || '',
+      description: row.description || ''
+    }))
+    .filter((community) => community.id && community.name);
+}
+
+// The people who reacted, gathered by reaction and the biggest group first —
+// what the sheet shows as tabs: everyone, then each reaction in turn.
+export function reactionGroups(people = []) {
+  const groups = new Map();
+  (people || []).forEach((person) => {
+    const reaction = reactionFor(person.kind);
+    if (!reaction) return;
+    if (!groups.has(reaction.kind)) groups.set(reaction.kind, { reaction, people: [] });
+    groups.get(reaction.kind).people.push(person);
+  });
+  return [...groups.values()].sort((a, b) => b.people.length - a.people.length);
+}
+
 export const PUBLISH_SCOPES = [
   { id: 'nenhum', label: 'Não publica' },
   { id: 'igreja', label: 'Só a sua igreja' },
@@ -35,17 +63,21 @@ export function authorName(author) {
 }
 
 // A post joined with its author, images, reactions and comment count.
-export function normalizePost(row, { authors = new Map(), reactions = [], comments = [], churches = [] } = {}) {
+export function normalizePost(row, { authors = new Map(), reactions = [], comments = [], churches = [], communities = [] } = {}) {
   const mine = reactions.filter((reaction) => reaction.post_id === row.id);
   const counts = {};
   mine.forEach((reaction) => { counts[reaction.kind] = (counts[reaction.kind] || 0) + 1; });
   const church = row.church_id ? churches.find((item) => item.dbId === row.church_id) : null;
+  const label = row.community_id ? (communities || []).find((item) => item.id === row.community_id) : null;
+  const community = label ? normalizeCommunities([label])[0] || null : null;
   return {
     id: row.id,
     title: row.title || '',
     body: row.body || '',
     churchId: row.church_id || null,
     churchName: church?.name || null,
+    communityId: row.community_id || null,
+    community,
     scope: row.church_id ? (church?.name ? churchTitle(church) : 'Uma igreja') : 'Toda a ISTN',
     highlighted: Boolean(row.highlighted),
     highlightUntil: row.highlight_until || null,
@@ -78,9 +110,11 @@ export function sortPosts(posts, today = new Date()) {
 }
 
 // Posts worth reading for this person: everything for the whole ISTN, plus
-// their own church's.
-export function visiblePosts(posts, { churchDbId = null } = {}) {
-  return posts.filter((post) => !post.churchId || post.churchId === churchDbId);
+// their own church's. `community` narrows that to one community's announcements
+// — it is a filter the reader chooses, not a rule about who may see what.
+export function visiblePosts(posts, { churchDbId = null, community = '' } = {}) {
+  return posts.filter((post) => (!post.churchId || post.churchId === churchDbId)
+    && (!community || post.communityId === community));
 }
 
 export const isApostolo = (profile) => profile?.servo_claim_status === 'aprovado' && profile?.servo?.role === 'apostolo';

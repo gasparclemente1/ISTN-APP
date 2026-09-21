@@ -218,3 +218,29 @@ pode demorar até um minuto por causa da cache.
 O acervo de Ensinos continua em `data/youtube-teachings.json`; os últimos
 vídeos são consultados no YouTube. Fotografias e textos de apresentação são
 ficheiros da aplicação. Não são conteúdos editáveis no Admin.
+
+## Comunidades, quem reagiu e ocultar o contacto — 21/09/2026
+
+Aplicar `20260921120000_comunidades_reacoes_contacto.sql` **antes** de publicar
+esta versão. Traz três coisas, e nenhuma delas funciona sem ela:
+
+- `communities`, já com ML (Mulher no Lar), Acção Social e Grupo Jovem, e
+  `posts.community_id`. As comunidades são de toda a ISTN, não de cada igreja,
+  e trabalham como etiqueta: o anúncio continua a ser lido por todos, e os
+  filtros em Anúncios mostram um de cada vez. Acrescentar outra comunidade é
+  uma linha no editor SQL — `insert into public.communities (slug, name,
+  short_name, sort_order) values ('nome-curto', 'Nome', 'Curto', 4);` — e só a
+  equipa central lhe pode tocar.
+- `post_reaction_people`, a vista que dá nome a quem reagiu. Mostra o mesmo que
+  `post_authors` já mostrava — nome, foto, função e selo — e mais nada:
+  `app_users` continua fechada.
+- `app_users.phone_public`: ocultar ou mostrar o contacto deixa de ser só do
+  servo verificado e passa a ser de qualquer conta. A escolha passa a viver na
+  conta, e a linha do diretório (`servo_contacts`, migração 007) segue-a por
+  gatilho. Quem já tinha escolhido mostrar o número continua a mostrá-lo; um
+  número corrigido no painel por outra pessoa volta a privado, como em 007, e
+  agora isso é dito também à conta, para que o interruptor no perfil não diga o
+  contrário do que o diretório mostra.
+
+Antes de publicar, confirmar no editor SQL que `select slug, name from
+public.communities order by sort_order` devolve as três comunidades.

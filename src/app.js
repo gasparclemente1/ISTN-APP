@@ -3,8 +3,8 @@
 import { APP_CONFIG, backendConfig, loadDirectory, loadLatestVideos, loadMeetings, loadPosts, loadTeachingLibrary } from './data.js';
 import {
   addComment, addFavorite, addPostImages, availableProviders, createPost, deletePost, finishSocialSignIn, loadChurchOptions,
-  loadComments, loadFavorites, loadMyReactions, loadPostAuthors, loadProfile, readSession, register, removeFavorite,
-  saveProfile, setReaction, signIn, signInWithProvider, signOut, loadServoContact, updatePost
+  loadComments, loadFavorites, loadMyReactions, loadPostAuthors, loadProfile, loadReactionPeople, readSession, register, removeFavorite,
+  saveProfile, setReaction, signIn, signInWithProvider, signOut, updatePost
 } from './account.js';
 import { announce, copyText, debounce, renderInto, toast } from './dom.js';
 import { churchTitle, filterChurches, findChurch } from './directory.js';
@@ -12,7 +12,7 @@ import { filterTeachings } from './library.js';
 import { nextMeeting } from './meetings.js';
 import { rankPrefixOf } from './roles.js';
 import { prefs } from './prefs.js';
-import { canPublish, postShareText, publishScopeOf } from './posts.js';
+import { canPublish, postShareText, publishScopeOf, visiblePosts } from './posts.js';
 import { uploadPhoto } from './upload.js';
 import { registerServiceWorker } from './pwa.js';
 import { startRouter } from './router.js';
@@ -34,10 +34,11 @@ const state = {
   churchFilters: { query: '', country: '', region: '', day: '' },
   meetings: null, meetingsError: false,
   posts: null, postsError: false, comments: {}, postAuthors: null, myReactions: {},
+  communities: [], postCommunity: '', reactionSheet: null, reactionPeople: {},
   commentDrafts: {}, reactionSaving: {}, postDraft: null, postSaving: false, postUploading: false, commentSaving: false,
   latestVideos: {}, videosLoading: true,
   accountsAvailable: false, authMode: 'entrar', authBusy: false, providers: null,
-  session: null, profile: null, churchOptions: null, servoContact: null,
+  session: null, profile: null, churchOptions: null,
   uploading: false, profileSheet: null, sheetGender: null, sheetChurch: null, profileSaving: false
 };
 
@@ -142,7 +143,7 @@ function followFormerIds() {
 function refreshPosts({ fresh = false } = {}) {
   state.postsError = false;
   return loadPosts({ fresh })
-    .then(({ posts }) => { state.posts = posts; })
+    .then(({ posts, communities }) => { state.posts = posts; if (communities) state.communities = communities; })
     .catch(() => { state.postsError = true; })
     .finally(() => renderIfShowing('posts'));
 }
@@ -159,6 +160,22 @@ function ensureComments(postId) {
     })
     .catch(() => { state.comments = { ...state.comments, [postId]: [] }; renderIfShowing('posts'); });
 }
+
+// The names behind "12 reações", read when someone asks for them. undefined
+// while it is being fetched, null when it could not be.
+function openReactions(postId, { again = false } = {}) {
+  if (!postId) return;
+  state.reactionSheet = { id: postId, kind: state.reactionSheet?.id === postId ? state.reactionSheet.kind : '' };
+  if (!again && state.reactionPeople[postId]) { render(); return; }
+  delete state.reactionPeople[postId];
+  render();
+  loadReactionPeople(postId)
+    .then((people) => { state.reactionPeople = { ...state.reactionPeople, [postId]: people || [] }; })
+    .catch(() => { state.reactionPeople = { ...state.reactionPeople, [postId]: null }; })
+    .finally(() => { if (state.reactionSheet?.id === postId) render(); });
+}
+
+const closeReactions = () => { if (state.reactionSheet) { state.reactionSheet = null; render(); } };
 
 function refreshMeetings() {
   state.meetingsError = false;
@@ -203,12 +220,6 @@ function askForNameIfMissing() {
 async function afterSignIn(session) {
   state.session = session;
   state.profile = await loadProfile(session);
-  state.servoContact = null;
-  if (state.profile?.servo_claim_status === 'aprovado' && state.profile.servo_id) {
-    loadServoContact(state.profile.servo_id, session)
-      .then((contact) => { state.servoContact = contact; renderIfShowing('account'); })
-      .catch(() => {});
-  }
   syncMyChurchFromProfile();
   ensureChurchOptions();
   askForNameIfMissing();
@@ -307,14 +318,16 @@ const actions = {
   'new-post': () => {
     if (!canPublish(state.profile)) { toast('Só quem a equipa autoriza pode publicar.'); return; }
     ensureChurchOptions();
-    state.postDraft = { body: '', title: '', churchId: publishScopeOf(state.profile) === 'global' ? null : state.profile.home_church_id, highlighted: false, images: [] };
+    // Writing from inside a community's filter starts with that community
+    // chosen — it is almost always the one being written for.
+    state.postDraft = { body: '', title: '', churchId: publishScopeOf(state.profile) === 'global' ? null : state.profile.home_church_id, communityId: state.postCommunity || null, highlighted: false, images: [] };
     render();
   },
   'edit-post': (element) => {
     const post = state.posts?.find((item) => item.id === element.dataset.id);
     if (!post) return;
     ensureChurchOptions();
-    state.postDraft = { id: post.id, title: post.title, body: post.body, churchId: post.churchId, highlighted: post.highlighted, highlightUntil: post.highlightUntil, images: [] };
+    state.postDraft = { id: post.id, title: post.title, body: post.body, churchId: post.churchId, communityId: post.communityId, highlighted: post.highlighted, highlightUntil: post.highlightUntil, images: [] };
     render();
   },
   'delete-post': (element) => {
@@ -341,6 +354,25 @@ const actions = {
     }
     window.open(`https://wa.me/?text=${encodeURIComponent(`${text}\n${url}`)}`, '_blank', 'noopener,noreferrer');
   },
+  // ML, Acção Social, Grupo Jovem: one community's announcements at a time.
+  'filter-community': (element) => {
+    state.postCommunity = element.dataset.id || '';
+    render();
+    const community = state.communities.find((item) => item.id === state.postCommunity);
+    const count = visiblePosts(state.posts || [], { churchDbId: state.myChurchDbId, community: state.postCommunity }).length;
+    announce(`${community ? community.name : 'Todos os anúncios'}: ${count === 1 ? '1 anúncio' : `${count} anúncios`}.`);
+  },
+
+  // Who reacted, by name. Fetched when the list is opened and kept until
+  // somebody's reaction changes it.
+  'show-reactions': (element) => { openReactions(element.dataset.id); },
+  'retry-reactions': () => { if (state.reactionSheet) openReactions(state.reactionSheet.id, { again: true }); },
+  'reaction-tab': (element) => {
+    if (!state.reactionSheet) return;
+    state.reactionSheet = { ...state.reactionSheet, kind: element.dataset.kind || '' };
+    render();
+  },
+
   'focus-comment': () => {
     app.querySelector('.comments')?.scrollIntoView({ block: 'start', behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' });
     app.querySelector('#comment-body')?.focus({ preventScroll: true });
@@ -375,6 +407,8 @@ const actions = {
     render();
     try {
       await setReaction(id, kind, state.session);
+      delete state.reactionPeople[id];
+      if (state.reactionSheet?.id === id) openReactions(id, { again: true });
       announce(kind ? 'Reação adicionada.' : 'Reação removida.');
     } catch (error) {
       state.myReactions[id] = previous;
@@ -474,6 +508,7 @@ function rememberPostDraft(form) {
   const values = Object.fromEntries(new FormData(form).entries());
   Object.assign(state.postDraft, {
     title: values.title || '', body: values.body || '', churchId: values.church_id || null,
+    communityId: values.community_id || null,
     highlighted: Boolean(values.highlighted), highlightUntil: values.highlight_until || ''
   });
 }
@@ -505,6 +540,11 @@ app.addEventListener('change', (event) => {
 });
 
 app.addEventListener('click', (event) => {
+  const closer = event.target.closest('[data-reactions-close]');
+  if (closer && (event.target === closer || closer.tagName === 'BUTTON')) closeReactions();
+});
+
+app.addEventListener('click', (event) => {
   const closer = event.target.closest('[data-sheet-close]');
   if (!closer || !state.postDraft || state.postUploading || state.postSaving) return;
   if (event.target === closer || closer.tagName === 'BUTTON') { state.postDraft = null; render(); }
@@ -526,7 +566,8 @@ document.addEventListener('click', (event) => {
 app.addEventListener('keydown', (event) => {
   if (event.key !== 'Escape') return;
   const picker = event.target.closest('[data-reaction-picker][open]');
-  if (picker) { event.preventDefault(); picker.open = false; picker.querySelector('summary').focus(); }
+  if (picker) { event.preventDefault(); picker.open = false; picker.querySelector('summary').focus(); return; }
+  if (state.reactionSheet) { event.preventDefault(); closeReactions(); }
 });
 
 app.addEventListener('keydown', (event) => {
@@ -582,11 +623,12 @@ app.addEventListener('submit', async (event) => {
         body,
         title: (values.title || '').trim() || null,
         churchId: values.church_id || null,
+        communityId: values.community_id || null,
         highlighted: Boolean(values.highlighted),
         highlightUntil: values.highlight_until || null
       };
       const saved = state.postDraft.id
-        ? await updatePost(state.postDraft.id, { body: fields.body, title: fields.title, church_id: fields.churchId, highlighted: fields.highlighted, highlight_until: fields.highlightUntil }, state.session)
+        ? await updatePost(state.postDraft.id, { body: fields.body, title: fields.title, church_id: fields.churchId, community_id: fields.communityId, highlighted: fields.highlighted, highlight_until: fields.highlightUntil }, state.session)
         : await createPost(fields, state.session);
       if (state.postDraft.images?.length) await addPostImages(saved.id, state.postDraft.images, state.session);
       state.postDraft = null;

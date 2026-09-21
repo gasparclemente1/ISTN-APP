@@ -199,33 +199,17 @@ export async function removeFavorite(teachingId, session = readSession()) {
   await rest(`favorites?user_id=eq.${session.user.id}&teaching_id=eq.${encodeURIComponent(teachingId)}`, { method: 'DELETE' }, session);
 }
 
-// A verified servant's own number in the directory. Private unless they turn
-// it on here; the database lets nobody else turn it on (migration 007).
-export async function loadServoContact(servoId, session = readSession()) {
-  const rows = await rest(`servo_contacts?select=phone,phone_public&servo_id=eq.${servoId}`, {}, session);
-  return rows[0] || null;
-}
-
-export async function saveServoContact(servoId, changes, session = readSession()) {
-  const rows = await rest('servo_contacts?on_conflict=servo_id', {
-    method: 'POST',
-    headers: { Prefer: 'resolution=merge-duplicates,return=representation' },
-    body: JSON.stringify({ servo_id: servoId, ...changes })
-  }, session);
-  return rows?.[0] || null;
-}
-
 export async function requestServantBadge(note, session = readSession()) {
   return saveProfile({ servo_claim_status: 'pendente', servo_claim_note: note || null }, session);
 }
 
 // Writing in the feed. Every one of these is checked again by the database
 // (migration 009): the app only decides what to offer.
-export async function createPost({ body, title = null, churchId = null, highlighted = false, highlightUntil = null }, session = readSession()) {
+export async function createPost({ body, title = null, churchId = null, communityId = null, highlighted = false, highlightUntil = null }, session = readSession()) {
   const rows = await rest('posts', {
     method: 'POST',
     headers: { Prefer: 'return=representation' },
-    body: JSON.stringify({ body, title, church_id: churchId, highlighted, highlight_until: highlightUntil })
+    body: JSON.stringify({ body, title, church_id: churchId, community_id: communityId, highlighted, highlight_until: highlightUntil })
   }, session);
   if (!rows?.length) throw new Error('Não tem permissão para publicar.');
   return rows[0];
@@ -256,6 +240,14 @@ export function addPostImages(postId, images, session = readSession()) {
 
 export function loadComments(postId) {
   return rest(`post_comments?select=id,post_id,author_id,body,created_at&post_id=eq.${postId}&hidden=eq.false&order=created_at.asc`);
+}
+
+// Who reacted, by name. Read straight from the database, not from the server's
+// cached feed: it is only asked for when someone opens the list, and it has to
+// include the tap they have just made. No account needed — the names beside an
+// announcement are as public as the announcement.
+export function loadReactionPeople(postId) {
+  return rest(`post_reaction_people?select=user_id,kind,display_name,photo_url,servo_role,verified&post_id=eq.${encodeURIComponent(postId)}&order=created_at.desc&limit=200`);
 }
 
 export function loadPostAuthors() {
