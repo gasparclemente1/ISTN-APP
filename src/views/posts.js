@@ -7,9 +7,16 @@ import { findChurch } from '../directory.js';
 import { escapeHtml, safeUrl } from '../html.js';
 import { icon } from '../icons.js';
 import { prefs } from '../prefs.js';
-import { REACTIONS, reactionFor, authorName, canComment, canPublish, formatPostDate, isHighlighted, publishScopeOf, videosIn, visiblePosts } from '../posts.js';
+import { REACTIONS, reactionFor, authorName, canComment, canPublish, formatPostDate, isHighlighted, publishScopeOf, reactionGroups, sortPosts, videosIn, visiblePosts } from '../posts.js';
 import { verifiedSeal } from '../roles.js';
 import { emptyState, errorState, externalHint, loadingState, page, sectionHeading } from './shared.js';
+
+// The community an announcement is from — ML, Acção Social, Grupo Jovem. It is
+// a label, not a wall: everyone reads every announcement, and the chips above
+// the feed are how a person asks for one community at a time.
+const communityTag = (post) => (post.community
+  ? `<span class="post-community">${escapeHtml(post.community.shortName || post.community.name)}</span>`
+  : '');
 
 function authorLine(post) {
   const author = post.author;
@@ -22,7 +29,7 @@ function authorLine(post) {
       <strong>${escapeHtml(name)}${author?.verified ? verifiedSeal(author.servo_role) : ''}</strong>
       <small>${escapeHtml(post.scope)} · ${escapeHtml(formatPostDate(post.publishedAt))}</small>
     </span>
-    ${isHighlighted(post) ? '<span class="post-pin">Em destaque</span>' : ''}
+    <span class="post-flags">${communityTag(post)}${isHighlighted(post) ? '<span class="post-pin">Em destaque</span>' : ''}</span>
   </div>`;
 }
 
@@ -65,8 +72,11 @@ function reactionRow(state, post, { compact = true } = {}) {
   const id = escapeHtml(post.id);
   const active = Object.entries(post.reactions).filter(([, count]) => count > 0)
     .sort((a, b) => b[1] - a[1]).map(([kind]) => reactionFor(kind)).filter(Boolean);
+  const stack = `<span class="reaction-stack" aria-hidden="true">${active.slice(0, 3).map((reaction) => `<span class="${reaction.special ? 'is-special' : ''}" title="${reaction.label}">${reaction.emoji}</span>`).join('')}</span>`;
   return `<div class="post-stats">
-      <span><span class="reaction-stack" aria-hidden="true">${active.slice(0, 3).map((reaction) => `<span class="${reaction.special ? 'is-special' : ''}" title="${reaction.label}">${reaction.emoji}</span>`).join('')}</span>${total ? `${total} ${total === 1 ? 'reação' : 'reações'}` : 'Seja o primeiro a reagir'}</span>
+      ${total
+        ? `<button class="reaction-summary" type="button" data-action="show-reactions" data-id="${id}" data-focus-key="reaction-summary:${id}">${stack}${total} ${total === 1 ? 'reação' : 'reações'}</button>`
+        : `<span>${stack}Seja o primeiro a reagir</span>`}
       <span>${post.commentCount} ${post.commentCount === 1 ? 'comentário' : 'comentários'}</span>
     </div>
     <div class="post-interactions compact-interactions">
@@ -125,6 +135,7 @@ export function composerSheet(state) {
   if (!draft) return '';
   const scope = publishScopeOf(state.profile);
   const churches = state.churchOptions || [];
+  const communities = state.communities || [];
   const home = state.profile?.home_church_id;
   return `<div class="sheet-backdrop" data-sheet-close>
     <form class="sheet post-composer" id="post-form" role="dialog" aria-modal="true" aria-labelledby="post-sheet-title">
@@ -134,6 +145,11 @@ export function composerSheet(state) {
       <label class="sheet-field">Mensagem<textarea id="post-body" name="body" rows="5" maxlength="4000" required placeholder="Partilhe as novidades com a sua comunidade…">${escapeHtml(draft.body || '')}</textarea></label>
       <p class="sheet-hint">${icon('play', { size: 14 })}Para partilhar um vídeo, cole o link do YouTube na mensagem: aparece com a imagem do vídeo.</p>
       ${emojiTools('post-body')}
+      ${communities.length ? `<label class="sheet-field">Comunidade (opcional)<select name="community_id">
+        <option value="">Para toda a gente</option>
+        ${communities.map((community) => `<option value="${escapeHtml(community.id)}" ${draft.communityId === community.id ? 'selected' : ''}>${escapeHtml(community.name)}</option>`).join('')}
+      </select></label>
+      <p class="sheet-hint">${icon('users', { size: 14 })}A comunidade é uma etiqueta: o anúncio continua a ser lido por todos, e quem procura só o ML ou o Grupo Jovem encontra-o pela etiqueta.</p>` : ''}
       ${scope === 'global'
         ? `<label class="sheet-field">Para quem<select name="church_id">
             <option value="">Toda a ISTN</option>
@@ -156,30 +172,117 @@ export function composerSheet(state) {
   </div>`;
 }
 
-export function highlightSection(state) {
-  if (!state.posts?.length) return '';
-  const mine = visiblePosts(state.posts, { churchDbId: state.myChurchDbId }).filter((post) => isHighlighted(post));
-  if (!mine.length) return '';
+// The feed on the home page, as the team asked: every announcement, highlighted
+// or not, newest first — the highlighted ones simply come at the top. Five is
+// what fits before the rest of the home page; the link opens the whole feed.
+const HOME_FEED = 5;
+
+export function feedSection(state) {
+  if (state.postsError) return '';
+  const mine = state.posts ? sortPosts(visiblePosts(state.posts, { churchDbId: state.myChurchDbId })) : null;
+  const body = mine === null
+    ? loadingState('A carregar os anúncios…')
+    : `<div class="post-list">${mine.slice(0, HOME_FEED).map((post) => postCard(state, post)).join('')}</div>
+      ${mine.length > HOME_FEED ? `<a class="button button-outline full-width" href="/anuncios">Ver todos os anúncios${icon('arrowRight', { size: 18 })}</a>` : ''}`;
+  if (mine && !mine.length) {
+    if (!canPublish(state.profile)) return '';
+    return `<section class="content-section">
+      ${sectionHeading('Da comunidade', 'Anúncios')}
+      ${composerButton(state)}
+    </section>`;
+  }
   return `<section class="content-section">
-    ${sectionHeading('Em destaque', mine.length === 1 ? 'Anúncio' : 'Anúncios', '<a class="link-button" href="/anuncios">Ver todos</a>')}
-    <div class="post-list">${mine.slice(0, 2).map((post) => postCard(state, post)).join('')}</div>
+    ${sectionHeading('Da comunidade', 'Anúncios', '<a class="link-button" href="/anuncios">Ver todos</a>')}
+    ${composerButton(state)}
+    ${body}
   </section>`;
 }
 
+// Who reacted, by name — the same gesture as on Facebook: tap "12 reações" and
+// the people are there, with tabs for each reaction. The list is fetched only
+// when it is opened, so the feed itself stays light.
+function reactionPerson(person) {
+  const name = authorName(person);
+  const photo = safeUrl(person.photo_url);
+  const reaction = reactionFor(person.kind);
+  const initials = name.trim().split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join('').toUpperCase();
+  return `<li>
+    <span class="post-avatar">${photo ? `<img src="${escapeHtml(photo)}" alt="" loading="lazy" />` : `<span>${escapeHtml(initials || '·')}</span>`}</span>
+    <strong>${escapeHtml(name)}${person.verified ? verifiedSeal(person.servo_role) : ''}</strong>
+    ${reaction ? `<span class="reaction-person-mark ${reaction.special ? 'is-special' : ''}" title="${escapeHtml(reaction.label)}"><span aria-hidden="true">${reaction.emoji}</span><span class="sr-only">${escapeHtml(reaction.label)}</span></span>` : ''}
+  </li>`;
+}
+
+export function reactionSheet(state) {
+  const open = state.reactionSheet;
+  if (!open) return '';
+  const post = state.posts?.find((item) => item.id === open.id);
+  const people = state.reactionPeople?.[open.id];
+  const groups = reactionGroups(people || []);
+  const chosen = groups.some((group) => group.reaction.kind === open.kind) ? open.kind : '';
+  const shown = chosen ? groups.find((group) => group.reaction.kind === chosen).people : (people || []);
+  const total = people ? people.length : (post?.reactionTotal || 0);
+
+  let body;
+  if (people === undefined) body = loadingState('A ver quem reagiu…');
+  else if (people === null) body = errorState('Não foi possível ver quem reagiu.', 'retry-reactions');
+  else if (!people.length) body = '<p class="hint">Ainda ninguém reagiu a este anúncio.</p>';
+  else {
+    const tab = (kind, label, count, special = false) => `<button class="chip ${special ? 'is-special' : ''}" type="button" data-action="reaction-tab" data-kind="${escapeHtml(kind)}" aria-pressed="${chosen === kind}">
+      <strong>${label}</strong><small>${count}</small></button>`;
+    body = `<div class="chip-row" role="group" aria-label="Filtrar por reação">
+        ${tab('', 'Todas', people.length)}
+        ${groups.map((group) => tab(group.reaction.kind, `<span aria-hidden="true">${group.reaction.emoji}</span><span class="sr-only">${escapeHtml(group.reaction.label)}</span>`, group.people.length, group.reaction.special)).join('')}
+      </div>
+      <ul class="reaction-people">${shown.map(reactionPerson).join('')}</ul>`;
+  }
+
+  return `<div class="sheet-backdrop" data-reactions-close>
+    <div class="sheet reaction-sheet" role="dialog" aria-modal="true" aria-labelledby="reaction-sheet-title">
+      <span class="sheet-grip" aria-hidden="true"></span>
+      <div class="composer-heading">
+        <div><span class="eyebrow">QUEM REAGIU</span><h2 id="reaction-sheet-title">${total} ${total === 1 ? 'reação' : 'reações'}</h2></div>
+        <button class="icon-button" type="button" data-reactions-close aria-label="Fechar">${icon('close')}</button>
+      </div>
+      ${body}
+    </div>
+  </div>`;
+}
+
+// One chip per community, with how many announcements each has right now, so
+// nobody taps a filter that answers with an empty page.
+function communityFilters(state) {
+  const communities = state.communities || [];
+  if (!communities.length || !state.posts) return '';
+  const mine = visiblePosts(state.posts, { churchDbId: state.myChurchDbId });
+  const chosen = state.postCommunity || '';
+  const chip = (id, label, count) => `<button class="chip" type="button" data-action="filter-community" data-id="${escapeHtml(id)}" aria-pressed="${chosen === id}">
+    <strong>${escapeHtml(label)}</strong><small>${count}</small></button>`;
+  return `<div class="chip-row" role="group" aria-label="Filtrar por comunidade">
+    ${chip('', 'Todos', mine.length)}
+    ${communities.map((community) => chip(community.id, community.shortName || community.name,
+      mine.filter((post) => post.communityId === community.id).length)).join('')}
+  </div>`;
+}
+
 export function postsPage(state) {
+  const community = (state.communities || []).find((item) => item.id === state.postCommunity) || null;
   let content;
   if (state.postsError) content = errorState('Não foi possível carregar os anúncios.', 'retry-posts');
   else if (!state.posts) content = loadingState('A carregar os anúncios…');
   else {
-    const list = visiblePosts(state.posts, { churchDbId: state.myChurchDbId });
+    const list = sortPosts(visiblePosts(state.posts, { churchDbId: state.myChurchDbId, community: state.postCommunity }));
     content = list.length
       ? `<div class="post-list">${list.map((post) => postCard(state, post)).join('')}</div>`
-      : emptyState({ title: 'Ainda não há anúncios', text: 'Quando a equipa publicar algo, aparece aqui.' });
+      : community
+        ? emptyState({ title: `Ainda não há anúncios do ${community.name}`, text: 'Assim que houver, aparecem aqui.', action: '<button class="button button-dark" type="button" data-action="filter-community" data-id="">Ver todos os anúncios</button>' })
+        : emptyState({ title: 'Ainda não há anúncios', text: 'Quando a equipa publicar algo, aparece aqui.' });
   }
   const body = `<section class="page-intro"><span class="eyebrow">ISTN-SJ</span><h1>A nossa comunidade.</h1><p>Novidades, encontros e momentos que nos aproximam.</p></section>
     ${composerButton(state)}
+    ${communityFilters(state)}
     ${content}`;
-  return page('posts', { title: 'Anúncios', back: 'home', body }) + composerSheet(state);
+  return page('posts', { title: 'Anúncios', back: 'home', body }) + composerSheet(state) + reactionSheet(state);
 }
 
 function commentList(state, post) {
@@ -238,7 +341,7 @@ export function postPage(state, id) {
       ${commentForm(state, post)}
       ${commentList(state, post)}
     </section>`;
-  return page('post', { ...back, body }) + composerSheet(state);
+  return page('post', { ...back, body }) + composerSheet(state) + reactionSheet(state);
 }
 
 // Kept next to the feed: the home page's "A minha ISTN" card and this page both

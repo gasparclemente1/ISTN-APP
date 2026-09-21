@@ -17,7 +17,7 @@ const state = {
   query: '', filter: 'todas', editing: null, meeting: null, servo: null, uploading: false,
   servos: null, services: null, busy: false,
   audit: null, auditNames: {}, auditTable: '', auditHasMore: false,
-  posts: null, postComments: null, postAuthors: null, publishers: null
+  posts: null, postComments: null, postAuthors: null, publishers: null, communities: null
 };
 
 function readSession() {
@@ -156,14 +156,16 @@ async function loadAudit({ more = false } = {}) {
 // Announcements, the comments on them, and who was granted the right to
 // publish. A local editor sees and moderates only their own church's.
 async function loadFeed() {
-  const [posts, comments, authors] = await Promise.all([
-    rest('posts?select=id,title,body,church_id,highlighted,highlight_until,hidden,published_at,author_id&order=published_at.desc&limit=100'),
+  const [posts, comments, authors, communities] = await Promise.all([
+    rest('posts?select=id,title,body,church_id,community_id,highlighted,highlight_until,hidden,published_at,author_id&order=published_at.desc&limit=100'),
     rest('post_comments?select=id,post_id,author_id,body,hidden,created_at&order=created_at.desc&limit=100'),
-    rest('post_authors?select=id,display_name,photo_url,servo_role,verified').catch(() => [])
+    rest('post_authors?select=id,display_name,photo_url,servo_role,verified').catch(() => []),
+    rest('communities?select=id,name,short_name&order=sort_order.asc').catch(() => [])
   ]);
   state.posts = posts;
   state.postComments = comments;
   state.postAuthors = new Map((authors || []).map((author) => [author.id, author]));
+  state.communities = communities || [];
 }
 
 async function loadPublishers() {
@@ -387,6 +389,7 @@ function feedView() {
   if (!state.posts) return '<p class="admin-empty">A carregar…</p>';
   const authorOf = (id) => authorName(state.postAuthors?.get(id)) || 'Sem nome';
   const scopeOf = (post) => (post.church_id ? churchLabel(post.church_id) : 'Toda a ISTN');
+  const communityOf = (post) => (state.communities || []).find((community) => community.id === post.community_id)?.name || '';
   const comments = (state.postComments || []).filter((comment) => state.posts.some((post) => post.id === comment.post_id));
 
   return `<div class="admin-card">
@@ -396,7 +399,7 @@ function feedView() {
       <div class="admin-row-wide">
         <span>
           <strong>${escapeHtml(post.title || post.body.slice(0, 60))}${post.hidden ? ' · escondido' : ''}</strong>
-          <small>${escapeHtml(authorOf(post.author_id))} · ${escapeHtml(scopeOf(post))} · ${escapeHtml(formatPostDate(post.published_at))}</small>
+          <small>${escapeHtml([authorOf(post.author_id), scopeOf(post), communityOf(post), formatPostDate(post.published_at)].filter(Boolean).join(' · '))}</small>
         </span>
         <span class="admin-row-actions">
           ${post.highlighted ? '<span class="status-badge verified">Em destaque</span>' : ''}
