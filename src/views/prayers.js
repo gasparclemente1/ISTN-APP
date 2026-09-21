@@ -14,37 +14,50 @@ import { icon } from '../icons.js';
 import { prefs } from '../prefs.js';
 import { canManagePrayers, filterPrayers, formatDuration, prayersByTheme } from '../prayers.js';
 import { emptyState, errorState, loadingState, page, sectionHeading } from './shared.js';
+import { actionMenu } from './posts.js';
 
 const busy = (state, id) => Boolean(state.prayerBusy?.[id]);
 
+// Uma linha só, e não três botões de largura inteira: são estas as três coisas
+// que se fazem a uma oração, e o cartão existe para se ver muitas de uma vez.
+// «Partilhar» leva palavra e cor, por ser o que se vem cá fazer; transferir é
+// um ícone, com o nome dito a quem o não vê.
 function prayerActions(state, prayer, { full = false } = {}) {
   const id = escapeHtml(prayer.id);
   const sounding = state.prayerPlaying === prayer.id;
   const working = busy(state, prayer.id);
   return `<div class="prayer-actions">
-    <button class="button button-outline" type="button" data-action="play-prayer" data-id="${id}" data-focus-key="play-prayer:${id}" aria-pressed="${sounding}">
-      ${icon(sounding ? 'pause' : 'play', { size: 18 })}${sounding ? 'A tocar' : 'Ouvir'}
+    <button class="prayer-action" type="button" data-action="play-prayer" data-id="${id}" data-focus-key="play-prayer:${id}" aria-pressed="${sounding}">
+      ${icon(sounding ? 'pause' : 'play', { size: 17 })}<span>${sounding ? 'A tocar' : 'Ouvir'}</span>
     </button>
-    <button class="button button-gold" type="button" data-action="share-prayer" data-id="${id}" data-focus-key="share-prayer:${id}" ${working ? 'disabled' : ''}>
-      ${icon('share', { size: 18 })}${working ? 'A preparar…' : 'Partilhar'}
+    <button class="prayer-action is-primary" type="button" data-action="share-prayer" data-id="${id}" data-focus-key="share-prayer:${id}" ${working ? 'disabled' : ''}>
+      ${icon('share', { size: 17 })}<span>${working ? 'A preparar…' : 'Partilhar'}</span>
     </button>
-    <button class="button button-outline" type="button" data-action="download-prayer" data-id="${id}" data-focus-key="download-prayer:${id}" ${working ? 'disabled' : ''}>
-      ${icon('download', { size: 18 })}Transferir
-    </button>
+    <button class="prayer-action is-icon" type="button" data-action="download-prayer" data-id="${id}" data-focus-key="download-prayer:${id}" ${working ? 'disabled' : ''}
+      aria-label="Transferir o áudio" title="Transferir o áudio">${icon('download', { size: 17 })}</button>
     ${full && prefs.isSavedPrayer(prayer.id)
-      ? `<button class="text-button" type="button" data-action="drop-prayer" data-id="${id}">Remover deste telemóvel</button>` : ''}
+      ? `<button class="prayer-action is-icon" type="button" data-action="drop-prayer" data-id="${id}" aria-label="Remover deste telemóvel" title="Remover deste telemóvel">${icon('eyeOff', { size: 17 })}</button>` : ''}
   </div>`;
 }
 
+function manageMenu(state, prayer) {
+  if (!canManagePrayers(state.profile, state.admin)) return '';
+  return actionMenu(prayer.id, 'Opções desta oração', [
+    `<button type="button" data-action="edit-prayer" data-id="${escapeHtml(prayer.id)}">${icon('edit', { size: 16 })}Editar</button>`,
+    `<button type="button" data-action="hide-prayer" data-id="${escapeHtml(prayer.id)}">${icon('eyeOff', { size: 16 })}Esconder</button>`,
+    `<button type="button" class="danger" data-action="delete-prayer" data-id="${escapeHtml(prayer.id)}">${icon('close', { size: 16 })}Eliminar</button>`
+  ]);
+}
+
 function prayerCard(state, prayer) {
-  const kept = prefs.isSavedPrayer(prayer.id);
   return `<article class="prayer-card ${state.prayerPlaying === prayer.id ? 'is-playing' : ''}">
+    ${manageMenu(state, prayer)}
     <a class="prayer-open" href="/oracoes/${escapeHtml(prayer.id)}">
       <h3>${escapeHtml(prayer.title)}</h3>
       <p class="prayer-meta">
         ${prayer.theme ? `<span class="prayer-theme">${escapeHtml(prayer.theme.name)}</span>` : ''}
         ${prayer.duration ? `<span>${icon('clock', { size: 14 })}${escapeHtml(formatDuration(prayer.duration))}</span>` : ''}
-        ${kept ? `<span class="prayer-kept">${icon('check', { size: 14 })}No telemóvel</span>` : ''}
+        ${prefs.isSavedPrayer(prayer.id) ? `<span class="prayer-kept">${icon('check', { size: 14 })}No telemóvel</span>` : ''}
       </p>
       ${prayer.description ? `<p class="prayer-note">${escapeHtml(prayer.description)}</p>` : ''}
     </a>
@@ -100,6 +113,7 @@ export function prayersPage(state) {
         : 'Assim que a equipa publicar as orações do Profeta, aparecem aqui.'
     });
   } else content = `${themeChips(state)}${prayerResults(state)}`;
+  const addable = canManagePrayers(state.profile, state.admin);
 
   const body = `<section class="page-intro">
       <span class="eyebrow">ISTN-SJ</span>
@@ -108,7 +122,12 @@ export function prayersPage(state) {
     </section>
     <label class="search-box"><span class="sr-only">Procurar uma oração</span>${icon('search', { size: 22 })}<input id="prayer-search" type="search" value="${escapeHtml(state.prayerFilters?.query || '')}" placeholder="O que a pessoa está a viver: doença, coma, finanças…" autocomplete="off" enterkeyhint="search" data-focus-key="prayer-search" /></label>
     ${content}`;
-  return page('prayers', { title: 'Orações', back: 'home', body });
+  return page('prayers', {
+    title: 'Orações',
+    back: 'home',
+    action: addable ? `<button class="icon-button" type="button" data-action="new-prayer" aria-label="Acrescentar uma oração">${icon('plus', { size: 22 })}</button>` : '',
+    body
+  }) + prayerSheet(state);
 }
 
 export function prayerPage(state, id) {
@@ -136,7 +155,42 @@ export function prayerPage(state, id) {
       ${sectionHeading('No mesmo tema', prayer.theme?.name || 'Outras orações', '<a class="link-button" href="/oracoes">Ver todas</a>')}
       <div class="prayer-list">${others.map((item) => prayerCard(state, item)).join('')}</div>
     </section>` : ''}`;
-  return page('prayer', { ...back, body });
+  return page('prayer', { ...back, body }) + prayerSheet(state);
+}
+
+// Acrescentar ou corrigir uma oração sem abrir o painel: quem grava está com o
+// telemóvel na mão, e o ficheiro está nele.
+export function prayerSheet(state) {
+  const draft = state.prayerDraft;
+  if (!draft) return '';
+  const themes = state.prayerThemes || [];
+  const working = state.prayerSaving || state.prayerUploading;
+  return `<div class="sheet-backdrop" data-prayer-close>
+    <form class="sheet prayer-composer" id="prayer-sheet" role="dialog" aria-modal="true" aria-labelledby="prayer-sheet-title">
+      <span class="sheet-grip" aria-hidden="true"></span>
+      <div class="composer-heading">
+        <div><span class="eyebrow">ORAÇÃO DO PROFETA ELIAS</span><h2 id="prayer-sheet-title">${draft.id ? 'Editar oração' : 'Nova oração'}</h2></div>
+        <button class="icon-button" type="button" data-prayer-close aria-label="Fechar" ${working ? 'disabled' : ''}>${icon('close')}</button>
+      </div>
+      <label class="sheet-field">Título<input type="text" name="title" value="${escapeHtml(draft.title || '')}" required maxlength="120" placeholder="Oração pelos enfermos" data-focus-key="prayer-title" /></label>
+      <label class="sheet-field">Tema<select name="theme_id">
+        <option value="">— sem tema —</option>
+        ${themes.map((theme) => `<option value="${escapeHtml(theme.id)}" ${draft.themeId === theme.id ? 'selected' : ''}>${escapeHtml(theme.name)}</option>`).join('')}
+      </select></label>
+      <label class="sheet-field">Em que caso se usa <small>(é por aqui que se procura)</small>
+        <input type="text" name="description" value="${escapeHtml(draft.description || '')}" maxlength="180" placeholder="Para quem está internado ou em coma" /></label>
+      <label class="prayer-file-pick">
+        ${icon('play', { size: 26 })}
+        <strong>${state.prayerUploading ? 'A enviar a gravação…' : draft.fileName ? escapeHtml(draft.fileName) : draft.audioUrl ? 'Substituir a gravação' : 'Escolher a gravação'}</strong>
+        <span>${draft.duration ? escapeHtml(formatDuration(draft.duration)) : 'MP3, M4A, AAC, OGG ou WAV · até 25 MB'}</span>
+        <input type="file" accept="audio/mpeg,audio/mp4,audio/x-m4a,audio/aac,audio/ogg,audio/wav" data-prayer-file ${working ? 'disabled' : ''} />
+      </label>
+      <div class="sheet-actions">
+        <button class="button button-gold full-width" type="submit" ${working ? 'disabled' : ''}>${state.prayerSaving ? 'A guardar…' : 'Guardar'}</button>
+        <button class="text-button" type="button" data-prayer-close ${working ? 'disabled' : ''}>Cancelar</button>
+      </div>
+    </form>
+  </div>`;
 }
 
 // The address a shared prayer points at, and what the page tells whoever opens it.

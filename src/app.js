@@ -2,9 +2,10 @@
 // by the modules in ./views from the state kept here.
 import { APP_CONFIG, backendConfig, loadDirectory, loadLatestVideos, loadMeetings, loadPosts, loadPrayers, loadTeachingLibrary } from './data.js';
 import {
-  addComment, addFavorite, addPostImages, availableProviders, createPost, deletePost, finishSocialSignIn, loadChurchOptions,
+  addComment, addFavorite, addPostImages, availableProviders, createPost, createPrayer, deletePost, deletePrayer,
+  finishSocialSignIn, hideComment, hidePost, hidePrayer, loadAdminProfile, loadChurchOptions,
   loadComments, loadFavorites, loadMyReactions, loadPerson, loadPostAuthors, loadProfile, loadReactionPeople, readSession, register, removeFavorite,
-  saveProfile, setReaction, signIn, signInWithProvider, signOut, updatePost
+  saveProfile, setReaction, signIn, signInWithProvider, signOut, updatePost, updatePrayer
 } from './account.js';
 import { announce, copyText, debounce, renderInto, toast } from './dom.js';
 import { churchTitle, filterChurches, findChurch } from './directory.js';
@@ -12,11 +13,11 @@ import { filterTeachings } from './library.js';
 import { nextMeeting } from './meetings.js';
 import { rankPrefixOf } from './roles.js';
 import { prefs } from './prefs.js';
-import { authorName, canPublish, postShareText, publishScopeOf, visiblePosts } from './posts.js';
-import { filterPrayers } from './prayers.js';
+import { authorName, canModerate, canPublish, postShareText, publishScopeOf, visiblePosts } from './posts.js';
+import { canManagePrayers, filterPrayers } from './prayers.js';
 import { dropPrayer, downloadPrayer, sharePrayer } from './prayer-audio.js';
 import { onPlayerChange, playPrayer, whenPlaybackFails } from './player.js';
-import { uploadPhoto } from './upload.js';
+import { audioDuration, uploadAudio, uploadPhoto } from './upload.js';
 import { registerServiceWorker } from './pwa.js';
 import { startRouter } from './router.js';
 import { churchPage, churchResults, churchShareText, churchesPage } from './views/churches.js';
@@ -40,7 +41,8 @@ const state = {
   meetings: null, meetingsError: false,
   posts: null, postsError: false, comments: {}, postAuthors: null, myReactions: {},
   communities: [], postCommunity: '', reactionSheet: null, reactionPeople: {},
-  people: {},
+  people: {}, admin: null,
+  prayerDraft: null, prayerSaving: false, prayerUploading: false,
   prayers: null, prayersError: false, prayerThemes: [], prayerFilters: { query: '', theme: '' },
   prayerBusy: {}, prayerPlaying: '',
   commentDrafts: {}, reactionSaving: {}, postDraft: null, postSaving: false, postUploading: false, commentSaving: false,
@@ -257,6 +259,9 @@ function askForNameIfMissing() {
 async function afterSignIn(session) {
   state.session = session;
   state.profile = await loadProfile(session);
+  // Who on the team this is, so the app can offer what the panel offers —
+  // where the thing being moderated actually is.
+  loadAdminProfile(session).then((admin) => { state.admin = admin; render(); }).catch(() => {});
   syncMyChurchFromProfile();
   ensureChurchOptions();
   askForNameIfMissing();
@@ -404,6 +409,46 @@ const actions = {
       .then(() => { toast('Anúncio eliminado.'); router.go('/anuncios'); return refreshPosts({ fresh: true }); })
       .catch((error) => toast(error.message));
   },
+  // Esconder é reversível e fica registado; eliminar não. Por isso a equipa
+  // esconde a partir daqui e repõe no painel, onde a linha escondida continua
+  // à vista.
+  'hide-post': (element) => {
+    if (!window.confirm('Esconder este anúncio? Deixa de aparecer na aplicação. Pode repô-lo no painel.')) return;
+    hidePost(element.dataset.id, true, state.session)
+      .then(() => { toast('Anúncio escondido. Pode repô-lo no painel.'); return refreshPosts({ fresh: true }); })
+      .catch((error) => toast(error.message));
+  },
+  'hide-comment': (element) => {
+    const postId = state.route.params.id;
+    hideComment(element.dataset.id, true, state.session)
+      .then(() => loadComments(postId))
+      .then((comments) => { state.comments = { ...state.comments, [postId]: comments }; toast('Comentário escondido.'); render(); })
+      .catch((error) => toast(error.message));
+  },
+
+  // ------------------------------------------ orações, por quem as trata --
+  'new-prayer': () => {
+    if (!canManagePrayers(state.profile, state.admin)) { toast('Só a equipa pode acrescentar orações.'); return; }
+    state.prayerDraft = { title: '', description: '', themeId: state.prayerFilters.theme || '', audioUrl: '', duration: 0, bytes: 0 };
+    render();
+  },
+  'edit-prayer': (element) => {
+    const prayer = findPrayer(element.dataset.id);
+    if (prayer) { state.prayerDraft = { ...prayer }; render(); }
+  },
+  'hide-prayer': (element) => {
+    if (!window.confirm('Esconder esta oração? Deixa de aparecer na aplicação. Pode repô-la no painel.')) return;
+    hidePrayer(element.dataset.id, true, state.session)
+      .then(() => { toast('Oração escondida.'); return refreshPrayers(); })
+      .catch((error) => toast(error.message));
+  },
+  'delete-prayer': (element) => {
+    if (!window.confirm('Eliminar esta oração? O áudio deixa de estar disponível para quem já tem o link. Esconder é reversível.')) return;
+    deletePrayer(element.dataset.id, state.session)
+      .then(() => { toast('Oração eliminada.'); router.go('/oracoes'); return refreshPrayers(); })
+      .catch((error) => toast(error.message));
+  },
+
   'drop-image': (element) => {
     if (!state.postDraft || state.postUploading || state.postSaving) return;
     const index = Number(element.dataset.index);
@@ -609,6 +654,10 @@ function rememberPostDraft(form) {
 }
 for (const eventName of ['input', 'change']) {
   app.addEventListener(eventName, (event) => {
+    if (event.target.form?.id === 'prayer-sheet' && state.prayerDraft) {
+      const values = Object.fromEntries(new FormData(event.target.form).entries());
+      Object.assign(state.prayerDraft, { title: values.title || '', description: values.description || '', themeId: values.theme_id || '' });
+    }
     if (event.target.form?.id === 'post-form') rememberPostDraft(event.target.form);
     if (event.target.form?.id === 'comment-form' && event.target.name === 'body') {
       state.commentDrafts[event.target.form.dataset.id] = event.target.value;
@@ -682,6 +731,67 @@ app.addEventListener('keydown', (event) => {
     const first = fields[0], last = fields[fields.length - 1];
     if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
     else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+  }
+});
+
+app.addEventListener('click', (event) => {
+  const closer = event.target.closest('[data-prayer-close]');
+  if (!closer || state.prayerSaving || state.prayerUploading) return;
+  if (event.target === closer || closer.tagName === 'BUTTON') { state.prayerDraft = null; render(); }
+});
+
+// The recording itself, and its length read from it: nobody should count
+// minutes by hand, and a number typed wrong misleads whoever chooses what to
+// send.
+app.addEventListener('change', async (event) => {
+  if (!event.target.matches('[data-prayer-file]') || !state.prayerDraft) return;
+  const file = event.target.files?.[0];
+  if (!file) return;
+  state.prayerDraft.file = file;
+  state.prayerDraft.fileName = file.name;
+  state.prayerDraft.duration = (await audioDuration(file)) || 0;
+  if (!state.prayerDraft.title.trim()) {
+    state.prayerDraft.title = file.name.replace(/\.[^.]+$/, '').replace(/[-_]+/g, ' ').trim();
+  }
+  render();
+});
+
+app.addEventListener('submit', async (event) => {
+  if (event.target.id !== 'prayer-sheet') return;
+  event.preventDefault();
+  const draft = state.prayerDraft;
+  if (!draft || state.prayerSaving || state.prayerUploading) return;
+  const values = Object.fromEntries(new FormData(event.target).entries());
+  const title = (values.title || '').trim();
+  if (!title) { toast('Dê um título à oração.'); return; }
+  if (!draft.file && !draft.audioUrl) { toast('Escolha a gravação.'); return; }
+  try {
+    let audio = { url: draft.audioUrl, bytes: draft.bytes };
+    if (draft.file) {
+      state.prayerUploading = true; render();
+      audio = await uploadAudio(draft.file, state.session);
+    }
+    state.prayerUploading = false;
+    state.prayerSaving = true; render();
+    const fields = {
+      title,
+      description: (values.description || '').trim() || null,
+      theme_id: values.theme_id || null,
+      audio_url: audio.url,
+      duration_seconds: draft.duration || null,
+      file_bytes: audio.bytes || null
+    };
+    if (draft.id) await updatePrayer(draft.id, fields, state.session);
+    else await createPrayer(fields, state.session);
+    state.prayerDraft = null;
+    toast(draft.id ? 'Oração guardada.' : 'Oração publicada.');
+    await refreshPrayers();
+  } catch (error) {
+    toast(error.message);
+  } finally {
+    state.prayerUploading = false;
+    state.prayerSaving = false;
+    render();
   }
 });
 

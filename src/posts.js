@@ -130,6 +130,15 @@ export function publishScopeOf(profile) {
 }
 
 export const canPublish = (profile) => publishScopeOf(profile) !== 'nenhum';
+
+// Hiding and deleting what others wrote: the central team anywhere, a local
+// editor within their own church. The same rule the database enforces
+// (can_moderate, migration 009), written here only to decide what to offer.
+export function canModerate(admin, post = null) {
+  if (!admin) return false;
+  if (admin.role === 'central') return true;
+  return Boolean(admin.church_id) && post?.churchId === admin.church_id;
+}
 export const canComment = (profile) => isVerifiedServant(profile);
 
 export function formatPostDate(value, now = new Date()) {

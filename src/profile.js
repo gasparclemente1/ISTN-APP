@@ -131,6 +131,19 @@ export function profileView({ state, escapeHtml, header, navigation, extraSectio
 
     ${extraSection}
 
+    ${state.admin ? `<section class="menu-group">
+      <h2 class="menu-heading">Equipa ISTN-SJ</h2>
+      <ul class="menu-list">
+        <li><a class="menu-row" href="/admin" data-external>
+          <span class="menu-icon tone-blue">${svg('badge')}</span>
+          <span class="menu-label">Painel de administração</span>
+          <span class="menu-value">${escapeHtml(state.admin.role === 'central' ? 'Equipa central' : 'Editor local')}</span>
+          <span class="menu-chevron">${svg('chevron', 16)}</span>
+        </a></li>
+      </ul>
+      <p class="menu-footnote">Os anúncios e as orações tratam-se na própria aplicação, onde estão. O painel é para o diretório, as reuniões, os pedidos e o histórico.</p>
+    </section>` : ''}
+
     <section class="menu-group">
       <h2 class="menu-heading">Conta</h2>
       <ul class="menu-list">
@@ -450,7 +463,7 @@ export function bindProfile({ state, render, showToast }) {
 
   document.querySelector('[data-profile-signout]')?.addEventListener('click', () => {
     signOut();
-    state.session = null; state.profile = null; state.profileSheet = null;
+    state.session = null; state.profile = null; state.admin = null; state.profileSheet = null;
     render();
     showToast('Sessão terminada.');
   });

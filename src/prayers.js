@@ -91,6 +91,8 @@ export function prayerShareText(prayer, url = '') {
   return lines.join('\n');
 }
 
-export const canManagePrayers = (profile) => Boolean(profile)
-  && (profile.publish_scope === 'global'
-    || (profile.servo_claim_status === 'aprovado' && profile.servo?.role === 'apostolo'));
+// The same three the database allows (can_manage_prayers): the central team,
+// the Apóstolo, and whoever the team authorised to publish for the whole ISTN.
+export const canManagePrayers = (profile, admin = null) => admin?.role === 'central'
+  || (Boolean(profile) && (profile.publish_scope === 'global'
+    || (profile.servo_claim_status === 'aprovado' && profile.servo?.role === 'apostolo')));
