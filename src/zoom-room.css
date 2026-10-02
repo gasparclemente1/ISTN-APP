@@ -1,0 +1,16 @@
+body { margin: 0; background: #f5f3ee; }
+#live-lobby { box-sizing: border-box; max-width: 560px; margin: 6vh auto; padding: 32px; color: #153b47; background: white; border: 1px solid #e5e5dc; border-radius: 24px; font: 16px/1.6 system-ui, sans-serif; }
+#live-lobby h1 { font-size: 32px; line-height: 1.15; letter-spacing: -.8px; }
+#live-lobby a { color: #255b70; text-underline-offset: 4px; }
+#live-lobby .room-eyebrow { margin-top: 32px; color: #816525; font-size: 12px; letter-spacing: 2px; font-weight: 700; }
+#live-lobby ol { padding-left: 22px; }
+#live-lobby li { margin: 14px 0; }
+#live-lobby label { display: block; font-weight: 600; }
+#live-lobby input, #live-lobby button { box-sizing: border-box; width: 100%; min-height: 48px; margin-top: 8px; padding: 12px; font: inherit; border: 1px solid #bac8cd; border-radius: 10px; }
+#live-lobby button { margin-top: 16px; border: none; background: #dfc180; color: #142e39; font-weight: 700; cursor: pointer; }
+#live-lobby button:disabled { opacity: .6; cursor: wait; }
+#live-lobby :focus-visible { outline: 3px solid #2c788f; outline-offset: 3px; }
+#live-lobby .room-note { font-size: 14px; color: #546b72; }
+#live-lobby [hidden], #live-lobby[hidden] { display: none !important; }
+body:not(.room-joining) #zmmtg-root { display: none; }
+@media (max-width: 600px) { #live-lobby { margin: 12px; padding: 24px; } }

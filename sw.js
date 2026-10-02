@@ -45,7 +45,7 @@ async function cacheFirst(request) {
 
 // Never answered from a cache: an old Zoom link or an old calendar would send
 // people to the wrong place, and the panel must always run the latest code.
-const NETWORK_ONLY = /^\/(admin|src\/admin|api\/meetings|api\/config|calendario\.ics|healthz)/;
+const NETWORK_ONLY = /^\/(admin|src\/admin|sala\.html|api\/zoom\/|api\/meetings|api\/config|calendario\.ics|healthz)/;
 
 self.addEventListener('fetch', (event) => {
   const { request } = event;
