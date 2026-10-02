@@ -1,5 +1,13 @@
 # Live System
 
+## Participation inside the App
+
+The optional Zoom Meeting SDK integration lets attendees join the same Zoom
+meeting inside the App and use Zoom's raise-hand and audio/video controls.
+See [setup, moderation and acceptance test](zoom-setup.md) before enabling it.
+The host moderates in Zoom. Credentials and an explicit meeting allow-list are
+required; without them the existing external Zoom links remain in use.
+
 ## Known operating pattern
 Profeta Elias holds Zoom meetings every day. The schedule supplied by the project
 owner on 2026-09-15, in Africa/Luanda time, is:

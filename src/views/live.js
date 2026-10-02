@@ -61,7 +61,9 @@ export function liveCard(state, now = new Date()) {
     <p class="live-countdown" data-countdown="${next.start.toISOString()}" data-live="${next.isLive}">${escapeHtml(liveStatus(next, now))}</p>
     ${untimedNote(state.meetings, now)}
     <div class="live-actions">
-      ${next.isLive && zoom
+      ${next.isLive && next.meeting.zoom_embedded
+        ? `<a class="button button-dark" href="/sala.html?meeting=${encodeURIComponent(next.meeting.id)}" data-external>${icon('live', { size: 18 })}Participar na live</a><a class="text-button" href="/ao-vivo">Ver reunião</a>`
+        : next.isLive && zoom
         ? `<a class="button button-dark" ${externalLinkAttrs(zoom)}>${icon('external', { size: 18 })}Entrar no Zoom${externalHint}</a><a class="text-button" href="/ao-vivo">ID e senha</a>`
         : `<a class="button button-light" href="/ao-vivo">${next.isLive ? 'Entrar na reunião' : 'Ver reunião'}${icon('arrowRight', { size: 18 })}</a>${calendarActions({ compact: true })}`}
     </div>
@@ -84,6 +86,8 @@ function joinPanel(next) {
   return `<section class="join-panel" aria-labelledby="join-title">
     <h2 id="join-title">Entrar na reunião</h2>
     ${room ? `<p>${escapeHtml(room.title)}</p>` : '<p>Não há reunião marcada.</p>'}
+    ${room?.zoom_embedded ? `<a class="button button-gold full-width" href="/sala.html?meeting=${encodeURIComponent(room.id)}" data-external>${icon('live', { size: 18 })}Participar aqui na App</a>
+      <p class="hint">Assista à reunião e use «Levantar a mão» para pedir a palavra ao responsável.</p>` : ''}
     ${zoom
       ? `<a class="button button-gold full-width" ${externalLinkAttrs(zoom)}>${icon('external', { size: 18 })}Entrar no Zoom${externalHint}</a>
          <dl class="credentials">${credential('ID da reunião', 'o ID da reunião', room.zoom_meeting_id)}${credential('Senha', 'a senha', room.zoom_passcode)}</dl>`

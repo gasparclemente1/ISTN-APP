@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="pt-PT">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#052b3a" />
+    <meta name="robots" content="noindex" />
+    <title>Participar na live · ISTN-SJ</title>
+    <link rel="icon" href="/design/assets/icons/icon-192.png" />
+    <link rel="stylesheet" href="/src/zoom-room.css" />
+  </head>
+  <body>
+    <main id="live-lobby">
+      <a class="room-back" href="/ao-vivo">← Voltar à programação</a>
+      <p class="room-eyebrow">ISTN-SJ · AO VIVO</p>
+      <h1 id="room-title">Juntos na mesma reunião</h1>
+      <p>Assista e participe na live, aqui na App.</p>
+      <ol>
+        <li>Entre com o seu nome e aguarde a admissão, se a sala de espera estiver ativa.</li>
+        <li>Na reunião, use <strong>Levantar a mão</strong> para pedir a palavra.</li>
+        <li>Aguarde a indicação do responsável antes de ligar o microfone ou a câmara.</li>
+      </ol>
+      <form id="join-form" hidden>
+        <label for="participant-name">O seu nome</label>
+        <input id="participant-name" name="name" autocomplete="name" maxlength="64" required />
+        <button type="submit">Entrar na live</button>
+      </form>
+      <p id="room-status" role="status" aria-live="polite">A preparar a sala…</p>
+      <p class="room-note">O navegador poderá pedir acesso ao microfone e à câmara. Use auscultadores para evitar eco.</p>
+      <a id="zoom-fallback" hidden rel="noopener noreferrer">Abrir no Zoom</a>
+    </main>
+    <script type="module" src="/src/zoom-room.js"></script>
+  </body>
+</html>

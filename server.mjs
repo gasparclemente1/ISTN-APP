@@ -12,9 +12,11 @@ import { createPublicData } from './lib/public-data.mjs';
 import { buildCalendar } from './src/calendar.js';
 import { serviceWorkerScript } from './lib/service-worker.mjs';
 import { loadEnvFile } from './lib/env.mjs';
+import { attendeeSignature, canEmbedMeeting, isSameOrigin, meetingNumber, zoomConfig, zoomRoom, ZOOM_SDK_VERSION } from './lib/zoom.mjs';
 
 const root = process.cwd();
 loadEnvFile(root);
+const zoom = zoomConfig();
 const port = Number(process.env.PORT || 4173);
 // The address the app answers by. Everything else redirects to it.
 const canonicalHost = (process.env.CANONICAL_HOST || '').trim();
@@ -70,8 +72,23 @@ function sendFile(request, response, { path, type }) {
 async function handle(request, response) {
   const url = new URL(request.url || '/', 'http://localhost');
   const https = request.headers['x-forwarded-proto'] === 'https';
-  for (const [name, value] of Object.entries(securityHeaders({ supabaseUrl: config.supabaseUrl, https }))) {
+  for (const [name, value] of Object.entries(securityHeaders({ supabaseUrl: config.supabaseUrl, https, zoomRoom: url.pathname === '/sala.html' }))) {
     response.setHeader(name, value);
+  }
+
+  if (url.pathname === '/api/zoom/room' || url.pathname === '/api/zoom/join') {
+    const joining = url.pathname.endsWith('/join');
+    if (request.method !== (joining ? 'POST' : 'GET')) return send(request, response, 405, 'Method not allowed', { Allow: joining ? 'POST' : 'GET' });
+    if (joining && !isSameOrigin(request)) return sendJson(request, response, 403, { error: 'Pedido inválido.' }, 'no-store');
+    try {
+      const { meetings } = await publicData.meetings();
+      const room = zoomRoom(meetings, url.searchParams.get('meeting'), zoom);
+      const payload = { title: room.title, zoomUrl: room.zoom_url, sdkVersion: ZOOM_SDK_VERSION };
+      if (joining) Object.assign(payload, { signature: attendeeSignature(room, zoom), meetingNumber: meetingNumber(room.zoom_meeting_id), passWord: room.zoom_passcode || '' });
+      return sendJson(request, response, 200, payload, 'no-store');
+    } catch (error) {
+      return sendJson(request, response, error.status || 502, { error: error.status === 404 || error.status === 503 ? error.message : 'Não foi possível abrir a reunião. Tente novamente.' }, 'no-store');
+    }
   }
 
   if (request.method !== 'GET' && request.method !== 'HEAD') {
@@ -95,7 +112,8 @@ async function handle(request, response) {
 
   if (url.pathname === '/api/meetings') {
     try {
-      return sendJson(request, response, 200, await publicData.meetings());
+      const payload = await publicData.meetings();
+      return sendJson(request, response, 200, { ...payload, meetings: payload.meetings.map((room) => ({ ...room, zoom_embedded: canEmbedMeeting(room, zoom) })) }, 'no-store');
     } catch (error) {
       return sendJson(request, response, error.status || 502, { error: 'Não foi possível carregar a programação.' }, 'no-store');
     }
