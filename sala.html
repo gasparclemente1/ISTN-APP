@@ -11,23 +11,23 @@
   </head>
   <body>
     <main id="live-lobby">
-      <a class="room-back" href="/ao-vivo">← Voltar à programação</a>
-      <p class="room-eyebrow">ISTN-SJ · AO VIVO</p>
-      <h1 id="room-title">Juntos na mesma reunião</h1>
-      <p>Assista e participe na live, aqui na App.</p>
+      <a class="room-back" href="/ao-vivo" data-i18n>← Voltar à programação</a>
+      <p class="room-eyebrow" data-i18n>ISTN-SJ · AO VIVO</p>
+      <h1 id="room-title" data-i18n>Juntos na mesma reunião</h1>
+      <p data-i18n>Assista e participe na live, aqui na App.</p>
       <ol>
-        <li>Entre com o seu nome e aguarde a admissão, se a sala de espera estiver ativa.</li>
-        <li>Na reunião, use <strong>Levantar a mão</strong> para pedir a palavra.</li>
-        <li>Aguarde a indicação do responsável antes de ligar o microfone ou a câmara.</li>
+        <li data-i18n>Entre com o seu nome e aguarde a admissão, se a sala de espera estiver ativa.</li>
+        <li data-i18n>Na reunião, use «Levantar a mão» para pedir a palavra.</li>
+        <li data-i18n>Aguarde a indicação do responsável antes de ligar o microfone ou a câmara.</li>
       </ol>
       <form id="join-form" hidden>
-        <label for="participant-name">O seu nome</label>
+        <label for="participant-name" data-i18n>O seu nome</label>
         <input id="participant-name" name="name" autocomplete="name" maxlength="64" required />
-        <button type="submit">Entrar na live</button>
+        <button type="submit" data-i18n>Entrar na live</button>
       </form>
-      <p id="room-status" role="status" aria-live="polite">A preparar a sala…</p>
-      <p class="room-note">O navegador poderá pedir acesso ao microfone e à câmara. Use auscultadores para evitar eco.</p>
-      <a id="zoom-fallback" hidden rel="noopener noreferrer">Abrir no Zoom</a>
+      <p id="room-status" role="status" aria-live="polite" data-i18n>A preparar a sala…</p>
+      <p class="room-note" data-i18n>O navegador poderá pedir acesso ao microfone e à câmara. Use auscultadores para evitar eco.</p>
+      <a id="zoom-fallback" hidden rel="noopener noreferrer" data-i18n>Abrir no Zoom</a>
     </main>
     <script type="module" src="/src/zoom-room.js"></script>
   </body>

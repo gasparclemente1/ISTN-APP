@@ -1018,3 +1018,27 @@ button.menu-row:focus-visible { outline:3px solid var(--gold); outline-offset:-3
 /* O "⋯" de um comentário, ao lado do nome. */
 .comment-bubble > .post-menu { float: right; margin: -4px -6px 0 0; }
 .comment-bubble > .post-menu > summary { width: 28px; height: 28px; }
+/* The language choice is available before signing in, on every public page. */
+.language-picker { display: inline-flex; flex-shrink: 0; }
+.language-picker select { min-height: 44px; max-width: 112px; padding: 8px 20px 8px 8px; border: 1px solid var(--line); border-radius: 10px; background: var(--paper); color: var(--deep); font: inherit; font-size: .8rem; cursor: pointer; }
+.language-picker select:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.topbar-action { flex-shrink: 0; gap: 6px; }
+.page-title { min-width: 0; }
+@media (max-width: 420px) {
+  .topbar { gap: 6px; padding-inline: 12px; }
+  .topbar.has-title .brand { display: none; }
+  .language-picker select { max-width: 100px; }
+}
+@media (max-width: 700px) {
+  .topbar.has-title .brand { display: none; }
+  .topbar.has-title .page-title { position: static; transform: none; flex: 1; font-size: .95rem; }
+  .topbar.has-title .page-title .icon-button { position: static; flex-shrink: 0; }
+  .page-title > span { overflow: hidden; text-overflow: ellipsis; }
+}
+.nav-item { min-width: 0; }
+.nav-item > span { max-width: 100%; text-align: center; line-height: 1.15; hyphens: auto; overflow-wrap: anywhere; }
+@media (max-width: 420px) { .nav-item { font-size: .6875rem; } }
+
+.post-translation { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin: 10px 0; }
+.post-translation .text-button { min-height: 36px; padding: 5px 0; }
+.post-translation small { color: var(--muted); font-size: .76rem; }

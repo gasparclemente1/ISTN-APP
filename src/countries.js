@@ -1,3 +1,4 @@
+import { locale as appLocale } from './i18n.js';
 // Every country, named by the browser itself in the Portuguese the church
 // writes: "Quénia" and "Polónia", not the Brazilian "Quênia" and "Polônia".
 //
@@ -30,7 +31,7 @@ const OVERRIDES = { 'pt-PT': { CD: 'República Democrática do Congo', CG: 'Rep�
 
 let cache = null;
 
-export function countryList(locale = 'pt-PT') {
+export function countryList(locale = appLocale()) {
   if (cache?.locale === locale) return cache.list;
   const names = new Intl.DisplayNames([locale], { type: 'region' });
   const list = CODES
@@ -40,7 +41,7 @@ export function countryList(locale = 'pt-PT') {
   return list;
 }
 
-export function countryName(code, locale = 'pt-PT') {
+export function countryName(code, locale = appLocale()) {
   if (!code) return '';
   return countryList(locale).find((country) => country.code === code)?.name || code;
 }

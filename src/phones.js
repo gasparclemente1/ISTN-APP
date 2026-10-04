@@ -1,3 +1,4 @@
+import { th, locale as appLocale } from './i18n.js';
 // Dialling codes, so a contact is never typed with a prefix somebody
 // remembered wrong: the code is chosen from the list of countries and the
 // person writes only the part that is theirs.
@@ -61,7 +62,7 @@ export const dialFor = (code) => (DIAL[code] ? `+${DIAL[code]}` : '');
 let cache = null;
 
 // The countries that have a code, by name, each with the code to dial.
-export function dialList(locale = 'pt-PT') {
+export function dialList(locale = appLocale()) {
   if (cache?.locale === locale) return cache.list;
   const list = countryList(locale)
     .filter((country) => DIAL[country.code])
@@ -125,9 +126,9 @@ export function phoneControl({ name = 'phone', value = '', country = DEFAULT_COU
   const option = (item) => `<option value="${item.dial}" ${item.dial === current.dial && item.code === current.country ? 'selected' : ''}>${escapeHtml(`${item.dial} — ${item.name}`)}</option>`;
   const here = all.filter((item) => ISTN_COUNTRIES.includes(item.code));
   return `<span class="phone-input">
-    <select ${name ? `name="${name}_dial"` : ''} data-phone-dial aria-label="Indicativo do país">
-      <optgroup label="Onde a ISTN-SJ está presente">${here.map(option).join('')}</optgroup>
-      <optgroup label="Todos os países">${all.map(option).join('')}</optgroup>
+    <select ${name ? `name="${name}_dial"` : ''} data-phone-dial aria-label="${th("Indicativo do país")}">
+      <optgroup label="${th("Onde a ISTN-SJ está presente")}">${here.map(option).join('')}</optgroup>
+      <optgroup label="${th("Todos os países")}">${all.map(option).join('')}</optgroup>
     </select>
     <input type="tel" ${name ? `name="${name}_national"` : ''} data-phone-national value="${escapeHtml(current.national)}"
       inputmode="tel" autocomplete="${escapeHtml(autocomplete)}" placeholder="900 000 000" ${required ? 'required' : ''} />

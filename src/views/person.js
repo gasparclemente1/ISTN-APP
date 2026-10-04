@@ -1,3 +1,5 @@
+import { th } from '../i18n.js';
+import { t } from '../i18n.js';
 // A pessoa por trás de um nome: o que é na ISTN, e o que publicou.
 //
 // Não é um perfil de rede social. O que aqui aparece já era público em todo o
@@ -26,8 +28,8 @@ function identity(person) {
     <span class="person-avatar">${photo
       ? `<img src="${escapeHtml(photo)}" alt="" />`
       : `<span>${escapeHtml(initials || '·')}</span>`}</span>
-    <h1>${escapeHtml(name)}${person.verified ? verifiedSeal(person.servo_role, { title: `Conta verificada · ${role}` }) : ''}</h1>
-    <p class="person-role">${person.verified ? escapeHtml(role) : 'Membro da ISTN-SJ'}</p>
+    <h1>${escapeHtml(name)}${person.verified ? verifiedSeal(person.servo_role, { title: t("Conta verificada · {0}", { 0: role }) }) : ''}</h1>
+    <p class="person-role">${person.verified ? escapeHtml(role) : t("Membro da ISTN-SJ")}</p>
     ${person.church_name
       ? `<p class="person-church">${icon('church', { size: 16 })}${person.church_id
         ? `<a href="/igrejas/${escapeHtml(person.church_id)}">${escapeHtml(person.church_name)}</a>`
@@ -40,26 +42,26 @@ export function personPage(state, id) {
   const back = { title: 'Pessoa', back: 'home' };
   const person = state.people?.[id];
   if (person === null) {
-    return page('person', { ...back, body: emptyState({ title: 'Pessoa não encontrada', text: 'Esta conta pode ter sido removida, ou ainda não deixou nada na aplicação.', action: '<a class="button button-dark" href="/">Voltar ao início</a>' }) });
+    return page('person', { ...back, body: emptyState({ title: t('Pessoa não encontrada'), text: t("Esta conta pode ter sido removida, ou ainda não deixou nada na aplicação."), action: `<a class="button button-dark" href="/">${th("Voltar ao início")}</a>` }) });
   }
-  if (!person) return page('person', { ...back, body: loadingState('A carregar…') });
+  if (!person) return page('person', { ...back, body: loadingState(t("A carregar…")) });
 
   let published;
-  if (state.postsError) published = errorState('Não foi possível carregar os anúncios.', 'retry-posts');
-  else if (!state.posts) published = loadingState('A carregar os anúncios…');
+  if (state.postsError) published = errorState(t("Não foi possível carregar os anúncios."), 'retry-posts');
+  else if (!state.posts) published = loadingState(t("A carregar os anúncios…"));
   else {
     // Only what this reader may see anyway: the whole ISTN's, plus their own
     // church's. A page never shows more than the feed would.
     const mine = sortPosts(visiblePosts(state.posts, { churchDbId: state.myChurchDbId }).filter((post) => post.authorId === id));
     published = mine.length
       ? `<div class="post-list">${mine.map((post) => postCard(state, post)).join('')}</div>`
-      : `<p class="hint">Ainda não publicou nenhum anúncio.</p>`;
+      : `<p class="hint">${th("Ainda não publicou nenhum anúncio.")}</p>`;
   }
 
   const count = state.posts ? visiblePosts(state.posts, { churchDbId: state.myChurchDbId }).filter((post) => post.authorId === id).length : 0;
   const body = `${identity(person)}
     <section class="content-section">
-      ${sectionHeading('Publicou', count === 1 ? '1 anúncio' : `${count} anúncios`)}
+      ${sectionHeading(t("Publicou"), count === 1 ? t("1 anúncio") : t("{0} anúncios", { 0: count }))}
       ${published}
     </section>`;
   return page('person', { ...back, body });

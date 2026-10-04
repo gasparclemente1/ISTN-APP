@@ -1,3 +1,4 @@
+import { t } from './i18n.js';
 // The ministry's hierarchy, in one place. The panel and the app both read it,
 // and the abbreviation shown before a name is derived from the role rather than
 // stored with it — so a promotion changes the name everywhere on its own.
@@ -34,7 +35,7 @@ export const MINISTER_ROLES = ['apostolo', 'bispo', 'bispo_auxiliar', 'pastor', 
 
 const byId = (role) => ROLES.find((item) => item.id === role);
 
-export const roleLabel = (role) => byId(role)?.label || role || '';
+export const roleLabel = (role) => t(byId(role)?.label || role || '');
 export const roleShort = (role) => byId(role)?.short || '';
 
 // Gold for the Apóstolo, blue for Bispos, Bispos Auxiliares and Pastores.
@@ -66,7 +67,7 @@ export const SEAL_PATH = 'M10.89 2.35Q12.00 1.00 13.11 2.35Q14.23 3.69 15.86 3.0
 // Only the ranks that carry a colour get it. The seal's shape is what says
 // "notable"; giving it to every verified servant would empty the gold and the
 // blue of the meaning they are there to carry.
-export function verifiedSeal(role, { title = 'Conta verificada' } = {}) {
+export function verifiedSeal(role, { title = t('Conta verificada') } = {}) {
   const tier = badgeTier(role);
   if (tier === 'neutro') return '';
   return `<svg class="verified-seal tier-${tier}" viewBox="0 0 24 24" width="16" height="16" role="img" aria-label="${title}"><title>${title}</title>`
@@ -77,7 +78,7 @@ export function verifiedSeal(role, { title = 'Conta verificada' } = {}) {
 
 // For every other verified servant: a quiet outlined check, used where a line
 // of text would not fit — a list being scanned, for instance.
-export function quietCheck(title = 'Servo verificado') {
+export function quietCheck(title = t('Servo verificado')) {
   return `<svg class="quiet-check" viewBox="0 0 24 24" width="14" height="14" role="img" aria-label="${title}"><title>${title}</title>`
     + '<circle cx="12" cy="12" r="9.5" fill="none" stroke-width="1.6" />'
     + '<path d="M8 12.2l2.8 2.8 5.2-5.6" fill="none" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" />'

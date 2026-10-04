@@ -1,3 +1,4 @@
+import { t, th, onLanguageChange, ministryText } from './i18n.js';
 // The player for a prayer, and the one part of the app that is drawn outside
 // #app.
 //
@@ -44,17 +45,17 @@ function build() {
   bar.className = 'prayer-bar';
   bar.hidden = true;
   bar.setAttribute('role', 'region');
-  bar.setAttribute('aria-label', 'Oração a tocar');
+  bar.setAttribute('aria-label', t("Oração a tocar"));
   bar.innerHTML = `
-    <button class="prayer-bar-play" type="button" aria-label="Tocar"><span aria-hidden="true">▶</span></button>
+    <button class="prayer-bar-play" type="button" aria-label="${th("Tocar")}"><span aria-hidden="true">▶</span></button>
     <div class="prayer-bar-body">
       <strong></strong>
       <small></small>
-      <input class="prayer-bar-seek" type="range" min="0" max="1000" value="0" step="1" aria-label="Posição da oração" />
+      <input class="prayer-bar-seek" type="range" min="0" max="1000" value="0" step="1" aria-label="${th("Posição da oração")}" />
     </div>
     <span class="prayer-bar-time"><b>0:00</b></span>
-    <button class="prayer-bar-back" type="button" aria-label="Recuar 15 segundos">15s</button>
-    <button class="prayer-bar-close" type="button" aria-label="Fechar o leitor">✕</button>`;
+    <button class="prayer-bar-back" type="button" aria-label="${th("Recuar 15 segundos")}">15s</button>
+    <button class="prayer-bar-close" type="button" aria-label="${th("Fechar o leitor")}">✕</button>`;
   document.body.append(bar);
 
   parts = {
@@ -87,16 +88,16 @@ function build() {
   // claiming to be playing, and whoever is waiting for a prayer hears silence
   // and believes it is the network.
   audio.addEventListener('error', () => {
-    const name = current?.title || 'A oração';
+    const name = current?.title || t("A oração");
     stopPrayer();
-    onFailure(`${name} não pôde ser tocada. Tente de novo, ou transfira o áudio.`);
+    onFailure(t("{0} não pôde ser tocada. Tente de novo, ou transfira o áudio.", { 0: name }));
   });
 }
 
 function paint() {
   if (!current) return;
   const running = !audio.paused && !audio.ended;
-  parts.play.setAttribute('aria-label', running ? 'Pausa' : 'Tocar');
+  parts.play.setAttribute('aria-label', running ? t("Pausa") : t("Tocar"));
   parts.play.firstElementChild.textContent = running ? '❚❚' : '▶';
   bar.classList.toggle('is-playing', running);
 }
@@ -107,9 +108,9 @@ function tellThePhone(prayer) {
   if (!('mediaSession' in navigator)) return;
   try {
     navigator.mediaSession.metadata = new window.MediaMetadata({
-      title: prayer.title,
-      artist: 'Profeta Elias · ISTN-SJ',
-      album: prayer.theme?.name || 'Orações',
+      title: ministryText(prayer.title),
+      artist: t("Profeta Elias · ISTN-SJ"),
+      album: prayer.theme?.name || t("Orações"),
       artwork: [
         { src: '/design/assets/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
         { src: '/design/assets/icons/icon-512.png', sizes: '512x512', type: 'image/png' }
@@ -128,7 +129,7 @@ export async function playPrayer(prayer) {
   if (objectUrl) { URL.revokeObjectURL(objectUrl); objectUrl = ''; }
   current = prayer;
   bar.hidden = false;
-  parts.title.textContent = prayer.title;
+  parts.title.textContent = ministryText(prayer.title);
   parts.theme.textContent = [prayer.theme?.name, formatDuration(prayer.duration)].filter(Boolean).join(' · ');
   parts.seek.value = '0';
   parts.time.textContent = '0:00';
@@ -142,7 +143,7 @@ export async function playPrayer(prayer) {
     // A browser that refuses to start without a tap is not a failure: the bar
     // is there, showing the prayer, waiting to be pressed.
     paint();
-    if (error?.name !== 'NotAllowedError') onFailure('Não foi possível tocar esta oração.');
+    if (error?.name !== 'NotAllowedError') onFailure(t("Não foi possível tocar esta oração."));
   }
   announceChange();
 }
@@ -167,3 +168,17 @@ export function stopPrayer() {
 // Kept beside the player: a prayer shared while it is playing should say the
 // same thing as one shared from the list.
 export const sharingText = prayerShareText;
+
+// Update labels without rebuilding the audio element or interrupting playback.
+onLanguageChange(() => {
+  if (!bar) return;
+  bar.setAttribute('aria-label', t('Oração a tocar'));
+  parts.seek.setAttribute('aria-label', t('Posição da oração'));
+  bar.querySelector('.prayer-bar-back').setAttribute('aria-label', t('Recuar 15 segundos'));
+  bar.querySelector('.prayer-bar-close').setAttribute('aria-label', t('Fechar o leitor'));
+  if (current) {
+    parts.title.textContent = ministryText(current.title);
+    tellThePhone(current);
+  }
+  paint();
+});

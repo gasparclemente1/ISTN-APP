@@ -1,3 +1,4 @@
+import { t, th } from '../i18n.js';
 // The home page: what is happening next, the announcements the church is
 // reading right now, the reader's own church, the newest videos, and a way into
 // everything else.
@@ -20,8 +21,8 @@ function myChurchCard(state) {
   if (!church) return '';
   return `<a class="my-church home-card" href="/igrejas/${escapeHtml(church.id)}">
       <span class="round-icon">${church.seat ? seatSeal(church.seat, { size: 28 }) : icon(church.modality === 'online' ? 'globe' : 'church', { size: 22 })}</span>
-      <span><small>${escapeHtml(church.seat ? SEAT_LABELS[church.seat] : placeKindLabel(church))}${church.region ? ` · ${escapeHtml(church.region)}` : ''}</small>
-        ${church.services.length ? serviceChips(church) : '<strong>Horário a confirmar</strong>'}
+      <span><small>${escapeHtml(t(church.seat ? SEAT_LABELS[church.seat] : placeKindLabel(church)))}${church.region ? ` · ${escapeHtml(church.region)}` : ''}</small>
+        ${church.services.length ? serviceChips(church) : `<strong>${th("Horário a confirmar")}</strong>`}
         ${church.leaderName ? `<span>${escapeHtml(church.leaderName)}</span>` : ''}</span>
       ${icon('chevron', { size: 20 })}
   </a>`;
@@ -30,7 +31,7 @@ function myChurchCard(state) {
 function savedLink() {
   const count = prefs.favorites.size;
   if (!count) return '';
-  return `<a class="saved-link" href="/ensinos?guardadas=1">${icon('heart', { size: 18 })}<span>${count === 1 ? '1 pregação guardada' : `${count} pregações guardadas`}</span>${icon('chevron', { size: 18 })}</a>`;
+  return `<a class="saved-link" href="/ensinos?guardadas=1">${icon('heart', { size: 18 })}<span>${count === 1 ? t("1 pregação guardada") : t("{0} pregações guardadas", { 0: count })}</span>${icon('chevron', { size: 18 })}</a>`;
 }
 
 // A newcomer gets the welcome; someone who already lives in the app gets the
@@ -42,9 +43,9 @@ const newcomer = (state) => !prefs.myChurch && !state.profile;
 
 function welcomeStrip(state) {
   return `<section class="hero-strip">
-    <img src="/design/assets/photos/elias-destaque.png" width="433" height="576" alt="Profeta Elias" fetchpriority="high" />
+    <img src="/design/assets/photos/elias-destaque.png" width="433" height="576" alt="${th("Profeta Elias")}" fetchpriority="high" />
     <div>
-      <p>Bem-vindo à <span class="brand-mark">ISTN-SJ</span></p>
+      <p>${th("Bem-vindo à")} <span class="brand-mark">ISTN-SJ</span></p>
       ${liveChip(state)}
     </div>
   </section>`;
@@ -53,19 +54,19 @@ function welcomeStrip(state) {
 function welcome(state) {
   return `<section class="hero" aria-labelledby="hero-title">
     <div class="hero-copy">
-      <span class="eyebrow">Igreja Salvação de Todas as Nações · Sol da Justiça</span>
-      <h1 id="hero-title">Bem-vindo à <span class="brand-mark">ISTN-SJ</span></h1>
-      <p>Pregações do Profeta Elias, reuniões no Zoom e as igrejas ISTN-SJ perto de si.</p>
+      <span class="eyebrow">${th("Igreja Salvação de Todas as Nações · Sol da Justiça")}</span>
+      <h1 id="hero-title">${th("Bem-vindo à")} <span class="brand-mark">ISTN-SJ</span></h1>
+      <p>${th("Pregações do Profeta Elias, reuniões no Zoom e as igrejas ISTN-SJ perto de si.")}</p>
       ${liveChip(state)}
     </div>
     <div class="hero-art">
       <span class="hero-sun" aria-hidden="true"></span>
-      <img src="/design/assets/photos/elias-destaque.png" width="433" height="576" alt="Profeta Elias a pregar" fetchpriority="high" />
-      <span class="hero-signature">Profeta <strong>Elias</strong></span>
+      <img src="/design/assets/photos/elias-destaque.png" width="433" height="576" alt="${th("Profeta Elias a pregar")}" fetchpriority="high" />
+      <span class="hero-signature">${th("Profeta")} <strong>${th("Elias")}</strong></span>
     </div>
     <div class="hero-actions">
-      <a class="button button-gold" href="/ensinos">Explorar ensinos${icon('arrowRight', { size: 18 })}</a>
-      <a class="button button-glass" href="/igrejas">${icon('church', { size: 18 })}Encontrar uma igreja</a>
+      <a class="button button-gold" href="/ensinos">${th("Explorar ensinos{1}", { 1: icon('arrowRight', { size: 18 }) })}</a>
+      <a class="button button-glass" href="/igrejas">${th("{2}Encontrar uma igreja", { 2: icon('church', { size: 18 }) })}</a>
     </div>
   </section>`;
 }
@@ -77,7 +78,7 @@ const HOME_FEED = 8;
 
 function feed(state) {
   if (state.postsError) return '';
-  if (!state.posts) return loadingState('A carregar os anúncios…');
+  if (!state.posts) return loadingState(t("A carregar os anúncios…"));
   const mine = sortPosts(visiblePosts(state.posts, { churchDbId: state.myChurchDbId }));
   const between = { 1: myChurchCard(state), 3: prayersCard(), 5: latestVideosSection(state) };
   const items = [];
@@ -89,15 +90,15 @@ function feed(state) {
   // would be empty but for a greeting.
   if (!mine.length) items.push(...Object.values(between).filter(Boolean));
   return `<div class="home-feed">${items.filter(Boolean).join('')}</div>
-    ${mine.length > HOME_FEED ? `<a class="button button-outline full-width" href="/anuncios">Ver todos os anúncios${icon('arrowRight', { size: 18 })}</a>` : ''}`;
+    ${mine.length > HOME_FEED ? `<a class="button button-outline full-width" href="/anuncios">${th("Ver todos os anúncios{0}", { 0: icon('arrowRight', { size: 18 }) })}</a>` : ''}`;
 }
 
 function prayersCard() {
   return `<a class="home-card" href="/oracoes">
     <span class="round-icon">${icon('pray', { size: 22 })}</span>
-    <span><small>ORAÇÕES DO PROFETA ELIAS</small>
-      <strong>Uma oração para o que se está a viver.</strong>
-      <span>Doença, libertação, finanças. Oiça, e envie a quem precisa.</span></span>
+    <span><small>${th("ORAÇÕES DO PROFETA ELIAS")}</small>
+      <strong>${th("Uma oração para o que se está a viver.")}</strong>
+      <span>${th("Doença, libertação, finanças. Oiça, e envie a quem precisa.")}</span></span>
     ${icon('chevron', { size: 20 })}
   </a>`;
 }
@@ -109,20 +110,20 @@ export function homePage(state) {
     ${composerButton(state)}
     ${feed(state)}
     <section class="content-section">
-      ${sectionHeading('Biblioteca', 'Canais do YouTube', '<a class="link-button" href="/ensinos">Todas as pregações</a>')}
+      ${sectionHeading(t("Biblioteca"), t("Canais do YouTube"), `<a class="link-button" href="/ensinos">${th("Todas as pregações")}</a>`)}
       ${savedLink()}
       <div class="source-grid">${APP_CONFIG.sources.map(sourceCard).join('')}</div>
     </section>
     ${state.profile || !state.accountsAvailable ? '' : `<section class="join-invite">
       <span class="round-icon">${icon('user', { size: 22 })}</span>
-      <div><span class="eyebrow">Conta opcional</span><h2>Leve as suas preferências consigo.</h2><p>Com conta, a sua igreja e as pregações guardadas acompanham-no em qualquer telemóvel. E se serve na ISTN, pode pedir o selo de verificação.</p></div>
-      <a class="button button-gold" href="/perfil">Entrar ou registar-se</a>
+      <div><span class="eyebrow">${th("Conta opcional")}</span><h2>${th("Leve as suas preferências consigo.")}</h2><p>${th("Com conta, a sua igreja e as pregações guardadas acompanham-no em qualquer telemóvel. E se serve na ISTN, pode pedir o selo de verificação.")}</p></div>
+      <a class="button button-gold" href="/perfil">${th("Entrar ou registar-se")}</a>
     </section>`}
     ${prefs.myChurch ? '' : `<section class="find-istn">
-      <img class="find-istn-photo" src="/design/assets/photos/congregacao-istn-640.webp" srcset="/design/assets/photos/congregacao-istn-640.webp 640w, /design/assets/photos/congregacao-istn-1280.webp 1280w" sizes="(min-width: 760px) 700px, 100vw" alt="Membros da ISTN-SJ reunidos com o Profeta Elias" loading="lazy" decoding="async" />
-      <div><span class="eyebrow">ISTN-SJ Mundial</span><h2>A sua igreja pode estar mais perto.</h2><p>Procure por país, região, cidade ou dia de culto.</p></div>
-      <a class="button button-dark" href="/igrejas">${icon('search', { size: 18 })}Encontrar a minha igreja</a>
+      <img class="find-istn-photo" src="/design/assets/photos/congregacao-istn-640.webp" srcset="/design/assets/photos/congregacao-istn-640.webp 640w, /design/assets/photos/congregacao-istn-1280.webp 1280w" sizes="(min-width: 760px) 700px, 100vw" alt="${th("Membros da ISTN-SJ reunidos com o Profeta Elias")}" loading="lazy" decoding="async" />
+      <div><span class="eyebrow">${th("ISTN-SJ Mundial")}</span><h2>${th("A sua igreja pode estar mais perto.")}</h2><p>${th("Procure por país, região, cidade ou dia de culto.")}</p></div>
+      <a class="button button-dark" href="/igrejas">${th("{0}Encontrar a minha igreja", { 0: icon('search', { size: 18 }) })}</a>
     </section>`}`;
-  return page('home', { mainClass: 'home', body, action: `<a class="icon-button" href="/ensinos" aria-label="Pesquisar ensinos">${icon('search', { size: 22 })}</a>` })
+  return page('home', { mainClass: 'home', body, action: `<a class="icon-button" href="/ensinos" aria-label="${th("Pesquisar ensinos")}">${icon('search', { size: 22 })}</a>` })
     + composerSheet(state) + reactionSheet(state);
 }

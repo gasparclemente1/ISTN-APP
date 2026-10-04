@@ -1,3 +1,5 @@
+import { postTranslations } from './post-translation.js';
+import { t, setLanguage, onLanguageChange, useProfileLanguage } from './i18n.js';
 // The public app: state, data loading, routing and interaction. Pages are drawn
 // by the modules in ./views from the state kept here.
 import { APP_CONFIG, backendConfig, loadDirectory, loadLatestVideos, loadMeetings, loadPosts, loadPrayers, loadTeachingLibrary } from './data.js';
@@ -100,7 +102,7 @@ function pageTitle(route) {
     const church = findChurch(state.directory?.churches, route.params.id);
     if (church) return `${churchTitle(church)} · ISTN-SJ`;
   }
-  return route.name === 'home' ? 'ISTN-SJ — Igreja Salvação de Todas as Nações' : `${route.title} · ISTN-SJ`;
+  return route.name === 'home' ? t("ISTN-SJ — Igreja Salvação de Todas as Nações · Sol da Justiça") : `${t(route.title)} · ISTN-SJ`;
 }
 
 function onRoute(route, { scrollY, navigated }) {
@@ -262,6 +264,7 @@ async function afterSignIn(session) {
   // Who on the team this is, so the app can offer what the panel offers —
   // where the thing being moderated actually is.
   loadAdminProfile(session).then((admin) => { state.admin = admin; render(); }).catch(() => {});
+  useProfileLanguage(state.profile?.language);
   syncMyChurchFromProfile();
   ensureChurchOptions();
   askForNameIfMissing();
@@ -294,7 +297,7 @@ async function startAccount() {
     try {
       await afterSignIn(session);
       if (social) {
-        toast(social.arrivedFrom === 'signup' ? 'Email confirmado. Sessão iniciada.' : 'Sessão iniciada.');
+        toast(social.arrivedFrom === 'signup' ? t("Email confirmado. Sessão iniciada.") : t("Sessão iniciada."));
         window.history.replaceState(null, '', '/perfil');
         onRoute({ name: 'profile', params: {}, search: new URLSearchParams(), title: 'Perfil' }, { scrollY: 0, navigated: true });
         return;
@@ -328,7 +331,7 @@ function updateTeachingResults({ announceCount = false } = {}) {
   renderInto(region, teachingResults(state));
   if (announceCount) {
     const count = filterTeachings(state.teachings, state.teachingFilters, prefs.favorites).length;
-    announce(count === 1 ? '1 pregação encontrada' : `${count} pregações encontradas`);
+    announce(count === 1 ? t("1 pregação encontrada") : t("{0} pregações encontradas", { 0: count }));
   }
 }
 
@@ -338,7 +341,7 @@ function updateChurchResults({ announceCount = false } = {}) {
   renderInto(region, churchResults(state));
   if (announceCount) {
     const count = filterChurches(state.directory.churches, state.churchFilters).length;
-    announce(count === 1 ? '1 igreja encontrada' : `${count} igrejas encontradas`);
+    announce(count === 1 ? t("1 igreja encontrada") : t("{0} igrejas encontradas", { 0: count }));
   }
 }
 
@@ -354,7 +357,7 @@ const findPrayer = (id) => state.prayers?.find((item) => item.id === id) || null
 
 function announcePrayers() {
   const count = filterPrayers(state.prayers || [], state.prayerFilters).length;
-  announce(count === 1 ? '1 oração encontrada' : `${count} orações encontradas`);
+  announce(count === 1 ? t("1 oração encontrada") : t("{0} orações encontradas", { 0: count }));
 }
 const searchPrayers = debounce(() => { render(); announcePrayers(); }, 220);
 
@@ -379,7 +382,7 @@ const actions = {
 
   // ------------------------------------------------------------ anúncios --
   'new-post': () => {
-    if (!canPublish(state.profile)) { toast('Só quem a equipa autoriza pode publicar.'); return; }
+    if (!canPublish(state.profile)) { toast(t("Só quem a equipa autoriza pode publicar.")); return; }
     ensureChurchOptions();
     // Writing from inside a community's filter starts with that community
     // chosen — it is almost always the one being written for.
@@ -400,35 +403,35 @@ const actions = {
     if (!post) return;
     const next = !post.highlighted;
     updatePost(post.id, { highlighted: next, highlight_until: next ? post.highlightUntil : null }, state.session)
-      .then(() => { toast(next ? 'Anúncio destacado.' : 'Destaque retirado.'); return refreshPosts({ fresh: true }); })
+      .then(() => { toast(next ? t("Anúncio destacado.") : t("Destaque retirado.")); return refreshPosts({ fresh: true }); })
       .catch((error) => toast(error.message));
   },
   'delete-post': (element) => {
-    if (!window.confirm('Eliminar este anúncio? Esta ação não pode ser anulada.')) return;
+    if (!window.confirm(t("Eliminar este anúncio? Esta ação não pode ser anulada."))) return;
     deletePost(element.dataset.id, state.session)
-      .then(() => { toast('Anúncio eliminado.'); router.go('/anuncios'); return refreshPosts({ fresh: true }); })
+      .then(() => { toast(t("Anúncio eliminado.")); router.go('/anuncios'); return refreshPosts({ fresh: true }); })
       .catch((error) => toast(error.message));
   },
   // Esconder é reversível e fica registado; eliminar não. Por isso a equipa
   // esconde a partir daqui e repõe no painel, onde a linha escondida continua
   // à vista.
   'hide-post': (element) => {
-    if (!window.confirm('Esconder este anúncio? Deixa de aparecer na aplicação. Pode repô-lo no painel.')) return;
+    if (!window.confirm(t("Esconder este anúncio? Deixa de aparecer na aplicação. Pode repô-lo no painel."))) return;
     hidePost(element.dataset.id, true, state.session)
-      .then(() => { toast('Anúncio escondido. Pode repô-lo no painel.'); return refreshPosts({ fresh: true }); })
+      .then(() => { toast(t("Anúncio escondido. Pode repô-lo no painel.")); return refreshPosts({ fresh: true }); })
       .catch((error) => toast(error.message));
   },
   'hide-comment': (element) => {
     const postId = state.route.params.id;
     hideComment(element.dataset.id, true, state.session)
       .then(() => loadComments(postId))
-      .then((comments) => { state.comments = { ...state.comments, [postId]: comments }; toast('Comentário escondido.'); render(); })
+      .then((comments) => { state.comments = { ...state.comments, [postId]: comments }; toast(t("Comentário escondido.")); render(); })
       .catch((error) => toast(error.message));
   },
 
   // ------------------------------------------ orações, por quem as trata --
   'new-prayer': () => {
-    if (!canManagePrayers(state.profile, state.admin)) { toast('Só a equipa pode acrescentar orações.'); return; }
+    if (!canManagePrayers(state.profile, state.admin)) { toast(t("Só a equipa pode acrescentar orações.")); return; }
     state.prayerDraft = { title: '', description: '', themeId: state.prayerFilters.theme || '', audioUrl: '', duration: 0, bytes: 0 };
     render();
   },
@@ -437,15 +440,15 @@ const actions = {
     if (prayer) { state.prayerDraft = { ...prayer }; render(); }
   },
   'hide-prayer': (element) => {
-    if (!window.confirm('Esconder esta oração? Deixa de aparecer na aplicação. Pode repô-la no painel.')) return;
+    if (!window.confirm(t("Esconder esta oração? Deixa de aparecer na aplicação. Pode repô-la no painel."))) return;
     hidePrayer(element.dataset.id, true, state.session)
-      .then(() => { toast('Oração escondida.'); return refreshPrayers(); })
+      .then(() => { toast(t("Oração escondida.")); return refreshPrayers(); })
       .catch((error) => toast(error.message));
   },
   'delete-prayer': (element) => {
-    if (!window.confirm('Eliminar esta oração? O áudio deixa de estar disponível para quem já tem o link. Esconder é reversível.')) return;
+    if (!window.confirm(t("Eliminar esta oração? O áudio deixa de estar disponível para quem já tem o link. Esconder é reversível."))) return;
     deletePrayer(element.dataset.id, state.session)
-      .then(() => { toast('Oração eliminada.'); router.go('/oracoes'); return refreshPrayers(); })
+      .then(() => { toast(t("Oração eliminada.")); router.go('/oracoes'); return refreshPrayers(); })
       .catch((error) => toast(error.message));
   },
 
@@ -456,13 +459,21 @@ const actions = {
     render();
   },
   // A link to the announcement itself, so whoever receives it lands on it.
+  'translate-post': async (element) => {
+    const post = state.posts?.find((item) => item.id === element.dataset.id);
+    if (!post) return;
+    const pending = postTranslations.toggle(post);
+    renderIfShowing('posts');
+    await pending;
+    renderIfShowing('posts');
+  },
   'share-post': async (element) => {
     const post = state.posts?.find((item) => item.id === element.dataset.id);
     if (!post) return;
     const url = `${window.location.origin}/anuncios/${encodeURIComponent(post.id)}`;
     const text = postShareText(post);
     if (navigator.share) {
-      try { await navigator.share({ title: post.title || 'Anúncio · ISTN-SJ', text, url }); return; }
+      try { await navigator.share({ title: post.title || t("Anúncio · ISTN-SJ"), text, url }); return; }
       catch (error) { if (error?.name === 'AbortError') return; }
     }
     window.open(`https://wa.me/?text=${encodeURIComponent(`${text}\n${url}`)}`, '_blank', 'noopener,noreferrer');
@@ -473,7 +484,7 @@ const actions = {
     render();
     const community = state.communities.find((item) => item.id === state.postCommunity);
     const count = visiblePosts(state.posts || [], { churchDbId: state.myChurchDbId, community: state.postCommunity }).length;
-    announce(`${community ? community.name : 'Todos os anúncios'}: ${count === 1 ? '1 anúncio' : `${count} anúncios`}.`);
+    announce(`${community ? community.name : t("Todos os anúncios")}: ${count === 1 ? t("1 anúncio") : t("{0} anúncios", { 0: count })}.`);
   },
 
   // Who reacted, by name. Fetched when the list is opened and kept until
@@ -502,7 +513,7 @@ const actions = {
     field.focus();
   },
   react: async (element) => {
-    if (!state.session) { toast('Entre com a sua conta para reagir.'); return; }
+    if (!state.session) { toast(t("Entre com a sua conta para reagir.")); return; }
     const id = element.dataset.id;
     if (state.reactionSaving[id]) return;
     state.reactionSaving[id] = true;
@@ -522,7 +533,7 @@ const actions = {
       await setReaction(id, kind, state.session);
       delete state.reactionPeople[id];
       if (state.reactionSheet?.id === id) openReactions(id, { again: true });
-      announce(kind ? 'Reação adicionada.' : 'Reação removida.');
+      announce(kind ? t("Reação adicionada.") : t("Reação removida."));
     } catch (error) {
       state.myReactions[id] = previous;
       if (post) {
@@ -546,23 +557,23 @@ const actions = {
   'clear-prayers': () => { state.prayerFilters = { query: '', theme: '' }; render(); },
   'play-prayer': (element) => {
     const prayer = findPrayer(element.dataset.id);
-    if (prayer) playPrayer(prayer).catch(() => toast('Não foi possível tocar esta oração.'));
+    if (prayer) playPrayer(prayer).catch(() => toast(t("Não foi possível tocar esta oração.")));
   },
   // The file itself, into WhatsApp. It has to be in hand before it can be
   // handed over, and several megabytes take a moment: the button says so.
   'share-prayer': (element) => withPrayer(element.dataset.id, async (prayer) => {
     const how = await sharePrayer(prayer, prayerUrl(prayer));
-    if (how === 'link') toast('Este telemóvel não envia o ficheiro; foi o link da oração.');
-    else if (how === 'ficheiro') announce('Oração enviada.');
-  }, 'Não foi possível preparar o áudio para enviar.'),
+    if (how === 'link') toast(t("Este telemóvel não envia o ficheiro; foi o link da oração."));
+    else if (how === 'ficheiro') announce(t("Oração enviada."));
+  }, t("Não foi possível preparar o áudio para enviar.")),
   'download-prayer': (element) => withPrayer(element.dataset.id, async (prayer) => {
     await downloadPrayer(prayer);
-    toast('Áudio transferido. Fica também guardado nesta aplicação.');
-  }, 'Não foi possível transferir o áudio.'),
+    toast(t("Áudio transferido. Fica também guardado nesta aplicação."));
+  }, t("Não foi possível transferir o áudio.")),
   'drop-prayer': (element) => withPrayer(element.dataset.id, async (prayer) => {
     await dropPrayer(prayer);
-    toast('Removida deste telemóvel.');
-  }, 'Não foi possível remover.'),
+    toast(t("Removida deste telemóvel."));
+  }, t("Não foi possível remover.")),
 
   category: (element) => setTeachingFilters({ category: element.dataset.value, savedOnly: false }),
   'saved-only': () => setTeachingFilters({ savedOnly: !state.teachingFilters.savedOnly }),
@@ -576,7 +587,7 @@ const actions = {
     if (state.session) (saved ? addFavorite : removeFavorite)(id, state.session).catch(() => {});
     element.setAttribute('aria-pressed', String(saved));
     element.classList.toggle('is-on', saved);
-    announce(saved ? 'Pregação guardada.' : 'Pregação removida das guardadas.');
+    announce(saved ? t("Pregação guardada.") : t("Pregação removida das guardadas."));
     if (state.teachingFilters.savedOnly) updateTeachingResults();
     const count = app.querySelector('[data-action="saved-only"] small');
     if (count) count.textContent = prefs.favorites.size;
@@ -587,7 +598,7 @@ const actions = {
   },
   async copy(element) {
     const copied = await copyText(element.dataset.value);
-    toast(copied ? `${element.dataset.label} copiado.` : 'Não foi possível copiar. Selecione o texto e copie à mão.');
+    toast(copied ? t("{0} copiado.", { 0: element.dataset.label }) : t("Não foi possível copiar. Selecione o texto e copie à mão."));
   },
 
   'clear-church-filters': () => { state.churchFilters = { query: '', country: '', region: '', day: '' }; render(); },
@@ -604,7 +615,7 @@ const actions = {
     state.churchFilters = { ...state.churchFilters, day: element.dataset.day };
     render();
     const count = filterChurches(state.directory?.churches || [], state.churchFilters).length;
-    announce(count === 1 ? '1 igreja encontrada' : `${count} igrejas encontradas`);
+    announce(count === 1 ? t("1 igreja encontrada") : t("{0} igrejas encontradas", { 0: count }));
   },
   'share-church': async (element) => {
     const church = findChurch(state.directory?.churches, element.dataset.id);
@@ -625,10 +636,10 @@ const actions = {
     if (state.session && church?.dbId && state.directory?.source === 'supabase') {
       saveProfile({ home_church_id: next ? church.dbId : null }, state.session)
         .then((profile) => { if (profile) state.profile = profile; })
-        .catch(() => toast('Guardado neste dispositivo. Não foi possível atualizar a conta.'));
+        .catch(() => toast(t("Guardado neste dispositivo. Não foi possível atualizar a conta.")));
     }
     render();
-    toast(next ? 'Guardada como a sua ISTN.' : 'Deixou de ser a sua ISTN.');
+    toast(next ? t("Guardada como a sua ISTN.") : t("Deixou de ser a sua ISTN."));
   },
 
   'switch-auth': () => { state.authMode = state.authMode === 'registar' ? 'entrar' : 'registar'; render(); },
@@ -680,7 +691,8 @@ app.addEventListener('input', (event) => {
 
 app.addEventListener('change', (event) => {
   const { id, value } = event.target;
-  if (id === 'year-filter') setTeachingFilters({ year: value });
+  if (event.target.matches('[data-language]')) setLanguage(value);
+  else if (id === 'year-filter') setTeachingFilters({ year: value });
   else if (id === 'book-filter') setTeachingFilters({ book: value });
   else if (id === 'country-filter') { state.churchFilters = { ...state.churchFilters, country: value, region: '' }; render(); }
   else if (id === 'region-filter') { state.churchFilters = { ...state.churchFilters, region: value }; render(); }
@@ -763,8 +775,8 @@ app.addEventListener('submit', async (event) => {
   if (!draft || state.prayerSaving || state.prayerUploading) return;
   const values = Object.fromEntries(new FormData(event.target).entries());
   const title = (values.title || '').trim();
-  if (!title) { toast('Dê um título à oração.'); return; }
-  if (!draft.file && !draft.audioUrl) { toast('Escolha a gravação.'); return; }
+  if (!title) { toast(t("Dê um título à oração.")); return; }
+  if (!draft.file && !draft.audioUrl) { toast(t("Escolha a gravação.")); return; }
   try {
     let audio = { url: draft.audioUrl, bytes: draft.bytes };
     if (draft.file) {
@@ -784,7 +796,7 @@ app.addEventListener('submit', async (event) => {
     if (draft.id) await updatePrayer(draft.id, fields, state.session);
     else await createPrayer(fields, state.session);
     state.prayerDraft = null;
-    toast(draft.id ? 'Oração guardada.' : 'Oração publicada.');
+    toast(draft.id ? t("Oração guardada.") : t("Oração publicada."));
     await refreshPrayers();
   } catch (error) {
     toast(error.message);
@@ -802,12 +814,12 @@ app.addEventListener('change', async (event) => {
   const files = [...(event.target.files || [])];
   if (!files.length) return;
   const room = Math.max(0, 8 - draft.images.length);
-  if (files.length > room) toast('Pode adicionar até 8 fotos por publicação.');
+  if (files.length > room) toast(t("Pode adicionar até 8 fotos por publicação."));
   state.postUploading = true; render();
   try {
     for (const file of files.slice(0, room)) {
       if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
-        toast(`${file.name}: escolha uma foto JPG, PNG ou WebP.`); continue;
+        toast(t("{0}: escolha uma foto JPG, PNG ou WebP.", { 0: file.name })); continue;
       }
       try {
         const url = await uploadPhoto(file, '', state.session.user.id, state.session, { bucket: 'publicacoes', maxEdge: 1600 });
@@ -824,7 +836,7 @@ app.addEventListener('submit', async (event) => {
     if (state.postSaving || state.postUploading || !state.postDraft) return;
     const values = Object.fromEntries(new FormData(event.target).entries());
     const body = (values.body || '').trim();
-    if (!body) { toast('Escreva o anúncio.'); return; }
+    if (!body) { toast(t("Escreva o anúncio.")); return; }
     const isEdit = Boolean(state.postDraft.id);
     state.postSaving = true; render();
     try {
@@ -841,7 +853,7 @@ app.addEventListener('submit', async (event) => {
         : await createPost(fields, state.session);
       if (state.postDraft.images?.length) await addPostImages(saved.id, state.postDraft.images, state.session);
       state.postDraft = null;
-      toast(isEdit ? 'Anúncio guardado.' : 'Anúncio publicado.');
+      toast(isEdit ? t("Anúncio guardado.") : t("Anúncio publicado."));
       await refreshPosts({ fresh: true });
     } catch (error) {
       toast(error.message);
@@ -863,7 +875,7 @@ app.addEventListener('submit', async (event) => {
       delete state.commentDrafts[postId];
       const [comments] = await Promise.all([loadComments(postId), refreshPosts({ fresh: true })]);
       state.comments = { ...state.comments, [postId]: comments };
-      toast('Comentário publicado.');
+      toast(t("Comentário publicado."));
     } catch (error) {
       toast(error.message);
     } finally {
@@ -877,16 +889,16 @@ app.addEventListener('submit', async (event) => {
   const { email, password, display_name: displayName } = Object.fromEntries(new FormData(event.target).entries());
   if (state.authMode === 'registar') {
     const name = (displayName || '').trim();
-    if (!name) { toast('Indique o seu nome.'); return; }
+    if (!name) { toast(t("Indique o seu nome.")); return; }
     const rank = rankPrefixOf(name);
-    if (rank) { toast(`Escreva o nome sem «${rank}»: a função é acrescentada pela aplicação.`); return; }
+    if (rank) { toast(t("Escreva o nome sem «{0}»: a função é acrescentada pela aplicação.", { 0: rank })); return; }
   }
   state.authBusy = true; render();
   try {
     const session = state.authMode === 'registar' ? await register(email, password, (displayName || '').trim()) : await signIn(email, password);
-    if (!session) { toast('Conta criada. Confirme o email antes de entrar.'); state.authMode = 'entrar'; return; }
+    if (!session) { toast(t("Conta criada. Confirme o email antes de entrar.")); state.authMode = 'entrar'; return; }
     await afterSignIn(session);
-    toast('Sessão iniciada.');
+    toast(t("Sessão iniciada."));
   } catch (error) {
     toast(error.message);
   } finally {
@@ -910,7 +922,7 @@ setInterval(() => {
 prefs.subscribe(() => { if (state.route.name === 'home') render(); });
 
 registerServiceWorker({
-  onUpdate: (reload) => toast('Há uma nova versão da aplicação.', { actionLabel: 'Atualizar', onAction: reload, duration: 0 })
+  onUpdate: (reload) => toast(t("Há uma nova versão da aplicação."), { actionLabel: t("Atualizar"), onAction: reload, duration: 0 })
 });
 
 // The player draws itself outside #app and survives every redraw; the pages
@@ -922,6 +934,29 @@ onPlayerChange((id) => {
   renderIfShowing('prayers');
 });
 
+// Keep unfinished forms in memory during a language-only redraw. Never persist
+// passwords or draft form values in storage.
+onLanguageChange(() => {
+  const forms = [...app.querySelectorAll('form[id]')].map((form) => ({
+    id: form.id,
+    fields: [...form.elements].filter((field) => field.name && field.type !== 'file').map((field) => ({
+      name: field.name, type: field.type, value: field.value, checked: field.checked
+    }))
+  }));
+  render();
+  for (const saved of forms) {
+    const form = document.getElementById(saved.id);
+    if (!form) continue;
+    for (const field of form.elements) {
+      const previous = saved.fields.find((item) => item.name === field.name && item.type === field.type &&
+        (!['radio', 'checkbox'].includes(field.type) || item.value === field.value));
+      if (!previous || field.type === 'file') continue;
+      if (['radio', 'checkbox'].includes(field.type)) field.checked = previous.checked;
+      else field.value = previous.value;
+    }
+  }
+  document.title = pageTitle(state.route);
+});
 const router = startRouter(onRoute);
 refreshMeetings();
 refreshPosts();
