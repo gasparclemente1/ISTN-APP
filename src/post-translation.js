@@ -41,7 +41,8 @@ export function translationControl(post) {
   if (!`${post.title || ''}${post.body || ''}`.trim()) return '';
   const entry = postTranslations.get(post);
   const translated = entry?.show && entry.result;
-  const same = translated?.sourceLanguage?.split('-')[0] === language();
+  const same = translated?.sourceLanguage?.split('-')[0] === language()
+    && translated.title === (post.title || '') && translated.body === (post.body || '');
   return `<div class="post-translation" aria-live="polite">
     <button class="text-button" type="button" data-action="translate-post" data-id="${escapeHtml(post.id)}" data-focus-key="translate:${escapeHtml(post.id)}" aria-pressed="${Boolean(translated)}" ${entry?.loading ? 'disabled' : ''}>${th(entry?.loading ? 'A traduzir…' : translated ? 'Ver original' : 'Ver tradução')}</button>
     ${translated ? `<small>${th(same ? 'O texto já está no seu idioma.' : 'Tradução automática · pode conter erros')}</small>` : ''}

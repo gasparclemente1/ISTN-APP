@@ -17,3 +17,6 @@ yarn-error.log*
 
 # Supabase CLI local state
 supabase/.temp/
+
+# Server translation cache (public text, never source-controlled)
+.cache/

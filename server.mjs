@@ -23,7 +23,7 @@ const port = Number(process.env.PORT || 4173);
 const canonicalHost = (process.env.CANONICAL_HOST || '').trim();
 const config = supabaseConfig();
 const publicData = createPublicData({ config, root });
-const postTranslator = createPostTranslator({ loadPosts: () => publicData.posts() });
+const postTranslator = createPostTranslator({ loadPosts: () => publicData.posts(), cacheFile: process.env.TRANSLATION_CACHE_FILE || join(root, '.cache', 'post-translations.json') });
 const signInProviders = createProviderLookup(config);
 if (!publicData.configured) console.warn('SUPABASE_URL/SUPABASE_PUBLISHABLE_KEY em falta: reuniões indisponíveis e diretório lido dos ficheiros de origem.');
 
