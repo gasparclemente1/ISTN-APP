@@ -43,7 +43,7 @@ export const sortPrayers = (prayers) => [...prayers]
 // even when the prayer's own title never says the word.
 export function filterPrayers(prayers, { query = '', theme = '' } = {}) {
   return sortPrayers((prayers || []).filter((prayer) => (!theme || prayer.themeId === theme)
-    && matchesQuery([prayer.title, prayer.description, prayer.theme?.name], query)));
+    && matchesQuery([prayer.title, prayer.description, prayer.theme?.name, prayer.theme && t(prayer.theme.name)], query)));
 }
 
 // Browsing with nothing asked for: every theme in the order the team gave,

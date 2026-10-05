@@ -3929,5 +3929,40 @@ export const messages = {
     "en": "Find an ISTN church",
     "fr": "Trouver une église ISTN",
     "es": "Encontrar una iglesia ISTN"
+  },
+  "Finanças e portas abertas": {
+    "en": "Finances and open doors",
+    "fr": "Finances et portes ouvertes",
+    "es": "Finanzas y puertas abiertas"
+  },
+  "Libertação Geral": {
+    "en": "General deliverance",
+    "fr": "Délivrance générale",
+    "es": "Liberación general"
+  },
+  "Câncer & Coma": {
+    "en": "Cancer & Coma",
+    "fr": "Cancer & coma",
+    "es": "Cáncer y coma"
+  },
+  "Doenças": {
+    "en": "Illnesses",
+    "fr": "Maladies",
+    "es": "Enfermedades"
+  },
+  "Oração geral": {
+    "en": "General prayer",
+    "fr": "Prière générale",
+    "es": "Oración general"
+  },
+  "Outros": {
+    "en": "Other",
+    "fr": "Autres",
+    "es": "Otros"
+  },
+  "Ver todas": {
+    "en": "View all",
+    "fr": "Tout voir",
+    "es": "Ver todas"
   }
 };

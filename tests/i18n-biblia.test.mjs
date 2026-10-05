@@ -105,3 +105,20 @@ test('os países do mapa e das listas são traduzidos pelo código, não só os 
     assert.equal(said(lang, portuguese), expected, `${lang}: ${portuguese}`);
   }
 });
+
+test('os temas das orações traduzem-se, e a pesquisa encontra-os pelo nome traduzido', async () => {
+  const { filterPrayers } = await import('../src/prayers.js');
+  const themes = { 'Finanças e portas abertas': ['Finances and open doors', 'Finances et portes ouvertes', 'Finanzas y puertas abiertas'],
+    'Libertação Geral': ['General deliverance', 'Délivrance générale', 'Liberación general'],
+    'Câncer & Coma': ['Cancer & Coma', 'Cancer & coma', 'Cáncer y coma'], 'Doenças': ['Illnesses', 'Maladies', 'Enfermedades'],
+    'Oração geral': ['General prayer', 'Prière générale', 'Oración general'], 'Outros': ['Other', 'Autres', 'Otros'] };
+  for (const [source, [en, fr, es]] of Object.entries(themes)) {
+    assert.equal(inLanguage('en', () => t(source)), en);
+    assert.equal(inLanguage('fr', () => t(source)), fr);
+    assert.equal(inLanguage('es', () => t(source)), es);
+  }
+  const prayers = [{ id: 'a', title: 'Oração contra o câncer', description: 'Para quem tem algum câncer/cancro', themeId: 'x', theme: { name: 'Câncer & Coma' } }];
+  assert.equal(inLanguage('fr', () => filterPrayers(prayers, { query: 'maladies' })).length, 0);
+  assert.equal(inLanguage('fr', () => filterPrayers(prayers, { query: 'cancer' })).length, 1);
+  assert.equal(inLanguage('es', () => filterPrayers(prayers, { query: 'cáncer y coma' })).length, 1);
+});

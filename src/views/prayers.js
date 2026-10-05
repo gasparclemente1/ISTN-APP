@@ -57,7 +57,7 @@ function prayerCard(state, prayer) {
     <a class="prayer-open" href="/oracoes/${escapeHtml(prayer.id)}">
       <h3>${escapeHtml(ministryText(prayer.title))}</h3>
       <p class="prayer-meta">
-        ${prayer.theme ? `<span class="prayer-theme">${escapeHtml(prayer.theme.name)}</span>` : ''}
+        ${prayer.theme ? `<span class="prayer-theme">${escapeHtml(t(prayer.theme.name))}</span>` : ''}
         ${prayer.duration ? `<span>${icon('clock', { size: 14 })}${escapeHtml(formatDuration(prayer.duration))}</span>` : ''}
         ${prefs.isSavedPrayer(prayer.id) ? `<span class="prayer-kept">${th("{0}No telemóvel", { 0: icon('check', { size: 14 }) })}</span>` : ''}
       </p>
@@ -77,7 +77,7 @@ function themeChips(state) {
     <strong>${escapeHtml(label)}</strong><small>${count}</small></button>`;
   return `<div class="chip-row" role="group" aria-label="${th("Filtrar por tema")}">
     ${chip('', t("Todos"), state.prayers.length)}
-    ${themes.map((theme) => chip(theme.id, theme.name, state.prayers.filter((prayer) => prayer.themeId === theme.id).length)).join('')}
+    ${themes.map((theme) => chip(theme.id, t(theme.name), state.prayers.filter((prayer) => prayer.themeId === theme.id).length)).join('')}
   </div>`;
 }
 
@@ -95,7 +95,7 @@ function prayerResults(state) {
   // someone who does not yet know what is here finds out.
   if (!filters.query && !filters.theme) {
     return prayersByTheme(found, state.prayerThemes || []).map((group) => `<section class="content-section">
-      ${sectionHeading(t("Tema"), group.theme.name)}
+      ${sectionHeading(t("Tema"), t(group.theme.name))}
       <div class="prayer-list">${group.prayers.map((prayer) => prayerCard(state, prayer)).join('')}</div>
     </section>`).join('');
   }
@@ -142,7 +142,7 @@ export function prayerPage(state, id) {
   }
   const others = filterPrayers(state.prayers, { theme: prayer.themeId }).filter((item) => item.id !== prayer.id).slice(0, 4);
   const body = `<article class="prayer-full">
-      ${prayer.theme ? `<span class="prayer-theme">${escapeHtml(prayer.theme.name)}</span>` : ''}
+      ${prayer.theme ? `<span class="prayer-theme">${escapeHtml(t(prayer.theme.name))}</span>` : ''}
       <h1>${escapeHtml(ministryText(prayer.title))}</h1>
       <p class="prayer-meta">
         <span>${th("Profeta Elias · ISTN-SJ")}</span>
@@ -154,7 +154,7 @@ export function prayerPage(state, id) {
       <p class="hint">${th("«Partilhar» envia o próprio áudio, para a pessoa o ouvir no WhatsApp sem precisar desta aplicação. Onde o telemóvel não deixar enviar o ficheiro, vai o link desta página.")}</p>
     </article>
     ${others.length ? `<section class="content-section">
-      ${sectionHeading(t("No mesmo tema"), prayer.theme?.name || t("Outras orações"), '<a class="link-button" href="/oracoes">Ver todas</a>')}
+      ${sectionHeading(t("No mesmo tema"), prayer.theme ? t(prayer.theme.name) : t("Outras orações"), `<a class="link-button" href="/oracoes">${th("Ver todas")}</a>`)}
       <div class="prayer-list">${others.map((item) => prayerCard(state, item)).join('')}</div>
     </section>` : ''}`;
   return page('prayer', { ...back, body }) + prayerSheet(state);
