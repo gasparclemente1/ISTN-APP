@@ -1,5 +1,6 @@
 import { ministryText } from '../i18n.js';
 import { t, th } from '../i18n.js';
+import { displayedPrayer, prayerTranslationControl } from '../post-translation.js';
 // "Orações": the prayers the Prophet recorded, by theme.
 //
 // The page is built around what a pastor does with them, which is not to sit
@@ -51,18 +52,23 @@ function manageMenu(state, prayer) {
   ]);
 }
 
+// The words of a prayer as the reader sees them: its own, or the translation they asked for.
+const wording = (shown, text) => (shown.translated ? text : ministryText(text));
+
 function prayerCard(state, prayer) {
+  const shown = displayedPrayer(prayer);
   return `<article class="prayer-card ${state.prayerPlaying === prayer.id ? 'is-playing' : ''}">
     ${manageMenu(state, prayer)}
     <a class="prayer-open" href="/oracoes/${escapeHtml(prayer.id)}">
-      <h3>${escapeHtml(ministryText(prayer.title))}</h3>
+      <h3>${escapeHtml(wording(shown, shown.title))}</h3>
       <p class="prayer-meta">
-        ${prayer.theme ? `<span class="prayer-theme">${escapeHtml(prayer.theme.name)}</span>` : ''}
+        ${prayer.theme ? `<span class="prayer-theme">${escapeHtml(t(prayer.theme.name))}</span>` : ''}
         ${prayer.duration ? `<span>${icon('clock', { size: 14 })}${escapeHtml(formatDuration(prayer.duration))}</span>` : ''}
         ${prefs.isSavedPrayer(prayer.id) ? `<span class="prayer-kept">${th("{0}No telemóvel", { 0: icon('check', { size: 14 }) })}</span>` : ''}
       </p>
-      ${prayer.description ? `<p class="prayer-note">${escapeHtml(ministryText(prayer.description))}</p>` : ''}
+      ${shown.description ? `<p class="prayer-note">${escapeHtml(wording(shown, shown.description))}</p>` : ''}
     </a>
+    ${prayerTranslationControl(prayer)}
     ${prayerActions(state, prayer)}
   </article>`;
 }
@@ -77,7 +83,7 @@ function themeChips(state) {
     <strong>${escapeHtml(label)}</strong><small>${count}</small></button>`;
   return `<div class="chip-row" role="group" aria-label="${th("Filtrar por tema")}">
     ${chip('', t("Todos"), state.prayers.length)}
-    ${themes.map((theme) => chip(theme.id, theme.name, state.prayers.filter((prayer) => prayer.themeId === theme.id).length)).join('')}
+    ${themes.map((theme) => chip(theme.id, t(theme.name), state.prayers.filter((prayer) => prayer.themeId === theme.id).length)).join('')}
   </div>`;
 }
 
@@ -95,7 +101,7 @@ function prayerResults(state) {
   // someone who does not yet know what is here finds out.
   if (!filters.query && !filters.theme) {
     return prayersByTheme(found, state.prayerThemes || []).map((group) => `<section class="content-section">
-      ${sectionHeading(t("Tema"), group.theme.name)}
+      ${sectionHeading(t("Tema"), t(group.theme.name))}
       <div class="prayer-list">${group.prayers.map((prayer) => prayerCard(state, prayer)).join('')}</div>
     </section>`).join('');
   }
@@ -141,20 +147,22 @@ export function prayerPage(state, id) {
     return page('prayer', { ...back, body: emptyState({ title: t('Oração não encontrada'), text: t("Pode ter sido retirada pela equipa."), action: `<a class="button button-dark" href="/oracoes">${th("Ver as orações")}</a>` }) });
   }
   const others = filterPrayers(state.prayers, { theme: prayer.themeId }).filter((item) => item.id !== prayer.id).slice(0, 4);
+  const shown = displayedPrayer(prayer);
   const body = `<article class="prayer-full">
-      ${prayer.theme ? `<span class="prayer-theme">${escapeHtml(prayer.theme.name)}</span>` : ''}
-      <h1>${escapeHtml(ministryText(prayer.title))}</h1>
+      ${prayer.theme ? `<span class="prayer-theme">${escapeHtml(t(prayer.theme.name))}</span>` : ''}
+      <h1>${escapeHtml(wording(shown, shown.title))}</h1>
       <p class="prayer-meta">
         <span>${th("Profeta Elias · ISTN-SJ")}</span>
         ${prayer.duration ? `<span>${icon('clock', { size: 14 })}${escapeHtml(formatDuration(prayer.duration))}</span>` : ''}
         ${prefs.isSavedPrayer(prayer.id) ? `<span class="prayer-kept">${th("{0}No telemóvel", { 0: icon('check', { size: 14 }) })}</span>` : ''}
       </p>
-      ${prayer.description ? `<p class="prayer-note">${escapeHtml(ministryText(prayer.description))}</p>` : ''}
+      ${shown.description ? `<p class="prayer-note">${escapeHtml(wording(shown, shown.description))}</p>` : ''}
+      ${prayerTranslationControl(prayer)}
       ${prayerActions(state, prayer, { full: true })}
       <p class="hint">${th("«Partilhar» envia o próprio áudio, para a pessoa o ouvir no WhatsApp sem precisar desta aplicação. Onde o telemóvel não deixar enviar o ficheiro, vai o link desta página.")}</p>
     </article>
     ${others.length ? `<section class="content-section">
-      ${sectionHeading(t("No mesmo tema"), prayer.theme?.name || t("Outras orações"), '<a class="link-button" href="/oracoes">Ver todas</a>')}
+      ${sectionHeading(t("No mesmo tema"), prayer.theme ? t(prayer.theme.name) : t("Outras orações"), `<a class="link-button" href="/oracoes">${th("Ver todas")}</a>`)}
       <div class="prayer-list">${others.map((item) => prayerCard(state, item)).join('')}</div>
     </section>` : ''}`;
   return page('prayer', { ...back, body }) + prayerSheet(state);

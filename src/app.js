@@ -1,4 +1,4 @@
-import { postTranslations } from './post-translation.js';
+import { postTranslations, prayerTranslations } from './post-translation.js';
 import { t, language, setLanguage, onLanguageChange, useProfileLanguage } from './i18n.js';
 // The public app: state, data loading, routing and interaction. Pages are drawn
 // by the modules in ./views from the state kept here.
@@ -467,6 +467,14 @@ const actions = {
     renderIfShowing('posts');
     await pending;
     renderIfShowing('posts');
+  },
+  'translate-prayer': async (element) => {
+    const prayer = state.prayers?.find((item) => item.id === element.dataset.id);
+    if (!prayer) return;
+    const pending = prayerTranslations.toggle({ id: prayer.id, title: prayer.title || '', body: prayer.description || '' });
+    renderIfShowing('prayers');
+    await pending;
+    renderIfShowing('prayers');
   },
   'share-post': async (element) => {
     const post = state.posts?.find((item) => item.id === element.dataset.id);

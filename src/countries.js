@@ -1,4 +1,5 @@
-import { locale as appLocale } from './i18n.js';
+import { locale as appLocale, t } from './i18n.js';
+import { foldText } from './text.js';
 // Every country, named by the browser itself in the Portuguese the church
 // writes: "Quénia" and "Polónia", not the Brazilian "Quênia" and "Polônia".
 //
@@ -27,7 +28,12 @@ export const ISTN_COUNTRIES = ['AO', 'BR', 'CA', 'CD', 'CH', 'DE', 'ES', 'FR', '
 // The standard names for the two Congos ("Congo - Kinshasa", "Congo - Brazzaville")
 // read as catalogue entries. The ISTN is present in one of them, so both get the
 // names people actually use.
-const OVERRIDES = { 'pt-PT': { CD: 'República Democrática do Congo', CG: 'República do Congo' } };
+const OVERRIDES = {
+  'pt-PT': { CD: 'República Democrática do Congo', CG: 'República do Congo' },
+  'en-GB': { CD: 'Democratic Republic of the Congo', CG: 'Republic of the Congo', ST: 'São Tomé and Príncipe' },
+  'fr-FR': { CD: 'République démocratique du Congo', CG: 'République du Congo' },
+  'es-ES': { CD: 'República Democrática del Congo', CG: 'República del Congo' }
+};
 
 let cache = null;
 
@@ -44,4 +50,19 @@ export function countryList(locale = appLocale()) {
 export function countryName(code, locale = appLocale()) {
   if (!code) return '';
   return countryList(locale).find((country) => country.code === code)?.name || code;
+}
+
+// A country as the directory stores it — its Portuguese name, which is what
+// the church wrote — said in the language in use. The catalogue is asked first
+// (it keeps the names the team chose), then the browser's own names by country
+// code, so a country nobody listed by hand ("Reino Unido", "Estados Unidos")
+// is never left in Portuguese. Anything that is not a country passes through t().
+let byPortugueseName = null;
+export function countryLabel(name) {
+  const source = String(name ?? '');
+  const said = t(source);
+  if (said !== source || appLocale() === 'pt-PT') return said;
+  byPortugueseName ||= new Map(countryList('pt-PT').map((country) => [foldText(country.name), country.code]));
+  const code = byPortugueseName.get(foldText(source));
+  return code ? countryName(code) : source;
 }

@@ -1,4 +1,5 @@
 import { t, th } from '../i18n.js';
+import { countryLabel } from '../countries.js';
 // "Igrejas": the directory of places, and each place's page.
 //
 // The page opens with the Profeta Elias and his word about the nations, then
@@ -24,7 +25,7 @@ const SOURCE_LABELS = {
 };
 const sourceText = (church) => SOURCE_LABELS[church.source] || t("Registo operacional a confirmar pela equipa local.");
 
-const where = (church) => [church.region, t(church.country)].filter(Boolean).join(', ');
+const where = (church) => [church.region, countryLabel(church.country)].filter(Boolean).join(', ');
 const telHref = (phone) => escapeHtml(safeUrl(`tel:${String(phone).replace(/[^\d+]/g, '')}`, { schemes: ['tel:'] }));
 const mapsUrl = (church) => (church.address
   ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([church.address, church.locality, church.country].filter(Boolean).join(', '))}`
@@ -73,7 +74,7 @@ function churchCard(church, now) {
     <h3>${escapeHtml(churchTitle(church))}</h3>
     ${online
       ? `<span class="card-line">${th("{0}Culto online — fale com o responsável para participar", { 0: icon('globe', { size: 16 }) })}</span>`
-      : `<span class="card-line">${icon('pin', { size: 16 })}<span>${escapeHtml(church.region || t(church.country))}${church.address ? `<small class="card-address">${escapeHtml(church.address)}</small>` : ''}</span></span>`}
+      : `<span class="card-line">${icon('pin', { size: 16 })}<span>${escapeHtml(church.region || countryLabel(church.country))}${church.address ? `<small class="card-address">${escapeHtml(church.address)}</small>` : ''}</span></span>`}
     ${church.services.length ? serviceChips(church, now) : `<span class="card-line muted">${icon('clock', { size: 16 })}${online ? t("Dia e hora a confirmar com o responsável") : t("Horário a confirmar com o responsável")}</span>`}
     ${church.leaderName ? `<span class="card-line">${icon('user', { size: 16 })}${escapeHtml([church.leaderName, ...church.otherLeaders.map((leader) => leader.name)].filter(Boolean).join(' · '))}</span>` : ''}
     <span class="card-arrow">${icon('chevron', { size: 18 })}</span>
@@ -125,7 +126,7 @@ export function churchResults(state, now = new Date()) {
     ${!filtered && worldSeat ? worldSeatCard(worldSeat, now) : ''}
     ${summary}
     ${groupDirectory(matching).map((group) => `<section class="country-group ${group.online ? 'is-online' : ''}" aria-labelledby="grupo-${escapeHtml(group.key.replace(/\W+/g, '-'))}">
-      <h2 class="country-heading" id="grupo-${escapeHtml(group.key.replace(/\W+/g, '-'))}">${group.flag ? `<span class="country-flag" aria-hidden="true">${group.flag}</span>` : icon('globe', { size: 20 })}${escapeHtml(t(group.title))}<small>${group.churches.length}</small></h2>
+      <h2 class="country-heading" id="grupo-${escapeHtml(group.key.replace(/\W+/g, '-'))}">${group.flag ? `<span class="country-flag" aria-hidden="true">${group.flag}</span>` : icon('globe', { size: 20 })}${escapeHtml(countryLabel(group.title))}<small>${group.churches.length}</small></h2>
       ${group.online ? `<p class="group-hint">${th("Cultos online, sobretudo pelo WhatsApp, onde ainda não há um lugar presencial.")}</p>` : ''}
       <ul class="church-list">${group.churches.map((church) => churchCard(church, now)).join('')}</ul>
     </section>`).join('')}`;
@@ -137,7 +138,7 @@ function filterFields(state) {
   const regions = country ? regionsIn(churches, country) : [];
   const today = new Date().getDay();
   return `<div class="filter-bar">
-    <label class="select-field"><span>${th("País")}</span><select id="country-filter"><option value="">${th("Todos")}</option>${countriesIn(churches).map((name) => `<option value="${escapeHtml(name)}" ${country === name ? 'selected' : ''}>${escapeHtml(t(name))}</option>`).join('')}</select></label>
+    <label class="select-field"><span>${th("País")}</span><select id="country-filter"><option value="">${th("Todos")}</option>${countriesIn(churches).map((name) => `<option value="${escapeHtml(name)}" ${country === name ? 'selected' : ''}>${escapeHtml(countryLabel(name))}</option>`).join('')}</select></label>
     <label class="select-field"><span>${th("Região")}</span><select id="region-filter" ${regions.length ? '' : 'disabled'}><option value="">${country ? t("Todas") : t("Escolha um país")}</option>${regions.map((name) => `<option ${region === name ? 'selected' : ''}>${escapeHtml(name)}</option>`).join('')}</select></label>
   </div>
   <div class="chip-row day-chips" role="group" aria-label="${th("Dia de culto")}">

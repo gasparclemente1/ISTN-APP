@@ -80,3 +80,45 @@ test('o Profeta Elias traduz-se em cada língua', () => {
   assert.deepEqual(['en', 'fr', 'es'].map((lang) => messages['Profeta Elias'][lang]), ['Prophet Elijah', 'Prophète Élie', 'Profeta Elías']);
   assert.equal(inLanguage('en', () => t('Elias é Deus')), 'Elijah is God');
 });
+
+test('os países do mapa e das listas são traduzidos pelo código, não só os que alguém listou à mão', async () => {
+  const { countryLabel, countryName, ISTN_COUNTRIES } = await import('../src/countries.js');
+  const said = (lang, name) => inLanguage(lang, () => countryLabel(name));
+  assert.equal(said('fr', 'Reino Unido'), 'Royaume-Uni');
+  assert.equal(said('fr', 'Estados Unidos'), 'États-Unis');
+  assert.equal(said('fr', 'República Democrática do Congo'), 'République démocratique du Congo');
+  assert.equal(said('en', 'Reino Unido'), 'United Kingdom');
+  assert.equal(said('en', 'Estados Unidos'), 'United States');
+  assert.equal(said('en', 'República Democrática do Congo'), 'Democratic Republic of the Congo');
+  assert.equal(said('es', 'República Democrática do Congo'), 'República Democrática del Congo');
+  assert.equal(said('es', 'Estados Unidos'), 'Estados Unidos');
+  // The catalogue's own choices still win, and Portuguese is left as written.
+  assert.equal(said('en', 'Estados Unidos da América'), 'United States of America');
+  assert.equal(countryLabel('Reino Unido'), 'Reino Unido');
+  // Anything that is not a country is said as before, or left alone.
+  assert.equal(said('fr', 'Igrejas online'), 'Églises en ligne');
+  assert.equal(said('fr', 'Lugar que não existe'), 'Lugar que não existe');
+  // Every country the ISTN is in reads in the reader's language.
+  for (const lang of ['en', 'fr', 'es']) for (const code of ISTN_COUNTRIES) {
+    const portuguese = countryName(code, 'pt-PT');
+    const expected = inLanguage(lang, () => countryName(code));
+    assert.equal(said(lang, portuguese), expected, `${lang}: ${portuguese}`);
+  }
+});
+
+test('os temas das orações traduzem-se, e a pesquisa encontra-os pelo nome traduzido', async () => {
+  const { filterPrayers } = await import('../src/prayers.js');
+  const themes = { 'Finanças e portas abertas': ['Finances and open doors', 'Finances et portes ouvertes', 'Finanzas y puertas abiertas'],
+    'Libertação Geral': ['General deliverance', 'Délivrance générale', 'Liberación general'],
+    'Câncer & Coma': ['Cancer & Coma', 'Cancer & coma', 'Cáncer y coma'], 'Doenças': ['Illnesses', 'Maladies', 'Enfermedades'],
+    'Oração geral': ['General prayer', 'Prière générale', 'Oración general'], 'Outros': ['Other', 'Autres', 'Otros'] };
+  for (const [source, [en, fr, es]] of Object.entries(themes)) {
+    assert.equal(inLanguage('en', () => t(source)), en);
+    assert.equal(inLanguage('fr', () => t(source)), fr);
+    assert.equal(inLanguage('es', () => t(source)), es);
+  }
+  const prayers = [{ id: 'a', title: 'Oração contra o câncer', description: 'Para quem tem algum câncer/cancro', themeId: 'x', theme: { name: 'Câncer & Coma' } }];
+  assert.equal(inLanguage('fr', () => filterPrayers(prayers, { query: 'maladies' })).length, 0);
+  assert.equal(inLanguage('fr', () => filterPrayers(prayers, { query: 'cancer' })).length, 1);
+  assert.equal(inLanguage('es', () => filterPrayers(prayers, { query: 'cáncer y coma' })).length, 1);
+});
