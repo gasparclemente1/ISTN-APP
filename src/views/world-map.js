@@ -7,6 +7,7 @@ import { t, th } from '../i18n.js';
 // team's list says where each place is. A light is at the middle of its
 // country; tapping it, or the country in the list below, filters the
 // directory.
+import { countryLabel } from '../countries.js';
 import { countryFlag, countryPresence } from '../directory.js';
 import { escapeHtml } from '../html.js';
 import { WORLD_DOTS } from '../world-dots.js';
@@ -45,7 +46,7 @@ export function worldMap(churches) {
       // Pointer only: the same choice is in the list of countries below, as
       // buttons, for the keyboard and screen readers.
       return `<g class="map-light ${entry.physical ? '' : 'is-online'}" data-action="church-country" data-country="${escapeHtml(entry.country)}">
-        <title>${escapeHtml(`${t(entry.country)}: ${countLabel(entry)}`)}</title>
+        <title>${escapeHtml(`${countryLabel(entry.country)}: ${countLabel(entry)}`)}</title>
         ${entry.physical ? `<circle class="map-glow" cx="${x.toFixed(2)}" cy="${y.toFixed(2)}" r="${(radius * 2.4).toFixed(2)}" />` : ''}
         <circle class="map-dot" cx="${x.toFixed(2)}" cy="${y.toFixed(2)}" r="${radius.toFixed(2)}" />
         <circle class="map-hit" cx="${x.toFixed(2)}" cy="${y.toFixed(2)}" r="${Math.max(2.2, radius + 1).toFixed(2)}" />
@@ -71,7 +72,7 @@ export function worldMap(churches) {
     </svg>
     <p class="world-legend"><span class="legend-dot"></span>${th("Presencial")} <span class="legend-ring"></span>${th("Só online")} <span class="world-hint">${th("Toque num país para ver as igrejas.")}</span></p>
     <ul class="country-chips" aria-label="${th("Países")}">${presence.map((entry) => `<li><button type="button" data-action="church-country" data-country="${escapeHtml(entry.country)}" data-focus-key="country:${escapeHtml(entry.country)}">
-      <span aria-hidden="true">${countryFlag(entry.code)}</span>${escapeHtml(t(entry.country))}<small>${entry.physical + entry.online}</small>
+      <span aria-hidden="true">${countryFlag(entry.code)}</span>${escapeHtml(countryLabel(entry.country))}<small>${entry.physical + entry.online}</small>
     </button></li>`).join('')}</ul>
   </section>`;
 }
