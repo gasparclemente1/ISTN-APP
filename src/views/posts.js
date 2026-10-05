@@ -1,3 +1,5 @@
+import { displayedPost, translationControl } from '../post-translation.js';
+import { t, th } from '../i18n.js';
 // "Anúncios": what the team publishes, and the conversation around it.
 //
 // Reading needs no account. Reacting needs one. Commenting needs the servant
@@ -27,9 +29,9 @@ function authorLine(post, menu = '') {
     <span class="post-avatar">${photo ? `<img src="${escapeHtml(photo)}" alt="" loading="lazy" />` : `<span>${escapeHtml(initials || '·')}</span>`}</span>
     <span class="post-byline">
       <strong>${personLink(post.authorId, `${escapeHtml(name)}${author?.verified ? verifiedSeal(author.servo_role) : ''}`)}</strong>
-      <small>${escapeHtml(post.scope)} · ${escapeHtml(formatPostDate(post.publishedAt))}</small>
+      <small>${escapeHtml(post.churchName ? post.scope : t(post.scope))} · ${escapeHtml(formatPostDate(post.publishedAt))}</small>
     </span>
-    <span class="post-flags">${communityTag(post)}${isHighlighted(post) ? '<span class="post-pin">Em destaque</span>' : ''}${menu}</span>
+    <span class="post-flags">${communityTag(post)}${isHighlighted(post) ? `<span class="post-pin">${th("Em destaque")}</span>` : ''}${menu}</span>
   </div>`;
 }
 
@@ -60,7 +62,7 @@ function postVideos(post) {
   if (!videos.length) return '';
   return `<div class="post-videos">${videos.map((video) => `<a class="post-video" href="${escapeHtml(video.url)}" target="_blank" rel="noopener noreferrer">
     <span class="post-video-thumb"><img src="${escapeHtml(video.thumbnail)}" alt="" loading="lazy" decoding="async" /><span class="post-video-play">${icon('play', { size: 22 })}</span></span>
-    <span class="post-video-label">${icon('external', { size: 14 })}Ver o vídeo no YouTube${externalHint}</span>
+    <span class="post-video-label">${th("{3}Ver o vídeo no YouTube{4}", { 3: icon('external', { size: 14 }), 4: externalHint() })}</span>
   </a>`).join('')}</div>`;
 }
 
@@ -75,35 +77,35 @@ function reactionRow(state, post, { compact = true } = {}) {
   const stack = `<span class="reaction-stack" aria-hidden="true">${active.slice(0, 3).map((reaction) => `<span class="${reaction.special ? 'is-special' : ''}" title="${reaction.label}">${reaction.emoji}</span>`).join('')}</span>`;
   return `<div class="post-stats">
       ${total
-        ? `<button class="reaction-summary" type="button" data-action="show-reactions" data-id="${id}" data-focus-key="reaction-summary:${id}">${stack}${total} ${total === 1 ? 'reação' : 'reações'}</button>`
-        : `<span>${stack}Seja o primeiro a reagir</span>`}
-      <span>${post.commentCount} ${post.commentCount === 1 ? 'comentário' : 'comentários'}</span>
+        ? `<button class="reaction-summary" type="button" data-action="show-reactions" data-id="${id}" data-focus-key="reaction-summary:${id}">${stack}${total} ${total === 1 ? t("reação") : t("reações")}</button>`
+        : `<span>${stack}${th("Seja o primeiro a reagir")}</span>`}
+      <span>${post.commentCount} ${post.commentCount === 1 ? t("comentário") : t("comentários")}</span>
     </div>
     <div class="post-interactions compact-interactions">
       <details class="reaction-picker" data-reaction-picker>
-        <summary class="reaction-trigger ${selected ? 'is-on' : ''} ${selected?.special ? 'is-special' : ''} ${selected && !selected.special ? 'is-icon-only' : ''}" data-focus-key="reaction-trigger:${id}" aria-label="${selected ? `Reação atual: ${selected.label}. Alterar reação` : 'Escolher reação'}">
-          <span aria-hidden="true">${selected?.emoji || '👍'}</span>${selected?.special ? `<span>${selected.label}</span>` : selected ? '' : '<span>Reagir</span>'}
+        <summary class="reaction-trigger ${selected ? 'is-on' : ''} ${selected?.special ? 'is-special' : ''} ${selected && !selected.special ? 'is-icon-only' : ''}" data-focus-key="reaction-trigger:${id}" aria-label="${selected ? t("Reação atual: {0}. Alterar reação", { 0: t(selected.label) }) : t("Escolher reação")}">
+          <span aria-hidden="true">${selected?.emoji || '👍'}</span>${selected?.special ? `<span>${th(selected.label)}</span>` : selected ? '' : `<span>${th("Reagir")}</span>`}
         </summary>
-        <div class="reaction-popover" role="group" aria-label="Escolher reação" aria-busy="${busy}">
+        <div class="reaction-popover" role="group" aria-label="${th("Escolher reação")}" aria-busy="${busy}">
           <div class="reaction-options">
             ${REACTIONS.map((reaction) => `<button class="reaction-option ${reaction.special ? 'is-special' : ''} ${mine === reaction.kind ? 'is-on' : ''}" type="button"
               data-action="react" data-id="${id}" data-kind="${reaction.kind}" data-focus-key="reaction-trigger:${id}"
-              aria-label="${reaction.label}${mine === reaction.kind ? ', remover reação' : ''}" title="${reaction.label}" aria-pressed="${mine === reaction.kind}" ${busy ? 'disabled' : ''}>
-              <span aria-hidden="true">${reaction.emoji}</span>${reaction.special ? `<span>${reaction.label}</span>` : ''}
+              aria-label="${th(reaction.label)}${mine === reaction.kind ? t(", remover reação") : ''}" title="${th(reaction.label)}" aria-pressed="${mine === reaction.kind}" ${busy ? 'disabled' : ''}>
+              <span aria-hidden="true">${reaction.emoji}</span>${reaction.special ? `<span>${th(reaction.label)}</span>` : ''}
             </button>`).join('')}
           </div>
-          ${selected && !REACTIONS.some((reaction) => reaction.kind === mine) ? `<button class="text-button legacy-reaction" type="button" data-action="react" data-id="${id}" data-kind="${escapeHtml(mine)}" data-focus-key="reaction-trigger:${id}" ${busy ? 'disabled' : ''}>Remover ${selected.label}</button>` : ''}
+          ${selected && !REACTIONS.some((reaction) => reaction.kind === mine) ? `<button class="text-button legacy-reaction" type="button" data-action="react" data-id="${id}" data-kind="${escapeHtml(mine)}" data-focus-key="reaction-trigger:${id}" ${busy ? 'disabled' : ''}>${th("Remover {4}", { 4: th(selected.label) })}</button>` : ''}
         </div>
       </details>
-      ${compact ? `<a class="post-comment-link" href="/anuncios/${id}?comentarios=1">${icon('message', { size: 16 })}Comentar</a>` : '<button class="post-comment-link" type="button" data-action="focus-comment">' + icon('message', { size: 16 }) + 'Comentar</button>'}
-      <button class="post-comment-link post-share" type="button" data-action="share-post" data-id="${id}" data-focus-key="share-post:${id}">${icon('share', { size: 16 })}Partilhar</button>
+      ${compact ? `<a class="post-comment-link" href="/anuncios/${id}?comentarios=1">${th("{1}Comentar", { 1: icon('message', { size: 16 }) })}</a>` : '<button class="post-comment-link" type="button" data-action="focus-comment">' + icon('message', { size: 16 }) + th('Comentar') + '</button>'}
+      <button class="post-comment-link post-share" type="button" data-action="share-post" data-id="${id}" data-focus-key="share-post:${id}">${th("{17}Partilhar", { 17: icon('share', { size: 16 }) })}</button>
     </div>`;
 }
 
 function emojiTools(target) {
-  return `<div class="emoji-tools" role="group" aria-label="Adicionar emoji">
-    <span>Uma palavra de carinho</span>
-    ${[['🙏', 'Oração'], ['❤️', 'Amor'], ['🙌', 'Gratidão'], ['🕊️', 'Paz'], ['😊', 'Alegria']].map(([emoji, label]) => `<button type="button" data-action="insert-emoji" data-target="${target}" data-emoji="${emoji}" aria-label="Adicionar emoji: ${label}" title="${label}">${emoji}</button>`).join('')}
+  return `<div class="emoji-tools" role="group" aria-label="${th("Adicionar emoji")}">
+    <span>${th("Uma palavra de carinho")}</span>
+    ${[['🙏', t("Oração")], ['❤️', t("Amor")], ['🙌', t("Gratidão")], ['🕊️', t("Paz")], ['😊', t("Alegria")]].map(([emoji, label]) => `<button type="button" data-action="insert-emoji" data-target="${target}" data-emoji="${emoji}" aria-label="${th("Adicionar emoji: {2}", { 2: label })}" title="${label}">${emoji}</button>`).join('')}
   </div>`;
 }
 
@@ -126,22 +128,24 @@ function ownerMenu(state, post) {
   const mine = Boolean(state.profile) && post.authorId === state.profile.id;
   const moderates = canModerate(state.admin, post);
   if (!mine && !moderates) return '';
-  return actionMenu(post.id, 'Opções deste anúncio', [
-    mine && menuItem('edit-post', post.id, 'edit', 'Editar'),
-    menuItem('toggle-highlight', post.id, 'sun', isHighlighted(post) ? 'Retirar destaque' : 'Destacar'),
-    moderates && !mine && menuItem('hide-post', post.id, 'eyeOff', 'Esconder'),
-    menuItem('delete-post', post.id, 'close', 'Eliminar', true)
+  return actionMenu(post.id, t("Opções deste anúncio"), [
+    mine && menuItem('edit-post', post.id, 'edit', t("Editar")),
+    menuItem('toggle-highlight', post.id, 'sun', isHighlighted(post) ? t("Retirar destaque") : t("Destacar")),
+    moderates && !mine && menuItem('hide-post', post.id, 'eyeOff', t("Esconder")),
+    menuItem('delete-post', post.id, 'close', t("Eliminar"), true)
   ]);
 }
 
 export function postCard(state, post) {
+  const displayed = displayedPost(post);
   return `<article class="post-card ${isHighlighted(post) ? 'is-highlighted' : ''}">
     ${authorLine(post, ownerMenu(state, post))}
     <a class="post-open" href="/anuncios/${escapeHtml(post.id)}">
-      ${post.title ? `<h3>${escapeHtml(post.title)}</h3>` : ''}
-      <div class="post-body is-clamped">${bodyHtml(post.body)}</div>
-      <span class="post-more">Ler tudo${icon('chevron', { size: 14 })}</span>
+      ${displayed.title ? `<h3>${escapeHtml(displayed.title)}</h3>` : ''}
+      <div class="post-body is-clamped">${bodyHtml(displayed.body)}</div>
+      <span class="post-more">${th("Ler tudo{5}", { 5: icon('chevron', { size: 14 }) })}</span>
     </a>
+    ${translationControl(post)}
     ${postVideos(post)}
     ${postImages(post)}
     ${reactionRow(state, post)}
@@ -152,8 +156,8 @@ export function composerButton(state) {
   if (!canPublish(state.profile)) return '';
   return `<button class="post-new" type="button" data-action="new-post">
     <span class="post-avatar">${icon('edit', { size: 20 })}</span>
-    <span class="post-new-prompt">O que deseja partilhar?<small>Uma novidade, um convite, uma bênção.</small></span>
-    <span class="post-new-photo">${icon('camera', { size: 22 })}<span>Fotos</span></span>
+    <span class="post-new-prompt">${th("O que deseja partilhar?")}<small>${th("Uma novidade, um convite, uma bênção.")}</small></span>
+    <span class="post-new-photo">${icon('camera', { size: 22 })}<span>${th("Fotos")}</span></span>
   </button>`;
 }
 
@@ -167,33 +171,33 @@ export function composerSheet(state) {
   return `<div class="sheet-backdrop" data-sheet-close>
     <form class="sheet post-composer" id="post-form" role="dialog" aria-modal="true" aria-labelledby="post-sheet-title">
       <span class="sheet-grip" aria-hidden="true"></span>
-      <div class="composer-heading"><div><span class="eyebrow">PARTILHAR COM A COMUNIDADE</span><h2 id="post-sheet-title">${draft.id ? 'Editar publicação' : 'Criar publicação'}</h2></div><button class="icon-button" type="button" data-sheet-close aria-label="Fechar" ${state.postUploading || state.postSaving ? 'disabled' : ''}>${icon('close')}</button></div>
-      <label class="sheet-field">Título (opcional)<input type="text" name="title" data-focus-key="post-title" placeholder="Dê um título à sua publicação" value="${escapeHtml(draft.title || '')}" maxlength="120" /></label>
-      <label class="sheet-field">Mensagem<textarea id="post-body" name="body" rows="5" maxlength="4000" required placeholder="Partilhe as novidades com a sua comunidade…">${escapeHtml(draft.body || '')}</textarea></label>
-      <p class="sheet-hint">${icon('play', { size: 14 })}Para partilhar um vídeo, cole o link do YouTube na mensagem: aparece com a imagem do vídeo.</p>
+      <div class="composer-heading"><div><span class="eyebrow">${th("PARTILHAR COM A COMUNIDADE")}</span><h2 id="post-sheet-title">${draft.id ? t("Editar publicação") : t("Criar publicação")}</h2></div><button class="icon-button" type="button" data-sheet-close aria-label="${th("Fechar")}" ${state.postUploading || state.postSaving ? 'disabled' : ''}>${icon('close')}</button></div>
+      <label class="sheet-field">${th("Título (opcional)")}<input type="text" name="title" data-focus-key="post-title" placeholder="${th("Dê um título à sua publicação")}" value="${escapeHtml(draft.title || '')}" maxlength="120" /></label>
+      <label class="sheet-field">${th("Mensagem")}<textarea id="post-body" name="body" rows="5" maxlength="4000" required placeholder="${th("Partilhe as novidades com a sua comunidade…")}">${escapeHtml(draft.body || '')}</textarea></label>
+      <p class="sheet-hint">${th("{5}Para partilhar um vídeo, cole o link do YouTube na mensagem: aparece com a imagem do vídeo.", { 5: icon('play', { size: 14 }) })}</p>
       ${emojiTools('post-body')}
-      ${communities.length ? `<label class="sheet-field">Comunidade (opcional)<select name="community_id">
-        <option value="">Para toda a gente</option>
+      ${communities.length ? `<label class="sheet-field">${th("Comunidade (opcional)")}<select name="community_id">
+        <option value="">${th("Para toda a gente")}</option>
         ${communities.map((community) => `<option value="${escapeHtml(community.id)}" ${draft.communityId === community.id ? 'selected' : ''}>${escapeHtml(community.name)}</option>`).join('')}
       </select></label>
-      <p class="sheet-hint">${icon('users', { size: 14 })}A comunidade é uma etiqueta: o anúncio continua a ser lido por todos, e quem procura só o ML ou o Grupo Jovem encontra-o pela etiqueta.</p>` : ''}
+      <p class="sheet-hint">${th("{1}A comunidade é uma etiqueta: o anúncio continua a ser lido por todos, e quem procura só o ML ou o Grupo Jovem encontra-o pela etiqueta.", { 1: icon('users', { size: 14 }) })}</p>` : ''}
       ${scope === 'global'
-        ? `<label class="sheet-field">Para quem<select name="church_id">
-            <option value="">Toda a ISTN</option>
+        ? `<label class="sheet-field">${th("Para quem")}<select name="church_id">
+            <option value="">${th("Toda a ISTN")}</option>
             ${churches.map((church) => `<option value="${church.id}" ${draft.churchId === church.id ? 'selected' : ''}>ISTN — ${escapeHtml(church.name || church.locality || church.country || '')}</option>`).join('')}
           </select></label>`
-        : `<p class="sheet-hint">Este anúncio é publicado na sua igreja.</p><input type="hidden" name="church_id" value="${escapeHtml(home || '')}" />`}
-      <details class="post-options" ${draft.highlighted ? 'open' : ''}><summary>${icon('sun', { size: 18 })} Opções de destaque</summary><label class="sheet-check"><input type="checkbox" name="highlighted" ${draft.highlighted ? 'checked' : ''} /> Destacar este anúncio</label>
-      <label class="sheet-field">Destaque até (opcional)<input type="date" name="highlight_until" value="${escapeHtml(draft.highlightUntil || '')}" /></label></details>
+        : `<p class="sheet-hint">${th("Este anúncio é publicado na sua igreja.")}</p><input type="hidden" name="church_id" value="${escapeHtml(home || '')}" />`}
+      <details class="post-options" ${draft.highlighted ? 'open' : ''}><summary>${th("{9} Opções de destaque", { 9: icon('sun', { size: 18 }) })}</summary><label class="sheet-check"><input type="checkbox" name="highlighted" ${draft.highlighted ? 'checked' : ''} /> ${th("Destacar este anúncio")}</label>
+      <label class="sheet-field">${th("Destaque até (opcional)")}<input type="date" name="highlight_until" value="${escapeHtml(draft.highlightUntil || '')}" /></label></details>
       <div class="sheet-field">
-        <span>Fotos da publicação <small>${(draft.images || []).length}/8</small></span>
-        <div class="draft-images">${(draft.images || []).map((image, index) => `<figure><img src="${escapeHtml(safeUrl(image.url))}" alt="" /><button class="icon-button small" type="button" data-action="drop-image" data-index="${index}" aria-label="Remover foto ${index + 1}" ${state.postUploading || state.postSaving ? 'disabled' : ''}>${icon('close', { size: 16 })}</button></figure>`).join('')}</div>
-        <label class="post-photo-pick">${icon('camera', { size: 28 })}<strong>${state.postUploading ? 'A adicionar as suas fotos…' : 'Adicionar fotos'}</strong><span>Escolha os momentos que deseja partilhar</span><input type="file" multiple accept="image/jpeg,image/png,image/webp" aria-label="Adicionar fotos" data-post-image ${state.postUploading || state.postSaving || draft.images.length >= 8 ? 'disabled' : ''} /></label>
-        <small role="status">${state.postUploading ? 'Aguarde até todas as fotos estarem prontas.' : 'Até 8 fotos · JPG, PNG ou WebP'}</small>
+        <span>${th("Fotos da publicação")} <small>${(draft.images || []).length}/8</small></span>
+        <div class="draft-images">${(draft.images || []).map((image, index) => `<figure><img src="${escapeHtml(safeUrl(image.url))}" alt="" /><button class="icon-button small" type="button" data-action="drop-image" data-index="${index}" aria-label="${th("Remover foto {2}", { 2: index + 1 })}" ${state.postUploading || state.postSaving ? 'disabled' : ''}>${icon('close', { size: 16 })}</button></figure>`).join('')}</div>
+        <label class="post-photo-pick">${icon('camera', { size: 28 })}<strong>${state.postUploading ? t("A adicionar as suas fotos…") : t("Adicionar fotos")}</strong><span>${th("Escolha os momentos que deseja partilhar")}</span><input type="file" multiple accept="image/jpeg,image/png,image/webp" aria-label="${th("Adicionar fotos")}" data-post-image ${state.postUploading || state.postSaving || draft.images.length >= 8 ? 'disabled' : ''} /></label>
+        <small role="status">${state.postUploading ? t("Aguarde até todas as fotos estarem prontas.") : t("Até 8 fotos · JPG, PNG ou WebP")}</small>
       </div>
       <div class="sheet-actions">
-        <button class="button button-gold full-width" type="submit" ${state.postSaving || state.postUploading ? 'disabled' : ''}>${state.postSaving ? 'A publicar…' : draft.id ? 'Guardar' : 'Publicar'}</button>
-        <button class="text-button" type="button" data-sheet-close ${state.postSaving || state.postUploading ? 'disabled' : ''}>Cancelar</button>
+        <button class="button button-gold full-width" type="submit" ${state.postSaving || state.postUploading ? 'disabled' : ''}>${state.postSaving ? t("A publicar…") : draft.id ? t("Guardar") : t("Publicar")}</button>
+        <button class="text-button" type="button" data-sheet-close ${state.postSaving || state.postUploading ? 'disabled' : ''}>${th("Cancelar")}</button>
       </div>
     </form>
   </div>`;
@@ -210,7 +214,7 @@ function reactionPerson(person) {
   return `<li>
     <span class="post-avatar">${photo ? `<img src="${escapeHtml(photo)}" alt="" loading="lazy" />` : `<span>${escapeHtml(initials || '·')}</span>`}</span>
     <strong>${personLink(person.user_id, `${escapeHtml(name)}${person.verified ? verifiedSeal(person.servo_role) : ''}`)}</strong>
-    ${reaction ? `<span class="reaction-person-mark ${reaction.special ? 'is-special' : ''}" title="${escapeHtml(reaction.label)}"><span aria-hidden="true">${reaction.emoji}</span><span class="sr-only">${escapeHtml(reaction.label)}</span></span>` : ''}
+    ${reaction ? `<span class="reaction-person-mark ${reaction.special ? 'is-special' : ''}" title="${escapeHtml(t(reaction.label))}"><span aria-hidden="true">${reaction.emoji}</span><span class="sr-only">${escapeHtml(t(reaction.label))}</span></span>` : ''}
   </li>`;
 }
 
@@ -225,15 +229,15 @@ export function reactionSheet(state) {
   const total = people ? people.length : (post?.reactionTotal || 0);
 
   let body;
-  if (people === undefined) body = loadingState('A ver quem reagiu…');
-  else if (people === null) body = errorState('Não foi possível ver quem reagiu.', 'retry-reactions');
-  else if (!people.length) body = '<p class="hint">Ainda ninguém reagiu a este anúncio.</p>';
+  if (people === undefined) body = loadingState(t("A ver quem reagiu…"));
+  else if (people === null) body = errorState(t("Não foi possível ver quem reagiu."), 'retry-reactions');
+  else if (!people.length) body = `<p class="hint">${th("Ainda ninguém reagiu a este anúncio.")}</p>`;
   else {
     const tab = (kind, label, count, special = false) => `<button class="chip ${special ? 'is-special' : ''}" type="button" data-action="reaction-tab" data-kind="${escapeHtml(kind)}" aria-pressed="${chosen === kind}">
       <strong>${label}</strong><small>${count}</small></button>`;
-    body = `<div class="chip-row" role="group" aria-label="Filtrar por reação">
-        ${tab('', 'Todas', people.length)}
-        ${groups.map((group) => tab(group.reaction.kind, `<span aria-hidden="true">${group.reaction.emoji}</span><span class="sr-only">${escapeHtml(group.reaction.label)}</span>`, group.people.length, group.reaction.special)).join('')}
+    body = `<div class="chip-row" role="group" aria-label="${th("Filtrar por reação")}">
+        ${tab('', t("Todas"), people.length)}
+        ${groups.map((group) => tab(group.reaction.kind, `<span aria-hidden="true">${group.reaction.emoji}</span><span class="sr-only">${escapeHtml(t(group.reaction.label))}</span>`, group.people.length, group.reaction.special)).join('')}
       </div>
       <ul class="reaction-people">${shown.map(reactionPerson).join('')}</ul>`;
   }
@@ -242,8 +246,8 @@ export function reactionSheet(state) {
     <div class="sheet reaction-sheet" role="dialog" aria-modal="true" aria-labelledby="reaction-sheet-title">
       <span class="sheet-grip" aria-hidden="true"></span>
       <div class="composer-heading">
-        <div><span class="eyebrow">QUEM REAGIU</span><h2 id="reaction-sheet-title">${total} ${total === 1 ? 'reação' : 'reações'}</h2></div>
-        <button class="icon-button" type="button" data-reactions-close aria-label="Fechar">${icon('close')}</button>
+        <div><span class="eyebrow">${th("QUEM REAGIU")}</span><h2 id="reaction-sheet-title">${total} ${total === 1 ? t("reação") : t("reações")}</h2></div>
+        <button class="icon-button" type="button" data-reactions-close aria-label="${th("Fechar")}">${icon('close')}</button>
       </div>
       ${body}
     </div>
@@ -259,8 +263,8 @@ function communityFilters(state) {
   const chosen = state.postCommunity || '';
   const chip = (id, label, count) => `<button class="chip" type="button" data-action="filter-community" data-id="${escapeHtml(id)}" aria-pressed="${chosen === id}">
     <strong>${escapeHtml(label)}</strong><small>${count}</small></button>`;
-  return `<div class="chip-row" role="group" aria-label="Filtrar por comunidade">
-    ${chip('', 'Todos', mine.length)}
+  return `<div class="chip-row" role="group" aria-label="${th("Filtrar por comunidade")}">
+    ${chip('', t("Todos"), mine.length)}
     ${communities.map((community) => chip(community.id, community.shortName || community.name,
       mine.filter((post) => post.communityId === community.id).length)).join('')}
   </div>`;
@@ -269,17 +273,17 @@ function communityFilters(state) {
 export function postsPage(state) {
   const community = (state.communities || []).find((item) => item.id === state.postCommunity) || null;
   let content;
-  if (state.postsError) content = errorState('Não foi possível carregar os anúncios.', 'retry-posts');
-  else if (!state.posts) content = loadingState('A carregar os anúncios…');
+  if (state.postsError) content = errorState(t("Não foi possível carregar os anúncios."), 'retry-posts');
+  else if (!state.posts) content = loadingState(t("A carregar os anúncios…"));
   else {
     const list = sortPosts(visiblePosts(state.posts, { churchDbId: state.myChurchDbId, community: state.postCommunity }));
     content = list.length
       ? `<div class="post-list">${list.map((post) => postCard(state, post)).join('')}</div>`
       : community
-        ? emptyState({ title: `Ainda não há anúncios do ${community.name}`, text: 'Assim que houver, aparecem aqui.', action: '<button class="button button-dark" type="button" data-action="filter-community" data-id="">Ver todos os anúncios</button>' })
-        : emptyState({ title: 'Ainda não há anúncios', text: 'Quando a equipa publicar algo, aparece aqui.' });
+        ? emptyState({ title: t("Ainda não há anúncios do {0}", { 0: community.name }), text: t("Assim que houver, aparecem aqui."), action: `<button class="button button-dark" type="button" data-action="filter-community" data-id="">${th("Ver todos os anúncios")}</button>` })
+        : emptyState({ title: t('Ainda não há anúncios'), text: t("Quando a equipa publicar algo, aparece aqui.") });
   }
-  const body = `<section class="page-intro"><span class="eyebrow">ISTN-SJ</span><h1>A nossa comunidade.</h1><p>Novidades, encontros e momentos que nos aproximam.</p></section>
+  const body = `<section class="page-intro"><span class="eyebrow">ISTN-SJ</span><h1>${th("A nossa comunidade.")}</h1><p>${th("Novidades, encontros e momentos que nos aproximam.")}</p></section>
     ${composerButton(state)}
     ${communityFilters(state)}
     ${content}`;
@@ -288,15 +292,15 @@ export function postsPage(state) {
 
 function commentList(state, post) {
   const comments = state.comments?.[post.id];
-  if (!comments) return '<p class="hint">A carregar comentários…</p>';
-  if (!comments.length) return '<div class="comments-empty"><span aria-hidden="true">🕊️</span><strong>Uma conversa começa com carinho.</strong><p>Ainda não há comentários nesta publicação.</p></div>';
+  if (!comments) return `<p class="hint">${th("A carregar comentários…")}</p>`;
+  if (!comments.length) return `<div class="comments-empty"><span aria-hidden="true">🕊️</span><strong>${th("Uma conversa começa com carinho.")}</strong><p>${th("Ainda não há comentários nesta publicação.")}</p></div>`;
   return `<ul class="comment-list">${comments.map((comment) => {
     const author = state.postAuthors?.get(comment.author_id);
     const name = authorName(author);
     const photo = safeUrl(author?.photo_url);
     const mine = Boolean(state.profile) && comment.author_id === state.profile.id;
-    const menu = actionMenu(comment.id, 'Opções deste comentário', [
-      (mine || canModerate(state.admin, post)) && menuItem('hide-comment', comment.id, 'eyeOff', 'Esconder')
+    const menu = actionMenu(comment.id, t("Opções deste comentário"), [
+      (mine || canModerate(state.admin, post)) && menuItem('hide-comment', comment.id, 'eyeOff', t("Esconder"))
     ]);
     return `<li><span class="post-avatar comment-avatar">${photo ? `<img src="${escapeHtml(photo)}" alt="" loading="lazy" />` : escapeHtml((name || '·').slice(0, 1))}</span><div class="comment-content"><div class="comment-bubble">
       <strong>${personLink(comment.author_id, `${escapeHtml(name)}${author?.verified ? verifiedSeal(author.servo_role) : ''}`)}</strong>${menu}
@@ -309,40 +313,42 @@ function commentList(state, post) {
 function commentForm(state, post) {
   if (canComment(state.profile)) {
     return `<form id="comment-form" class="comment-form" data-id="${escapeHtml(post.id)}">
-      <label class="sheet-field"><span class="sr-only">Comentar</span>
-        <textarea id="comment-body" name="body" rows="2" maxlength="2000" required ${state.commentSaving ? 'disabled' : ''} placeholder="Deixe uma mensagem de carinho…">${escapeHtml(state.commentDrafts?.[post.id] || '')}</textarea>
+      <label class="sheet-field"><span class="sr-only">${th("Comentar")}</span>
+        <textarea id="comment-body" name="body" rows="2" maxlength="2000" required ${state.commentSaving ? 'disabled' : ''} placeholder="${th("Deixe uma mensagem de carinho…")}">${escapeHtml(state.commentDrafts?.[post.id] || '')}</textarea>
       </label>
-      <div class="comment-toolbar">${emojiTools('comment-body')}<button class="button button-dark" type="submit" ${state.commentSaving ? 'disabled' : ''}>${state.commentSaving ? 'A enviar…' : 'Enviar'}${icon('arrowRight', { size: 18 })}</button></div>
+      <div class="comment-toolbar">${emojiTools('comment-body')}<button class="button button-dark" type="submit" ${state.commentSaving ? 'disabled' : ''}>${state.commentSaving ? t("A enviar…") : t("Enviar")}${icon('arrowRight', { size: 18 })}</button></div>
     </form>`;
   }
   return `<p class="notice">${icon('info', { size: 18 })}<span>${state.profile
-    ? 'Os comentários estão reservados aos servos com selo de verificação. Pode reagir a este anúncio.'
-    : 'Entre com a sua conta para reagir. Comentar está reservado aos servos verificados.'}</span></p>`;
+    ? t("Os comentários estão reservados aos servos com selo de verificação. Pode reagir a este anúncio.")
+    : t("Entre com a sua conta para reagir. Comentar está reservado aos servos verificados.")}</span></p>`;
 }
 
 export function postPage(state, id) {
-  const back = { title: 'Anúncio', back: 'posts' };
-  if (state.postsError) return page('post', { ...back, body: errorState('Não foi possível carregar os anúncios.', 'retry-posts') });
-  if (!state.posts) return page('post', { ...back, body: loadingState('A carregar…') });
+  const back = { title: t("Anúncio"), back: 'posts' };
+  if (state.postsError) return page('post', { ...back, body: errorState(t("Não foi possível carregar os anúncios."), 'retry-posts') });
+  if (!state.posts) return page('post', { ...back, body: loadingState(t("A carregar…")) });
   const post = state.posts.find((item) => item.id === id);
   if (!post) {
-    return page('post', { ...back, body: emptyState({ title: 'Anúncio não encontrado', text: 'Pode ter sido removido pela equipa.', action: '<a class="button button-dark" href="/anuncios">Ver os anúncios</a>' }) });
+    return page('post', { ...back, body: emptyState({ title: t("Anúncio não encontrado"), text: t("Pode ter sido removido pela equipa."), action: `<a class="button button-dark" href="/anuncios">${th("Ver os anúncios")}</a>` }) });
   }
+  const displayed = displayedPost(post);
   const mine = state.profile && post.authorId === state.profile.id;
   const body = `<article class="post-full ${isHighlighted(post) ? 'is-highlighted' : ''}">
       ${authorLine(post, ownerMenu(state, post))}
-      ${post.title ? `<h1>${escapeHtml(post.title)}</h1>` : ''}
-      <div class="post-body">${linkedBodyHtml(post.body)}</div>
-      ${postVideos(post)}
+      ${displayed.title ? `<h1>${escapeHtml(displayed.title)}</h1>` : ''}
+      <div class="post-body">${linkedBodyHtml(displayed.body)}</div>
+      ${translationControl(post)}
+    ${postVideos(post)}
       ${postImages(post, { full: true })}
       ${reactionRow(state, post, { compact: false })}
       ${mine ? `<div class="post-owner-actions">
-        <button class="text-button" type="button" data-action="edit-post" data-id="${escapeHtml(post.id)}">${icon('edit', { size: 16 })}Editar</button>
-        <button class="text-button danger" type="button" data-action="delete-post" data-id="${escapeHtml(post.id)}">${icon('close', { size: 16 })}Eliminar</button>
+        <button class="text-button" type="button" data-action="edit-post" data-id="${escapeHtml(post.id)}">${th("{1}Editar", { 1: icon('edit', { size: 16 }) })}</button>
+        <button class="text-button danger" type="button" data-action="delete-post" data-id="${escapeHtml(post.id)}">${th("{3}Eliminar", { 3: icon('close', { size: 16 }) })}</button>
       </div>` : ''}
     </article>
     <section class="comments" aria-labelledby="comments-title">
-      <h2 id="comments-title">Comentários<small>${state.comments?.[post.id]?.length ?? post.commentCount}</small></h2>
+      <h2 id="comments-title">${th("Comentários")}<small>${state.comments?.[post.id]?.length ?? post.commentCount}</small></h2>
       ${commentForm(state, post)}
       ${commentList(state, post)}
     </section>`;

@@ -1,3 +1,4 @@
+import { t, locale } from './i18n.js';
 // Announcements: how a post is put together, who may write one, and what a
 // reaction adds up to. Pure functions, so the rules can be tested without a
 // browser and the same ones answer in the app and in the panel.
@@ -145,14 +146,14 @@ export function formatPostDate(value, now = new Date()) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '';
   const minutes = Math.round((now - date) / 60000);
-  if (minutes < 1) return 'agora';
-  if (minutes < 60) return `há ${minutes} min`;
-  if (minutes < 60 * 24) return `há ${Math.floor(minutes / 60)} h`;
+  if (minutes < 1) return t("agora");
+  if (minutes < 60) return t("há {0} min", { 0: minutes });
+  if (minutes < 60 * 24) return t("há {0} h", { 0: Math.floor(minutes / 60) });
   if (minutes < 60 * 24 * 7) {
     const days = Math.floor(minutes / (60 * 24));
-    return days === 1 ? 'ontem' : `há ${days} dias`;
+    return days === 1 ? t("ontem") : t("há {0} dias", { 0: days });
   }
-  return new Intl.DateTimeFormat('pt-PT', { day: '2-digit', month: 'short', year: 'numeric' }).format(date);
+  return new Intl.DateTimeFormat(locale(), { day: '2-digit', month: 'short', year: 'numeric' }).format(date);
 }
 
 // Addresses written in a post, as typed, without the full stop or bracket that

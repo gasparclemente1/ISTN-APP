@@ -1,3 +1,5 @@
+import { t, language } from './i18n.js';
+
 // When each meeting next happens. Every calculation is done in the ministry's
 // timezone and then converted to an instant, so a viewer abroad sees the right
 // local time without the weekday ever drifting.
@@ -148,17 +150,17 @@ export function recurrenceLabel(meeting) {
   const weekdays = (meeting.weekdays || []).map(Number);
   switch (meeting.recurrence) {
     case 'weekly':
-      return weekdays.length === 7 ? 'Todos os dias'
-        : weekdays.map((weekday) => WEEKDAY_LABELS[weekday]).join(', ');
+      return weekdays.length === 7 ? t("Todos os dias")
+        : weekdays.map((weekday) => t(WEEKDAY_LABELS[weekday])).join(', ');
     case 'monthly_last':
-      return `Último ${WEEKDAY_LABELS[weekdays[0]]?.toLowerCase() || 'dia'} de cada mês`;
+      return t('Último {0} de cada mês', { 0: language() === 'en' ? t(WEEKDAY_LABELS[weekdays[0]] || 'dia') : t(WEEKDAY_LABELS[weekdays[0]] || 'dia').toLowerCase() });
     case 'yearly': {
       const [, month, day] = (meeting.event_date || '--').split('-').map(Number);
-      return `Todos os anos a ${day} de ${['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'][month - 1] || ''}`;
+      return t('Todos os anos a {0} de {1}', { 0: day, 1: t(['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'][month - 1] || '') });
     }
     case 'once': {
       const [year, month, day] = (meeting.event_date || '---').split('-').map(Number);
-      return `Apenas a ${String(day).padStart(2, '0')}/${String(month).padStart(2, '0')}/${year}`;
+      return t('Apenas a {0}', { 0: `${String(day).padStart(2, '0')}/${String(month).padStart(2, '0')}/${year}` });
     }
     default:
       return '';

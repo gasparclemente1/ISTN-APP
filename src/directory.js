@@ -1,3 +1,4 @@
+import { t } from './i18n.js';
 // The directory of places, in one shape whatever it was read from.
 //
 // The database is the source: what the panel edits is what the congregation
@@ -208,8 +209,8 @@ export function sharedPhones(churches) {
 }
 
 export function serviceLabel(service) {
-  const day = WEEKDAY_LABELS[service.weekday] || '';
-  const when = service.time ? `${day}, ${service.time}` : `${day}, hora a confirmar`;
+  const day = t(WEEKDAY_LABELS[service.weekday]) || '';
+  const when = service.time ? `${day}, ${service.time}` : `${day}, ${t("hora a confirmar")}`;
   return service.label ? `${when} · ${service.label}` : when;
 }
 

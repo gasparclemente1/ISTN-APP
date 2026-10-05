@@ -1,3 +1,4 @@
+import { t, th, locale, languageSelector } from '../i18n.js';
 // Pieces every page is built from: the top bar, the bottom navigation, and the
 // loading, error and empty states — each worded so the reader knows what
 // happened and what they can do about it.
@@ -22,7 +23,7 @@ function accountAvatar() {
   if (!account) return '';
   const initials = String(account.display_name || '?').trim().split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join('').toUpperCase() || '·';
   const photo = safeUrl(account.photo_url);
-  return `<a class="topbar-avatar" href="/perfil" aria-label="A sua conta: ${escapeHtml(account.display_name || 'sem nome')}">${photo
+  return `<a class="topbar-avatar" href="/perfil" aria-label="${th("A sua conta: {0}", { 0: escapeHtml(account.display_name || t("sem nome")) })}">${photo
     ? `<img src="${escapeHtml(photo)}" alt="" />`
     : `<span>${escapeHtml(initials)}</span>`}</a>`;
 }
@@ -46,18 +47,18 @@ const SECTION = { source: 'teachings', church: 'churches', posts: 'home', post: 
 
 export function header({ title = '', back = '', action = '' } = {}) {
   const backPath = back ? pathFor(back) : '';
-  return `<a class="skip-link" href="#conteudo">Saltar para o conteúdo</a>
+  return `<a class="skip-link" href="#conteudo">${th("Saltar para o conteúdo")}</a>
   <header class="topbar ${title ? 'has-title' : ''}">
-    <a class="brand" href="/" aria-label="ISTN-SJ — página inicial"><img class="brand-logo" src="/design/assets/icons/logo-istn-sj-96.webp" srcset="/design/assets/icons/logo-istn-sj-96.webp 1x, /design/assets/icons/logo-istn-sj-192.webp 2x" width="36" height="37" alt="" /><span class="brand-name"><span class="brand-mark">ISTN-SJ</span><small>Elias é Deus</small></span></a>
-    ${title ? `<div class="page-title">${backPath ? `<a class="icon-button" href="${backPath}" aria-label="Voltar">${icon('arrowLeft', { size: 22 })}</a>` : ''}<span>${escapeHtml(title)}</span></div>` : ''}
-    <div class="topbar-action">${action}${accountAvatar()}</div>
+    <a class="brand" href="/" aria-label="${th("ISTN-SJ — página inicial")}"><img class="brand-logo" src="/design/assets/icons/logo-istn-sj-96.webp" srcset="/design/assets/icons/logo-istn-sj-96.webp 1x, /design/assets/icons/logo-istn-sj-192.webp 2x" width="36" height="37" alt="" /><span class="brand-name"><span class="brand-mark">ISTN-SJ</span><small>${th("Elias é Deus")}</small></span></a>
+    ${title ? `<div class="page-title">${backPath ? `<a class="icon-button" href="${backPath}" aria-label="${th("Voltar")}">${icon('arrowLeft', { size: 22 })}</a>` : ''}<span>${escapeHtml(t(title))}</span></div>` : ''}
+    <div class="topbar-action">${action}${languageSelector()}${accountAvatar()}</div>
   </header>`;
 }
 
 export function navigation(routeName) {
   const current = SECTION[routeName] || routeName;
-  return `<nav class="bottom-nav" aria-label="Navegação principal">${NAV.map(([name, iconName, label]) => `
-    <a class="nav-item" href="${pathFor(name)}" ${current === name ? 'aria-current="page"' : ''}>${icon(iconName, { size: 22 })}<span>${label}</span></a>`).join('')}
+  return `<nav class="bottom-nav" aria-label="${th("Navegação principal")}">${NAV.map(([name, iconName, label]) => `
+    <a class="nav-item" href="${pathFor(name)}" ${current === name ? 'aria-current="page"' : ''}>${icon(iconName, { size: 22 })}<span>${th(label)}</span></a>`).join('')}
   </nav>`;
 }
 
@@ -75,18 +76,18 @@ export function personLink(id, inner) {
 
 export function statusBadge(status) {
   return status === 'verified'
-    ? `<span class="status-badge verified">${icon('check', { size: 12 })}Verificado</span>`
-    : `<span class="status-badge needs_review">${icon('clock', { size: 12 })}A confirmar</span>`;
+    ? `<span class="status-badge verified">${th("{0}Verificado", { 0: icon('check', { size: 12 }) })}</span>`
+    : `<span class="status-badge needs_review">${th("{0}A confirmar", { 0: icon('clock', { size: 12 }) })}</span>`;
 }
 
-export const loadingState = (message) => `<div class="state-box" role="status"><span class="loader" aria-hidden="true"></span><p>${escapeHtml(message)}</p></div>`;
+export const loadingState = (message) => `<div class="state-box" role="status"><span class="loader" aria-hidden="true"></span><p>${escapeHtml(t(message))}</p></div>`;
 
 export function errorState(message, retryAction) {
-  return `<div class="state-box is-error">${icon('alert', { size: 26 })}<p>${escapeHtml(message)}</p>${retryAction ? `<button class="button button-outline" type="button" data-action="${retryAction}">${icon('refresh', { size: 18 })}Tentar de novo</button>` : ''}</div>`;
+  return `<div class="state-box is-error">${icon('alert', { size: 26 })}<p>${escapeHtml(t(message))}</p>${retryAction ? `<button class="button button-outline" type="button" data-action="${retryAction}">${th("{1}Tentar de novo", { 1: icon('refresh', { size: 18 }) })}</button>` : ''}</div>`;
 }
 
 export function emptyState({ title, text, action = '' }) {
-  return `<div class="empty-state">${icon('search', { size: 30 })}<h2>${escapeHtml(title)}</h2><p>${escapeHtml(text)}</p>${action}</div>`;
+  return `<div class="empty-state">${icon('search', { size: 30 })}<h2>${escapeHtml(t(title))}</h2><p>${escapeHtml(t(text))}</p>${action}</div>`;
 }
 
 export function sectionHeading(eyebrow, title, link = '') {
@@ -96,26 +97,26 @@ export function sectionHeading(eyebrow, title, link = '') {
 // ---------------------------------------------------------------- tempo ----
 
 export function formatInZone(date, timeZone = TIME_ZONE) {
-  return new Intl.DateTimeFormat('pt-PT', { timeZone, hour: '2-digit', minute: '2-digit' }).format(date);
+  return new Intl.DateTimeFormat(locale(), { timeZone, hour: '2-digit', minute: '2-digit' }).format(date);
 }
 
 // Only inside 24 hours; beyond that the day label already says it.
 export function countdownLabel(start, now = new Date()) {
   const minutes = Math.max(0, Math.round((start - now) / 60000));
-  if (minutes < 1) return 'Começa agora';
-  if (minutes < 60) return `Começa em ${minutes} min`;
+  if (minutes < 1) return t("Começa agora");
+  if (minutes < 60) return t("Começa em {0} min", { 0: minutes });
   const hours = Math.floor(minutes / 60);
-  return hours < 24 ? `Começa em ${hours} h ${String(minutes % 60).padStart(2, '0')} min` : '';
+  return hours < 24 ? t("Começa em {0} h {1} min", { 0: hours, 1: String(minutes % 60).padStart(2, '0') }) : '';
 }
 
 export function relativeDayLabel(start, now = new Date()) {
   const startDay = zonedDateParts(start, TIME_ZONE);
   const today = zonedDateParts(now, TIME_ZONE);
   const diff = Math.round((Date.UTC(startDay.year, startDay.month - 1, startDay.day) - Date.UTC(today.year, today.month - 1, today.day)) / 86400000);
-  if (diff === 0) return 'Hoje';
-  if (diff === 1) return 'Amanhã';
-  const label = new Intl.DateTimeFormat('pt-PT', { timeZone: TIME_ZONE, weekday: 'long', ...(diff > 6 ? { day: 'numeric', month: 'short' } : {}) }).format(start);
+  if (diff === 0) return t("Hoje");
+  if (diff === 1) return t("Amanhã");
+  const label = new Intl.DateTimeFormat(locale(), { timeZone: TIME_ZONE, weekday: 'long', ...(diff > 6 ? { day: 'numeric', month: 'short' } : {}) }).format(start);
   return label.charAt(0).toUpperCase() + label.slice(1);
 }
 
-export const externalHint = '<span class="sr-only"> (abre noutra janela)</span>';
+export const externalHint = () => `<span class="sr-only"> ${th("(abre noutra janela)")}</span>`;

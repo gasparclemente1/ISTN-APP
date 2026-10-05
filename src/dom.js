@@ -1,3 +1,5 @@
+import { t } from './i18n.js';
+
 // Redrawing without losing the reader's place.
 //
 // The app draws each page as a string and replaces the old markup. Done
@@ -51,7 +53,7 @@ export function announce(message) {
   const element = announcer();
   element.textContent = '';
   // A change the next frame is what makes screen readers repeat a message.
-  requestAnimationFrame(() => { element.textContent = message; });
+  requestAnimationFrame(() => { element.textContent = t(message); });
 }
 
 export function toast(message, { actionLabel = '', onAction = null, duration = 3800 } = {}) {
@@ -59,13 +61,13 @@ export function toast(message, { actionLabel = '', onAction = null, duration = 3
   const element = document.createElement('div');
   element.className = 'toast';
   const text = document.createElement('span');
-  text.textContent = message;
+  text.textContent = t(message);
   element.append(text);
   if (actionLabel && onAction) {
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'toast-action';
-    button.textContent = actionLabel;
+    button.textContent = t(actionLabel);
     button.addEventListener('click', () => { element.remove(); onAction(); });
     element.append(button);
   }

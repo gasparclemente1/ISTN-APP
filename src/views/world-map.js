@@ -1,3 +1,4 @@
+import { t, th } from '../i18n.js';
 // "A ISTN-SJ pelo mundo": the continents as dots and, on top, a light for
 // every country where there is an ISTN — bigger where there are more places,
 // a ring where the church meets online only.
@@ -44,7 +45,7 @@ export function worldMap(churches) {
       // Pointer only: the same choice is in the list of countries below, as
       // buttons, for the keyboard and screen readers.
       return `<g class="map-light ${entry.physical ? '' : 'is-online'}" data-action="church-country" data-country="${escapeHtml(entry.country)}">
-        <title>${escapeHtml(`${entry.country}: ${countLabel(entry)}`)}</title>
+        <title>${escapeHtml(`${t(entry.country)}: ${countLabel(entry)}`)}</title>
         ${entry.physical ? `<circle class="map-glow" cx="${x.toFixed(2)}" cy="${y.toFixed(2)}" r="${(radius * 2.4).toFixed(2)}" />` : ''}
         <circle class="map-dot" cx="${x.toFixed(2)}" cy="${y.toFixed(2)}" r="${radius.toFixed(2)}" />
         <circle class="map-hit" cx="${x.toFixed(2)}" cy="${y.toFixed(2)}" r="${Math.max(2.2, radius + 1).toFixed(2)}" />
@@ -56,28 +57,28 @@ export function worldMap(churches) {
 
   return `<section class="world-card" aria-labelledby="world-title">
     <div class="world-heading">
-      <span class="eyebrow">Todas as nações</span>
-      <h2 id="world-title">A ISTN-SJ pelo mundo</h2>
+      <span class="eyebrow">${th("Todas as nações")}</span>
+      <h2 id="world-title">${th("A ISTN-SJ pelo mundo")}</h2>
     </div>
     <dl class="world-stats">
-      <div><dt>Países</dt><dd>${presence.length}</dd></div>
-      <div><dt>Lugares de culto</dt><dd>${places}</dd></div>
-      <div><dt>Igrejas online</dt><dd>${online}</dd></div>
+      <div><dt>${th("Países")}</dt><dd>${presence.length}</dd></div>
+      <div><dt>${th("Lugares de culto")}</dt><dd>${places}</dd></div>
+      <div><dt>${th("Igrejas online")}</dt><dd>${online}</dd></div>
     </dl>
-    <svg class="world-map" viewBox="0 0 ${WORLD_DOTS.cols} ${WORLD_DOTS.rows}" role="img" aria-label="Mapa do mundo com os ${presence.length} países onde está a ISTN-SJ">
+    <svg class="world-map" viewBox="0 0 ${WORLD_DOTS.cols} ${WORLD_DOTS.rows}" role="img" aria-label="${th("Mapa do mundo com os {5} países onde está a ISTN-SJ", { 5: presence.length })}">
       <path class="map-land" d="${land()}" />
       ${lights}
     </svg>
-    <p class="world-legend"><span class="legend-dot"></span>Presencial <span class="legend-ring"></span>Só online <span class="world-hint">Toque num país para ver as igrejas.</span></p>
-    <ul class="country-chips" aria-label="Países">${presence.map((entry) => `<li><button type="button" data-action="church-country" data-country="${escapeHtml(entry.country)}" data-focus-key="country:${escapeHtml(entry.country)}">
-      <span aria-hidden="true">${countryFlag(entry.code)}</span>${escapeHtml(entry.country)}<small>${entry.physical + entry.online}</small>
+    <p class="world-legend"><span class="legend-dot"></span>${th("Presencial")} <span class="legend-ring"></span>${th("Só online")} <span class="world-hint">${th("Toque num país para ver as igrejas.")}</span></p>
+    <ul class="country-chips" aria-label="${th("Países")}">${presence.map((entry) => `<li><button type="button" data-action="church-country" data-country="${escapeHtml(entry.country)}" data-focus-key="country:${escapeHtml(entry.country)}">
+      <span aria-hidden="true">${countryFlag(entry.code)}</span>${escapeHtml(t(entry.country))}<small>${entry.physical + entry.online}</small>
     </button></li>`).join('')}</ul>
   </section>`;
 }
 
 function countLabel(entry) {
   const parts = [];
-  if (entry.physical) parts.push(entry.physical === 1 ? '1 lugar de culto' : `${entry.physical} lugares de culto`);
-  if (entry.online) parts.push(entry.online === 1 ? '1 igreja online' : `${entry.online} igrejas online`);
-  return parts.join(' e ');
+  if (entry.physical) parts.push(entry.physical === 1 ? t("1 lugar de culto") : t("{0} lugares de culto", { 0: entry.physical }));
+  if (entry.online) parts.push(entry.online === 1 ? t("1 igreja online") : t("{0} igrejas online", { 0: entry.online }));
+  return parts.join(t(" e "));
 }

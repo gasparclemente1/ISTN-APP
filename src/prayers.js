@@ -1,3 +1,4 @@
+import { t } from './i18n.js';
 // "Orações": the prayers the Prophet recorded for what people are going
 // through, catalogued by theme.
 //
@@ -21,7 +22,7 @@ export function normalizePrayer(row, { themes = [] } = {}) {
   const found = row.theme_id ? (themes || []).find((item) => item.id === row.theme_id) : null;
   return {
     id: row.id,
-    title: row.title || 'Oração',
+    title: row.title || t("Oração"),
     description: row.description || '',
     themeId: row.theme_id || null,
     theme: found ? normalizeThemes([found])[0] || null : null,
@@ -59,7 +60,7 @@ export function prayersByTheme(prayers, themes) {
 export function formatDuration(seconds) {
   const total = Math.round(Number(seconds) || 0);
   if (total <= 0) return '';
-  if (total < 60) return 'menos de 1 min';
+  if (total < 60) return t("menos de 1 min");
   const minutes = Math.round(total / 60);
   if (minutes < 60) return `${minutes} min`;
   const hours = Math.floor(minutes / 60);
@@ -75,7 +76,7 @@ const EXTENSIONS = { 'audio/mpeg': 'mp3', 'audio/mp4': 'm4a', 'audio/x-m4a': 'm4
 export function prayerFileName(prayer, type = '') {
   const fromUrl = String(prayer.audioUrl || '').split('?')[0].match(/\.(mp3|m4a|aac|ogg|wav)$/i);
   const extension = EXTENSIONS[type] || (fromUrl ? fromUrl[1].toLowerCase() : 'mp3');
-  const parts = ['Oracao', prayer.theme?.name, prayer.title, 'Profeta-Elias-ISTN-SJ']
+  const parts = [t('Oração'), prayer.theme?.name, prayer.title, t('Profeta Elias') + '-ISTN-SJ']
     .filter(Boolean).map((part) => slugify(part)).filter(Boolean);
   return `${parts.join('-')}.${extension}`;
 }
@@ -86,7 +87,7 @@ export function prayerFileName(prayer, type = '') {
 export function prayerShareText(prayer, url = '') {
   const lines = [prayer.title];
   if (prayer.theme?.name) lines.push(prayer.theme.name);
-  lines.push('Oração do Profeta Elias · ISTN-SJ');
+  lines.push(t("Oração do Profeta Elias · ISTN-SJ"));
   if (url) lines.push(url);
   return lines.join('\n');
 }

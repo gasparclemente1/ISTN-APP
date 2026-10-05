@@ -1,3 +1,4 @@
+import { t } from './i18n.js';
 // Keeping a prayer on the phone, and getting it into WhatsApp.
 //
 // The pastor sends the same prayer many times. A prayer he has kept costs
@@ -14,7 +15,7 @@ import { prefs } from './prefs.js';
 
 const CACHE = 'elias-oracoes-v1';
 
-const store = () => (typeof caches === 'undefined' ? Promise.reject(new Error('sem armazenamento')) : caches.open(CACHE));
+const store = () => (typeof caches === 'undefined' ? Promise.reject(new Error(t("sem armazenamento"))) : caches.open(CACHE));
 
 async function fromCache(url) {
   try {
@@ -27,7 +28,7 @@ async function fromCache(url) {
 export async function keepPrayer(prayer) {
   const cache = await store();
   const response = await fetch(prayer.audioUrl);
-  if (!response.ok) throw new Error('Não foi possível guardar o áudio.');
+  if (!response.ok) throw new Error(t("Não foi possível guardar o áudio."));
   await cache.put(prayer.audioUrl, response);
   prefs.rememberPrayer(prayer.id);
 }
@@ -45,7 +46,7 @@ export async function prayerBlob(prayer) {
   const kept = await fromCache(prayer.audioUrl);
   if (kept) return kept.blob();
   const response = await fetch(prayer.audioUrl);
-  if (!response.ok) throw new Error('Não foi possível obter o áudio.');
+  if (!response.ok) throw new Error(t("Não foi possível obter o áudio."));
   try {
     await (await store()).put(prayer.audioUrl, response.clone());
     prefs.rememberPrayer(prayer.id);

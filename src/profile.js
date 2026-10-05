@@ -1,3 +1,4 @@
+import { t, th, LANGUAGES, language, setLanguage, useProfileLanguage } from './i18n.js';
 // The signed-in member's profile: a card at the top and a menu of sections
 // below, each row opening a sheet that edits one thing. One field per sheet
 // keeps every save small, and nobody has to scroll a long form to change a
@@ -10,9 +11,6 @@ import { uploadPhoto } from './upload.js';
 import { safeUrl } from './html.js';
 import { icon } from './icons.js';
 
-const LANGUAGES = [
-  ['pt', 'Português'], ['fr', 'Français'], ['en', 'English'], ['es', 'Español']
-];
 
 const svg = (name, size = 20) => icon(name, { size });
 
@@ -22,8 +20,8 @@ const initials = (name) => String(name ?? '').trim().split(/\s+/).filter(Boolean
 
 function churchLabel(church, withContext = false) {
   if (!church) return '';
-  const place = church.name || church.locality || church.country || 'Sem nome';
-  const kind = church.place_type === 'casa_de_oracao' ? ' (casa de oração)' : '';
+  const place = church.name || church.locality || church.country || t("Sem nome");
+  const kind = church.place_type === 'casa_de_oracao' ? t(" (casa de oração)") : '';
   if (!withContext) return `${place}${kind}`;
   const context = [church.region, countryName(church.country_code) || church.country].filter(Boolean).join(', ');
   return context ? `${place}${kind} — ${context}` : `${place}${kind}`;
@@ -42,23 +40,23 @@ export function profileView({ state, escapeHtml, header, navigation, extraSectio
   const claim = profile.servo_claim_status || 'nenhum';
   // The person's own name, so editing it shows at once. The servant record the
   // team verified keeps its own name, shown in the directory.
-  const displayName = profile.display_name || 'Sem nome';
+  const displayName = profile.display_name || t("Sem nome");
   const directoryName = badge?.name && badge.name !== profile.display_name ? badge.name : '';
 
   const identity = badge
     ? (badge.tier === 'neutro'
-      ? `<p class="profile-card-role">Servo verificado · ${escapeHtml(badge.label)}</p>`
+      ? `<p class="profile-card-role">${th("Servo verificado · {0}", { 0: escapeHtml(badge.label) })}</p>`
       : `<p class="profile-card-role strong">${escapeHtml(badge.label)}</p>`)
-    : `<p class="profile-card-role">Membro da ISTN-SJ</p>`;
+    : `<p class="profile-card-role">${th("Membro da ISTN-SJ")}</p>`;
 
-  const empty = (text = 'Por preencher') => `<span class="menu-value empty">${text}</span>`;
+  const empty = (text = t("Por preencher")) => `<span class="menu-value empty">${text}</span>`;
   const value = (text) => text ? `<span class="menu-value">${escapeHtml(text)}</span>` : empty();
 
   const serviceValue = {
     aprovado: `<span class="menu-value verified">${badge ? verifiedSeal(badge.role) : ''}${escapeHtml(badge?.label || roleLabel(profile.claimed_role))}</span>`,
-    pendente: `<span class="status-pill pending">A aguardar · ${escapeHtml(roleLabel(profile.claimed_role))}</span>`,
-    recusado: '<span class="status-pill refused">Não aprovado</span>',
-    nenhum: empty('Não indicada')
+    pendente: `<span class="status-pill pending">${th("A aguardar · {0}", { 0: escapeHtml(roleLabel(profile.claimed_role)) })}</span>`,
+    recusado: `<span class="status-pill refused">${th("Não aprovado")}</span>`,
+    nenhum: empty(t("Não indicada"))
   }[claim];
 
   const row = (key, icon, label, valueHtml, tone) => `<li>
@@ -70,60 +68,60 @@ export function profileView({ state, escapeHtml, header, navigation, extraSectio
     </button>
   </li>`;
 
-  return `${header({ title: 'Perfil', back: 'home' })}<main id="conteudo" class="page-content profile-page" tabindex="-1">
+  return `${header({ title: t("Perfil"), back: 'home' })}<main id="conteudo" class="page-content profile-page" tabindex="-1">
     <section class="profile-card">
-      <label class="profile-avatar ${state.uploading ? 'is-busy' : ''}" aria-label="Alterar fotografia">
+      <label class="profile-avatar ${state.uploading ? 'is-busy' : ''}" aria-label="${th("Alterar fotografia")}">
         ${safeUrl(profile.photo_url) ? `<img src="${escapeHtml(safeUrl(profile.photo_url))}" alt="" />` : `<span class="profile-initials">${escapeHtml(initials(profile.display_name))}</span>`}
         <span class="profile-avatar-action">${state.uploading ? '<i class="loader"></i>' : svg('camera', 16)}</span>
         <input type="file" accept="image/jpeg,image/png,image/webp" data-profile-photo ${state.uploading ? 'disabled' : ''} />
       </label>
-      <h1 class="verified-name">${escapeHtml(displayName)}${badge ? verifiedSeal(badge.role, { title: `Conta verificada · ${badge.label}` }) : ''}</h1>
+      <h1 class="verified-name">${escapeHtml(displayName)}${badge ? verifiedSeal(badge.role, { title: t("Conta verificada · {0}", { 0: badge.label }) }) : ''}</h1>
       ${identity}
-      ${directoryName ? `<p class="profile-card-meta">No diretório: ${escapeHtml(directoryName)}</p>` : ''}
-      ${!profile.display_name ? '<p class="profile-card-missing">Falta o seu nome. Toque em «Nome» para o indicar.</p>' : ''}
+      ${directoryName ? `<p class="profile-card-meta">${th("No diretório: {0}", { 0: escapeHtml(directoryName) })}</p>` : ''}
+      ${!profile.display_name ? `<p class="profile-card-missing">${th("Falta o seu nome. Toque em «Nome» para o indicar.")}</p>` : ''}
       ${home || profile.country_code ? `<p class="profile-card-meta">${escapeHtml([home && churchLabel(home), countryName(profile.country_code)].filter(Boolean).join(' · '))}</p>` : ''}
       ${filled < COMPLETENESS.length ? `<div class="profile-progress" role="progressbar" aria-valuemin="0" aria-valuemax="${COMPLETENESS.length}" aria-valuenow="${filled}">
-        <span>Perfil ${filled} de ${COMPLETENESS.length}</span>
+        <span>${th("Perfil {2} de {3}", { 2: filled, 3: COMPLETENESS.length })}</span>
         <i style="--done:${Math.round((filled / COMPLETENESS.length) * 100)}%"></i>
       </div>` : ''}
     </section>
 
     <section class="menu-group">
-      <h2 class="menu-heading">Dados pessoais</h2>
+      <h2 class="menu-heading">${th("Dados pessoais")}</h2>
       <ul class="menu-list">
-        ${row('display_name', 'user', 'Nome', value(profile.display_name), 'green')}
-        ${row('gender', 'gender', 'Género', value({ masculino: 'Masculino', feminino: 'Feminino' }[profile.gender]), 'green')}
-        ${row('phone', 'phone', 'Telefone', value(profile.phone), 'green')}
+        ${row('display_name', 'user', t("Nome"), value(profile.display_name), 'green')}
+        ${row('gender', 'gender', t("Género"), value({ masculino: t("Masculino"), feminino: t("Feminino") }[profile.gender]), 'green')}
+        ${row('phone', 'phone', t("Telefone"), value(profile.phone), 'green')}
         ${phoneVisibilityRow({ state })}
-        ${row('country_code', 'globe', 'País', value(countryName(profile.country_code)), 'green')}
-        ${row('city', 'pin', 'Cidade', value(profile.city), 'green')}
+        ${row('country_code', 'globe', t("País"), value(countryName(profile.country_code)), 'green')}
+        ${row('city', 'pin', t("Cidade"), value(profile.city), 'green')}
       </ul>
       <p class="menu-footnote">${contactFootnote(profile, claim)}</p>
     </section>
 
     <section class="menu-group">
-      <h2 class="menu-heading">A minha ISTN</h2>
+      <h2 class="menu-heading">${th("A minha ISTN")}</h2>
       <ul class="menu-list">
-        ${row('home_church_id', 'church', 'Igreja', value(home ? churchLabel(home) : ''), 'gold')}
+        ${row('home_church_id', 'church', t("Igreja"), value(home ? churchLabel(home) : ''), 'gold')}
       </ul>
     </section>
 
     <section class="menu-group">
-      <h2 class="menu-heading">Serviço na ISTN</h2>
+      <h2 class="menu-heading">${th("Serviço na ISTN")}</h2>
       <ul class="menu-list">
-        ${row('service', 'badge', 'Função', serviceValue, 'blue')}
+        ${row('service', 'badge', t("Função"), serviceValue, 'blue')}
       </ul>
     </section>
 
     <section class="menu-group">
-      <h2 class="menu-heading">Preferências</h2>
+      <h2 class="menu-heading">${th("Preferências")}</h2>
       <ul class="menu-list">
-        ${row('language', 'language', 'Idioma', value(LANGUAGES.find(([code]) => code === (profile.language || 'pt'))?.[1]), 'sand')}
+        ${row('language', 'language', t("Idioma"), value(LANGUAGES.find(([code]) => code === language())?.[1]), 'sand')}
         <li>
           <div class="menu-row is-static">
             <span class="menu-icon tone-sand">${svg('bell')}</span>
-            <span class="menu-label">Lembretes das reuniões</span>
-            <button class="switch" role="switch" aria-checked="${profile.meeting_reminders !== false}" aria-label="Lembretes das reuniões" data-profile-toggle="meeting_reminders"><i></i></button>
+            <span class="menu-label">${th("Lembretes das reuniões")}</span>
+            <button class="switch" role="switch" aria-checked="${profile.meeting_reminders !== false}" aria-label="${th("Lembretes das reuniões")}" data-profile-toggle="meeting_reminders"><i></i></button>
           </div>
         </li>
       </ul>
@@ -132,29 +130,29 @@ export function profileView({ state, escapeHtml, header, navigation, extraSectio
     ${extraSection}
 
     ${state.admin ? `<section class="menu-group">
-      <h2 class="menu-heading">Equipa ISTN-SJ</h2>
+      <h2 class="menu-heading">${th("Equipa ISTN-SJ")}</h2>
       <ul class="menu-list">
         <li><a class="menu-row" href="/admin" data-external>
           <span class="menu-icon tone-blue">${svg('badge')}</span>
-          <span class="menu-label">Painel de administração</span>
-          <span class="menu-value">${escapeHtml(state.admin.role === 'central' ? 'Equipa central' : 'Editor local')}</span>
+          <span class="menu-label">${th("Painel de administração")}</span>
+          <span class="menu-value">${escapeHtml(state.admin.role === 'central' ? t("Equipa central") : t("Editor local"))}</span>
           <span class="menu-chevron">${svg('chevron', 16)}</span>
         </a></li>
       </ul>
-      <p class="menu-footnote">Os anúncios e as orações tratam-se na própria aplicação, onde estão. O painel é para o diretório, as reuniões, os pedidos e o histórico.</p>
+      <p class="menu-footnote">${th("Os anúncios e as orações tratam-se na própria aplicação, onde estão. O painel é para o diretório, as reuniões, os pedidos e o histórico.")}</p>
     </section>` : ''}
 
     <section class="menu-group">
-      <h2 class="menu-heading">Conta</h2>
+      <h2 class="menu-heading">${th("Conta")}</h2>
       <ul class="menu-list">
         <li><div class="menu-row is-static">
           <span class="menu-icon tone-grey">${svg('mail')}</span>
-          <span class="menu-label">Email</span>
+          <span class="menu-label">${th("Email")}</span>
           <span class="menu-value">${escapeHtml(state.session?.user?.email || '—')}</span>
         </div></li>
         <li><button class="menu-row danger" data-profile-signout>
           <span class="menu-icon tone-red">${svg('logout')}</span>
-          <span class="menu-label">Terminar sessão</span>
+          <span class="menu-label">${th("Terminar sessão")}</span>
         </button></li>
       </ul>
     </section>
@@ -170,7 +168,7 @@ function contactFootnote(profile, claim) {
     return 'O seu contacto está oculto: só a equipa ISTN-SJ o vê. A escolha é sua, e pode mudá-la quando quiser.';
   }
   return claim === 'aprovado' && profile.servo_id
-    ? 'O seu número aparece junto do seu nome na página da sua igreja.'
+    ? t("O seu número aparece junto do seu nome na página da sua igreja.")
     : 'Autorizou a ISTN-SJ a mostrar o seu número. Por agora a aplicação só mostra o contacto de quem serve na igreja: até lá, o seu continua a ser visto apenas pela equipa.';
 }
 
@@ -182,10 +180,10 @@ function phoneVisibilityRow({ state }) {
   const { phone, phone_public: on } = state.profile;
   return `<li><div class="menu-row is-static">
     <span class="menu-icon tone-blue">${svg('eye')}</span>
-    <span class="menu-label">Mostrar o meu contacto</span>
+    <span class="menu-label">${th("Mostrar o meu contacto")}</span>
     ${phone
-      ? `<button class="switch" role="switch" aria-checked="${Boolean(on)}" aria-label="Mostrar o meu contacto a outras pessoas" data-profile-toggle="phone_public"><i></i></button>`
-      : '<span class="menu-value empty">Indique primeiro o telefone</span>'}
+      ? `<button class="switch" role="switch" aria-checked="${Boolean(on)}" aria-label="${th("Mostrar o meu contacto a outras pessoas")}" data-profile-toggle="phone_public"><i></i></button>`
+      : `<span class="menu-value empty">${th("Indique primeiro o telefone")}</span>`}
   </div></li>`;
 }
 
@@ -202,49 +200,49 @@ function sheetView({ state, escapeHtml }) {
 
   let title = '';
   let body = '';
-  let submit = 'Guardar';
+  let submit = t("Guardar");
 
   switch (key) {
     case 'display_name':
-      title = 'Nome';
-      body = `<label class="sheet-field">Como quer ser chamado<input type="text" name="display_name" value="${escapeHtml(profile.display_name || '')}" autocomplete="name" maxlength="80" required /></label>
-        <p class="sheet-hint">Escreva só o nome, sem a função: a aplicação acrescenta «Bp.», «Pr.» ou «Dona» conforme a função aprovada.</p>
-        ${badgeFor(profile) ? '<p class="sheet-hint">No diretório continua a aparecer o nome registado pela equipa.</p>' : ''}`;
+      title = t("Nome");
+      body = `<label class="sheet-field">${th("Como quer ser chamado")}<input type="text" name="display_name" value="${escapeHtml(profile.display_name || '')}" autocomplete="name" maxlength="80" required /></label>
+        <p class="sheet-hint">${th("Escreva só o nome, sem a função: a aplicação acrescenta «Bp.», «Pr.» ou «Dona» conforme a função aprovada.")}</p>
+        ${badgeFor(profile) ? `<p class="sheet-hint">${th("No diretório continua a aparecer o nome registado pela equipa.")}</p>` : ''}`;
       break;
     case 'gender':
-      title = 'Género';
+      title = t("Género");
       body = locked
-        ? '<p class="sheet-hint">Não pode ser alterado enquanto houver um pedido de função em análise ou aprovado.</p>'
-        : `<p class="sheet-hint">Determina as funções que pode pedir na ISTN.</p>${radios('gender', [['masculino', 'Masculino'], ['feminino', 'Feminino']], profile.gender)}`;
+        ? `<p class="sheet-hint">${th("Não pode ser alterado enquanto houver um pedido de função em análise ou aprovado.")}</p>`
+        : `<p class="sheet-hint">${th("Determina as funções que pode pedir na ISTN.")}</p>${radios('gender', [['masculino', t("Masculino")], ['feminino', t("Feminino")]], profile.gender)}`;
       if (locked) submit = '';
       break;
     case 'phone':
-      title = 'Telefone';
-      body = `<label class="sheet-field">Número de telefone${phoneControl({ value: profile.phone || '', country: profile.country_code || DEFAULT_COUNTRY })}</label>
-        <p class="sheet-hint">Escolha o indicativo do seu país na lista e escreva só o resto do número.</p>`;
+      title = t("Telefone");
+      body = `<label class="sheet-field">${th("Número de telefone{0}", { 0: phoneControl({ value: profile.phone || '', country: profile.country_code || DEFAULT_COUNTRY }) })}</label>
+        <p class="sheet-hint">${th("Escolha o indicativo do seu país na lista e escreva só o resto do número.")}</p>`;
       break;
     case 'country_code': {
-      title = 'País';
+      title = t("País");
       const all = countryList();
       const option = (country) => `<option value="${country.code}" ${profile.country_code === country.code ? 'selected' : ''}>${escapeHtml(country.name)}</option>`;
-      body = `<label class="sheet-field">Onde vive<select name="country_code">
-        <option value="">— Não indicar —</option>
+      body = `<label class="sheet-field">${th("Onde vive")}<select name="country_code">
+        <option value="">${th("— Não indicar —")}</option>
         <optgroup label="Onde a ISTN-SJ está presente">${all.filter((country) => ISTN_COUNTRIES.includes(country.code)).map(option).join('')}</optgroup>
         <optgroup label="Todos os países">${all.map(option).join('')}</optgroup>
       </select></label>`;
       break;
     }
     case 'city':
-      title = 'Cidade';
-      body = `<label class="sheet-field">Cidade ou localidade<input type="text" name="city" value="${escapeHtml(profile.city || '')}" autocomplete="address-level2" maxlength="80" /></label>`;
+      title = t("Cidade");
+      body = `<label class="sheet-field">${th("Cidade ou localidade")}<input type="text" name="city" value="${escapeHtml(profile.city || '')}" autocomplete="address-level2" maxlength="80" /></label>`;
       break;
     case 'home_church_id':
-      title = 'A minha ISTN';
-      body = churchSelect({ state, escapeHtml, name: 'home_church_id', current: profile.home_church_id, label: 'A igreja que frequenta' });
+      title = t("A minha ISTN");
+      body = churchSelect({ state, escapeHtml, name: 'home_church_id', current: profile.home_church_id, label: t("A igreja que frequenta") });
       break;
     case 'language':
-      title = 'Idioma';
-      body = `<p class="sheet-hint">A aplicação está em português. Esta preferência é usada nas comunicações da ISTN-SJ.</p>${radios('language', LANGUAGES.map(([code, label]) => [code, label]), profile.language || 'pt')}`;
+      title = t("Idioma");
+      body = `<p class="sheet-hint">${th("Escolha o idioma da aplicação.")}</p>${radios('language', LANGUAGES.map(([code, label]) => [code, label]), language())}`;
       break;
     case 'service':
       ({ title, body, submit } = serviceSheet({ state, escapeHtml, radios }));
@@ -259,8 +257,8 @@ function sheetView({ state, escapeHtml }) {
       <h2 id="sheet-title">${title}</h2>
       ${body}
       <div class="sheet-actions">
-        ${submit ? `<button class="button button-gold full-width" type="submit" ${state.profileSaving ? 'disabled' : ''}>${state.profileSaving ? 'A guardar…' : submit}</button>` : ''}
-        <button class="text-button" type="button" data-sheet-close>${submit ? 'Cancelar' : 'Fechar'}</button>
+        ${submit ? `<button class="button button-gold full-width" type="submit" ${state.profileSaving ? 'disabled' : ''}>${state.profileSaving ? t("A guardar…") : submit}</button>` : ''}
+        <button class="text-button" type="button" data-sheet-close>${submit ? t("Cancelar") : t("Fechar")}</button>
       </div>
     </form>
   </div>`;
@@ -268,7 +266,7 @@ function sheetView({ state, escapeHtml }) {
 
 function churchSelect({ state, escapeHtml, name, current, label, required = false }) {
   const churches = state.churchOptions || [];
-  if (!churches.length) return '<p class="sheet-hint">A carregar as igrejas…</p>';
+  if (!churches.length) return `<p class="sheet-hint">${th("A carregar as igrejas…")}</p>`;
   const byCountry = new Map();
   churches.forEach((church) => {
     const group = countryName(church.country_code) || church.country || 'Online';
@@ -277,7 +275,7 @@ function churchSelect({ state, escapeHtml, name, current, label, required = fals
   });
   const groups = [...byCountry.entries()].sort(([a], [b]) => a.localeCompare(b, 'pt'));
   return `<label class="sheet-field">${label}<select name="${name}" ${required ? 'required' : ''}>
-    <option value="">— Ainda não escolhi —</option>
+    <option value="">${th("— Ainda não escolhi —")}</option>
     ${groups.map(([group, items]) => `<optgroup label="${escapeHtml(group)}">${items.map((church) => `<option value="${church.id}" ${current === church.id ? 'selected' : ''}>${escapeHtml(churchLabel(church))}${church.region ? ` — ${escapeHtml(church.region)}` : ''}</option>`).join('')}</optgroup>`).join('')}
   </select></label>`;
 }
@@ -289,46 +287,46 @@ function serviceSheet({ state, escapeHtml, radios }) {
 
   if (claim === 'aprovado') {
     return {
-      title: 'Função',
+      title: t("Função"),
       submit: '',
       body: `<div class="service-summary">
         <p class="verified-name">${escapeHtml(badge?.name || profile.display_name || '')}${badge ? verifiedSeal(badge.role) : ''}</p>
-        <p>Verificado como <strong>${escapeHtml(badge?.label || roleLabel(profile.claimed_role))}</strong>${badge?.church ? ` em ${escapeHtml(badge.church)}` : ''}.</p>
+        <p>${th("Verificado como")} <strong>${escapeHtml(badge?.label || roleLabel(profile.claimed_role))}</strong>${badge?.church ? ` ${th("em")} ${escapeHtml(badge.church)}` : ''}.</p>
       </div>
-      <p class="sheet-hint">Para alterar a função, fale com a equipa ISTN-SJ — é ela que a confirma.</p>`
+      <p class="sheet-hint">${th("Para alterar a função, fale com a equipa ISTN-SJ — é ela que a confirma.")}</p>`
     };
   }
 
   if (claim === 'pendente') {
     const church = (state.churchOptions || []).find((item) => item.id === profile.home_church_id);
     return {
-      title: 'Pedido em análise',
+      title: t("Pedido em análise"),
       submit: '',
       body: `<div class="service-summary">
         <p><strong>${escapeHtml(roleLabel(profile.claimed_role))}</strong>${church ? ` em ${escapeHtml(church.name || church.locality || church.country || '')}` : ''}</p>
-        <p>A equipa ISTN-SJ vai confirmar antes de atribuir o selo. Enquanto o pedido estiver em análise, a função e o género não podem ser alterados.</p>
+        <p>${th("A equipa ISTN-SJ vai confirmar antes de atribuir o selo. Enquanto o pedido estiver em análise, a função e o género não podem ser alterados.")}</p>
       </div>
-      <button class="button button-outline full-width" type="button" data-service-withdraw>Retirar o pedido</button>`
+      <button class="button button-outline full-width" type="button" data-service-withdraw>${th("Retirar o pedido")}</button>`
     };
   }
 
   const gender = state.sheetGender ?? profile.gender ?? '';
   const roles = gender ? claimableRoles(gender) : [];
   return {
-    title: 'Indicar função',
-    submit: 'Enviar para aprovação',
-    body: `${claim === 'recusado' ? '<p class="sheet-notice">O pedido anterior não foi aprovado. Pode corrigir e voltar a enviar.</p>' : ''}
-      <p class="sheet-hint">A função fica visível no seu perfil só depois de a equipa ISTN-SJ a confirmar. Ninguém se verifica a si próprio.</p>
-      <p class="sheet-label">Género</p>
-      ${radios('gender', [['masculino', 'Masculino'], ['feminino', 'Feminino']], gender)}
-      <p class="sheet-label">Função</p>
+    title: t("Indicar função"),
+    submit: t("Enviar para aprovação"),
+    body: `${claim === 'recusado' ? `<p class="sheet-notice">${th("O pedido anterior não foi aprovado. Pode corrigir e voltar a enviar.")}</p>` : ''}
+      <p class="sheet-hint">${th("A função fica visível no seu perfil só depois de a equipa ISTN-SJ a confirmar. Ninguém se verifica a si próprio.")}</p>
+      <p class="sheet-label">${th("Género")}</p>
+      ${radios('gender', [['masculino', t("Masculino")], ['feminino', t("Feminino")]], gender)}
+      <p class="sheet-label">${th("Função")}</p>
       ${gender
         ? `<div class="choice-grid roles">${roles.map((role) => `
             <label class="choice"><input type="radio" name="claimed_role" value="${role.id}" ${profile.claimed_role === role.id ? 'checked' : ''} required />
-              <span><strong>${escapeHtml(role.label)}</strong>${isMinisterRole(role.id) ? '<small>Ministro</small>' : ''}</span>
+              <span><strong>${escapeHtml(t(role.label))}</strong>${isMinisterRole(role.id) ? `<small>${th("Ministro")}</small>` : ''}</span>
             </label>`).join('')}</div>`
-        : '<p class="sheet-hint">Escolha primeiro o género.</p>'}
-      ${churchSelect({ state, escapeHtml, name: 'home_church_id', current: state.sheetChurch ?? profile.home_church_id, label: 'Igreja onde serve', required: true })}`
+        : `<p class="sheet-hint">${th("Escolha primeiro o género.")}</p>`}
+      ${churchSelect({ state, escapeHtml, name: 'home_church_id', current: state.sheetChurch ?? profile.home_church_id, label: t("Igreja onde serve"), required: true })}`
   };
 }
 
@@ -372,7 +370,8 @@ export function bindProfile({ state, render, showToast }) {
       // card would lose the seal until the next reload.
       state.profile = await loadProfile(state.session) || state.profile;
       state.profileSheet = null; state.sheetGender = null; state.sheetChurch = null;
-      showToast(message);
+      if (changes.language) setLanguage(changes.language);
+      showToast(changes.language ? t("Idioma atualizado.") : message);
     } catch (error) {
       showToast(error.message);
     } finally {
@@ -388,13 +387,13 @@ export function bindProfile({ state, render, showToast }) {
 
     if (key === 'service') {
       if (!values.gender || !values.claimed_role || !values.home_church_id) {
-        showToast('Indique o género, a função e a igreja.');
+        showToast(t("Indique o género, a função e a igreja."));
         return;
       }
       save({
         gender: values.gender, claimed_role: values.claimed_role,
         home_church_id: values.home_church_id, servo_claim_status: 'pendente'
-      }, 'Pedido enviado. A equipa ISTN-SJ vai confirmar.');
+      }, t("Pedido enviado. A equipa ISTN-SJ vai confirmar."));
       return;
     }
 
@@ -405,7 +404,7 @@ export function bindProfile({ state, render, showToast }) {
       // would refuse the pair, so drop the stale role with it.
       const stillValid = claimableRoles(values.gender).some((role) => role.id === state.profile.claimed_role);
       if (state.profile.claimed_role && !stillValid) changes.claimed_role = null;
-      save(changes, 'Género guardado.');
+      save(changes, t("Género guardado."));
       return;
     }
 
@@ -418,21 +417,21 @@ export function bindProfile({ state, render, showToast }) {
       language: { language: values.language || 'pt' }
     }[key];
     if (key === 'display_name') {
-      if (!changes.display_name) { showToast('O nome não pode ficar vazio.'); return; }
+      if (!changes.display_name) { showToast(t("O nome não pode ficar vazio.")); return; }
       const rank = rankPrefixOf(changes.display_name);
-      if (rank) { showToast(`Escreva o nome sem «${rank}»: a função é acrescentada pela aplicação.`); return; }
+      if (rank) { showToast(t("Escreva o nome sem «{0}»: a função é acrescentada pela aplicação.", { 0: rank })); return; }
     }
-    if (changes) save(changes, 'Guardado.');
+    if (changes) save(changes, t("Guardado."));
   });
 
   document.querySelector('[data-service-withdraw]')?.addEventListener('click', () => {
-    save({ servo_claim_status: 'nenhum' }, 'Pedido retirado.');
+    save({ servo_claim_status: 'nenhum' }, t("Pedido retirado."));
   });
 
   const TOGGLE_SAID = {
     phone_public: [
-      'O seu contacto passa a estar visível.',
-      'O seu contacto ficou oculto.'
+      t("O seu contacto passa a estar visível."),
+      t("O seu contacto ficou oculto.")
     ]
   };
 
@@ -456,7 +455,7 @@ export function bindProfile({ state, render, showToast }) {
     try {
       const url = await uploadPhoto(file, 'membros', state.session.user.id, state.session);
       state.profile = await saveProfile({ photo_url: url }) || state.profile;
-      showToast('Fotografia atualizada.');
+      showToast(t("Fotografia atualizada."));
     } catch (error) { showToast(error.message); }
     finally { state.uploading = false; render(); }
   });
@@ -464,7 +463,8 @@ export function bindProfile({ state, render, showToast }) {
   document.querySelector('[data-profile-signout]')?.addEventListener('click', () => {
     signOut();
     state.session = null; state.profile = null; state.admin = null; state.profileSheet = null;
+    useProfileLanguage(null);
     render();
-    showToast('Sessão terminada.');
+    showToast(t("Sessão terminada."));
   });
 }

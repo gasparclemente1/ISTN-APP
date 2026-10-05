@@ -1,3 +1,4 @@
+import { locale } from './i18n.js';
 // The teaching library: how a recorded message is classified, searched, sorted
 // and linked. Pure functions, so the rules can be tested without a browser.
 import { bookOf } from './bible.js';
@@ -59,7 +60,7 @@ export function watchUrl(teaching) {
 export function formatDate(value) {
   if (!value) return '';
   const date = new Date(`${value}T12:00:00Z`);
-  return Number.isNaN(date.getTime()) ? '' : new Intl.DateTimeFormat('pt-PT', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'UTC' }).format(date);
+  return Number.isNaN(date.getTime()) ? '' : new Intl.DateTimeFormat(locale(), { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'UTC' }).format(date);
 }
 
 export function yearsIn(library) {
