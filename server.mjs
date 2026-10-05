@@ -1,4 +1,4 @@
-import { createPostTranslator } from './lib/post-translation.mjs';
+import { createPostTranslator, prayersAsPosts } from './lib/post-translation.mjs';
 import { createReadStream, readFileSync, statSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { createGzip, gzipSync } from 'node:zlib';
@@ -24,6 +24,12 @@ const port = Number(process.env.PORT || 4173);
 const canonicalHost = (process.env.CANONICAL_HOST || '').trim();
 const config = supabaseConfig();
 const publicData = createPublicData({ config, root });
+// The prayers' title and description go through the same translator as the
+// announcements, with a cache of their own.
+const prayerTranslator = createPostTranslator({
+  loadPosts: async () => prayersAsPosts(await publicData.prayers()),
+  cacheFile: process.env.PRAYER_TRANSLATION_CACHE_FILE || join(root, '.cache', 'prayer-translations.json')
+});
 const postTranslator = createPostTranslator({ loadPosts: () => publicData.posts(), cacheFile: process.env.TRANSLATION_CACHE_FILE || join(root, '.cache', 'post-translations.json') });
 const signInProviders = createProviderLookup(config);
 if (!publicData.configured) console.warn('SUPABASE_URL/SUPABASE_PUBLISHABLE_KEY em falta: reuniões indisponíveis e diretório lido dos ficheiros de origem.');
@@ -79,11 +85,12 @@ async function handle(request, response) {
     response.setHeader(name, value);
   }
 
-  if (url.pathname === '/api/posts/translate') {
+  const translator = { '/api/posts/translate': postTranslator, '/api/prayers/translate': prayerTranslator }[url.pathname];
+  if (translator) {
     if (request.method !== 'POST') return send(request, response, 405, 'Method not allowed', { Allow: 'POST' });
     if (!isSameOrigin(request)) return sendJson(request, response, 403, { code: 'invalid_request' }, 'no-store');
     try {
-      const result = await postTranslator.translate(url.searchParams.get('id'), url.searchParams.get('language'));
+      const result = await translator.translate(url.searchParams.get('id'), url.searchParams.get('language'));
       return sendJson(request, response, 200, result, 'no-store');
     } catch (error) {
       return sendJson(request, response, error.status || 502, { code: error.code || 'translation_failed' }, 'no-store');
