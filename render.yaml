@@ -22,3 +22,9 @@ services:
         sync: false
       - key: SUPABASE_OAUTH_PROVIDERS
         sync: false
+      # Translator F0. Existing services must set these in the dashboard;
+      # sync:false prompts only during the first Blueprint installation.
+      - key: AZURE_TRANSLATOR_KEY
+        sync: false
+      - key: AZURE_TRANSLATOR_REGION
+        sync: false

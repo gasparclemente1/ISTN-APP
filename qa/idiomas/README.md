@@ -15,7 +15,7 @@ Branch: `codex/idiomas-pt-en-fr-es`.
 ## Ativar tradução das publicações
 
 1. Criar um recurso **Azure Translator**, do tipo serviço único, no plano **F0 (Free)**. O plano gratuito inclui 2 milhões de caracteres/mês, partilhados pelos pedidos do recurso. Não selecionar S1 para esta configuração gratuita.
-2. Em **Keys and Endpoint**, obter a chave e a região. Guardar apenas no servidor/Render como `AZURE_TRANSLATOR_KEY` e `AZURE_TRANSLATOR_REGION` (por exemplo `westeurope`). Para um recurso Global, a região pode ficar vazia. Nunca colocar a chave no código, PR, navegador ou `/api/config`.
+2. Em **Keys and Endpoint**, obter a chave e a região. Guardar apenas no servidor/Render como `AZURE_TRANSLATOR_KEY` e `AZURE_TRANSLATOR_REGION` (por exemplo `northeurope`). Para um recurso Global, a região pode ficar vazia. Nunca colocar a chave no código, PR, aplicação cliente ou `/api/config`. O `render.yaml` declara estas variáveis com `sync: false`: instalações novas pedem os valores; serviços existentes precisam de os guardar no Dashboard.
 3. Integrar o PR e publicar a aplicação. Abrir um anúncio, mudar idioma, selecionar “Ver tradução”, verificar título/mensagem e voltar ao original.
 4. Editar a mensagem original e repetir: a revisão anterior não deve reaparecer. Testar também sem ligação, quota atingida e troca de idioma durante um pedido.
 
@@ -34,7 +34,17 @@ Pedidos simultâneos iguais partilham o trabalho. Limites locais por processo: 1
 - Navegador: francês/inglês/espanhol com nomes e marca corretos; navegação de Orações do main presente. Espanhol em 390 × 844 sem deslocamento horizontal.
 - Botão “Voir la traduction” e erro localizado verificados sem chave; original mantido.
 - Endpoint real local: GET → 405; origem externa → 403; sem chave → 503 controlado.
-- Integração Microsoft: 139 testes passaram, incluindo contrato HTTP, pt-pt, nomes protegidos, cache entre reinícios, limites por caracteres e concorrência. Credencial Azure ainda por configurar; traduções reais/qualidade não foram verificadas. Nenhuma migração ou publicação em produção realizada.
+- Integração Microsoft: 139 testes passaram, incluindo contrato HTTP, pt-pt, nomes protegidos, cache entre reinícios, limites por caracteres e concorrência.
+
+## Ligação Azure / Render em 5 de outubro de 2026
+
+- Recurso `istn-translator`, plano **Free F0**, ativo em **North Europe** (`northeurope`).
+- No serviço existente **ISTN-APP**, foram guardadas `AZURE_TRANSLATOR_KEY` e `AZURE_TRANSLATOR_REGION` com **Save only**, preservando as outras variáveis. A chave não está no repositório. Não é preciso criar outro serviço nem contratar armazenamento.
+- O serviço publica `main`, ainda em `cadd5d9` nesta verificação. Integrar o PR #40 e aguardar o deploy para ativar a funcionalidade em produção; gravar as variáveis não publica o código da branch.
+- Teste real com `createPostTranslator` e uma mensagem sintética: quatro pedidos Azure bem-sucedidos para EN, FR, ES e PT; deteção de português, título/mensagem e saída sem HTML verificados. Elijah / Élie / Elías e os nomes da igreja foram preservados pelo glossário.
+- Repetir a tradução inglesa reutilizou a cache sem um quinto pedido ao fornecedor. O ficheiro temporário usado para o teste foi removido.
+- Este teste comprova autenticação e contrato do fornecedor com o código do PR, não a interface em produção nem a qualidade de todas as frases. A tradução automática pode precisar de revisão, especialmente nos artigos junto dos nomes protegidos.
+- Depois do deploy, abrir uma publicação em `istnsj.org`, escolher inglês/francês/espanhol, carregar em **Ver tradução** e voltar a **Ver original**. Confirmar também que `/api/config` nunca devolve a chave.
 
 ## Referências
 
