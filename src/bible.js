@@ -6,6 +6,8 @@
 // references ("Actos", "Deuteronómio"). The references on each card are shown
 // exactly as they were written; only the filter groups them.
 import { foldText } from './text.js';
+import { messages } from './locales/messages.js';
+import { t } from './i18n.js';
 
 export const BOOKS = [
   'Génesis', 'Êxodo', 'Levítico', 'Números', 'Deuteronómio', 'Josué', 'Juízes', 'Rute', '1 Samuel', '2 Samuel',
@@ -27,9 +29,19 @@ const ALIASES = {
   lamentacoesdejeremias: 'Lamentações'
 };
 
+// More spellings people type in the other languages of the app.
+const FOREIGN_ALIASES = {
+  psalm: 'Salmos', psalms: 'Salmos', psaume: 'Salmos', songofsolomon: 'Cantares', cantique: 'Cantares',
+  revelations: 'Apocalipse', apocalipsis: 'Apocalipse'
+};
+
+// A book is found by its Portuguese name or by the name the catalogue gives it
+// in English, French and Spanish, so the example the interface itself suggests
+// ("John 3", "Jean 3", "Juan 3") finds the same teachings as "João 3".
 const INDEX = new Map([
-  ...BOOKS.map((name, order) => [key(name), { name, order }]),
-  ...Object.entries(ALIASES).map(([alias, name]) => [alias, { name, order: BOOKS.indexOf(name) }])
+  ...BOOKS.flatMap((name, order) => [name, ...['en', 'fr', 'es'].map((lang) => messages[name]?.[lang])]
+    .filter(Boolean).map((spelling) => [key(spelling), { name, order }])),
+  ...Object.entries({ ...ALIASES, ...FOREIGN_ALIASES }).map(([alias, name]) => [alias, { name, order: BOOKS.indexOf(name) }])
 ]);
 
 // "1Timóteo 6:12" → { name: '1 Timóteo', order: 53 }; null when the reference
@@ -38,4 +50,23 @@ export function bookOf(reference) {
   const match = String(reference ?? '').trim().match(/^((?:[1-3]\s*)?[^\d:]+)/);
   if (!match) return null;
   return INDEX.get(key(match[1])) || null;
+}
+
+// How a reference reads in the language in use: "João 5:1-15" is "John 5:1-15"
+// in English. A reference whose book is not recognised is shown as written.
+export function referenceLabel(reference) {
+  const text = String(reference ?? '').trim();
+  const match = text.match(/^((?:[1-3]\s*)?[^\d:]+)/);
+  const book = match && INDEX.get(key(match[1]));
+  if (!book) return text;
+  const rest = text.slice(match[1].length).trim();
+  return rest ? `${t(book.name)} ${rest}` : t(book.name);
+}
+
+// "Juan 3" → "João 3": the same search written the way the library stores it.
+export function portugueseQuery(query) {
+  const text = String(query ?? '').trim();
+  const match = text.match(/^((?:[1-3]\s*)?[^\d:]+)/);
+  const book = match && INDEX.get(key(match[1]));
+  return book ? `${book.name} ${text.slice(match[1].length)}`.trim() : text;
 }

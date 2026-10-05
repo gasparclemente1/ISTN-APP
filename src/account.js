@@ -2,6 +2,7 @@
 // app works without one, and this only carries what cannot live on a single
 // device — preferences across phones, favourites, and the servant badge.
 import { backendConfig } from './data.js';
+import { t } from './i18n.js';
 import { badgeTier, roleLabel, servantName } from './roles.js';
 
 const SESSION_KEY = 'elias-member-session';
@@ -218,13 +219,13 @@ export function hidePost(id, hidden, session = readSession()) {
 
 export async function createPrayer(fields, session = readSession()) {
   const rows = await rest('prayers', { method: 'POST', headers: { Prefer: 'return=representation' }, body: JSON.stringify(fields) }, session);
-  if (!rows?.length) throw new Error('Não tem permissão para acrescentar orações.');
+  if (!rows?.length) throw new Error(t('Não tem permissão para acrescentar orações.'));
   return rows[0];
 }
 
 export async function updatePrayer(id, fields, session = readSession()) {
   const rows = await rest(`prayers?id=eq.${id}`, { method: 'PATCH', headers: { Prefer: 'return=representation' }, body: JSON.stringify(fields) }, session);
-  if (!rows?.length) throw new Error('Não tem permissão para alterar esta oração.');
+  if (!rows?.length) throw new Error(t('Não tem permissão para alterar esta oração.'));
   return rows[0];
 }
 

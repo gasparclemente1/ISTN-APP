@@ -1,7 +1,7 @@
 import { locale } from './i18n.js';
 // The teaching library: how a recorded message is classified, searched, sorted
 // and linked. Pure functions, so the rules can be tested without a browser.
-import { bookOf } from './bible.js';
+import { bookOf, portugueseQuery } from './bible.js';
 import { collator, matchesQuery } from './text.js';
 
 // Alphabetical after "Todas", like every other filter list. Only the biblical
@@ -92,7 +92,7 @@ export function filterTeachings(library, { query = '', category = 'Todas', year 
     && (!year || yearOf(teaching) === year)
     && (!book || bookOf(teaching.biblicalReference)?.name === book)
     && (!savedOnly || saved.has(teaching.id))
-    && matchesQuery([teaching.title, teaching.biblicalReference, teaching.service, teaching.description], query));
+    && [query, portugueseQuery(query)].some((words) => matchesQuery([teaching.title, teaching.biblicalReference, teaching.service, teaching.description], words)));
   const direction = sort === 'oldest' ? 1 : -1;
   return matching.sort((a, b) => direction * collator.compare(a.publishedAt || '', b.publishedAt || '')
     || collator.compare(a.startsAt || '', b.startsAt || ''));

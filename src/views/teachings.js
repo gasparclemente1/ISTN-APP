@@ -4,6 +4,7 @@ import { t, th } from '../i18n.js';
 import { APP_CONFIG } from '../data.js';
 import { escapeHtml, externalLinkAttrs } from '../html.js';
 import { icon } from '../icons.js';
+import { referenceLabel } from '../bible.js';
 import { CATEGORIES, booksIn, countByCategory, filterTeachings, formatDate, thumbnailUrl, watchUrl, yearOf, yearsIn } from '../library.js';
 import { prefs } from '../prefs.js';
 import { emptyState, errorState, externalHint, loadingState, page, sectionHeading } from './shared.js';
@@ -21,7 +22,7 @@ function teachingCard(teaching) {
       <span class="teaching-body">
         <small class="teaching-meta">${escapeHtml(teaching.service || 'YouTube')} · ${escapeHtml(formatDate(teaching.publishedAt))}</small>
         <strong class="teaching-title">${title}</strong>
-        ${teaching.biblicalReference ? `<span class="teaching-ref">${escapeHtml(teaching.biblicalReference)}</span>` : ''}
+        ${teaching.biblicalReference ? `<span class="teaching-ref">${escapeHtml(referenceLabel(teaching.biblicalReference))}</span>` : ''}
         ${teaching.startsAt ? `<span class="teaching-range">${th("{0}Começa aos {1} do vídeo", { 0: icon('clock', { size: 13 }), 1: escapeHtml(teaching.startsAt.slice(0, 5)) })}</span>` : ''}
         <span class="teaching-cta">${th("Ver no YouTube{8}{9}", { 8: icon('external', { size: 13 }), 9: externalHint() })}</span>
       </span>

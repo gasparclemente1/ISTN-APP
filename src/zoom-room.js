@@ -16,7 +16,7 @@ let sdkLoaded = false;
 async function request(action, method = 'GET') {
   const response = await fetch(endpoint(action), { method, cache: 'no-store', signal: AbortSignal.timeout(20000) });
   const result = await response.json();
-  if (!response.ok) throw new Error(result.error || t("Não foi possível abrir a reunião."));
+  if (!response.ok) throw new Error(result.error ? t(result.error) : t("Não foi possível abrir a reunião."));
   return result;
 }
 

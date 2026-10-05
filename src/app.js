@@ -1,5 +1,5 @@
 import { postTranslations } from './post-translation.js';
-import { t, setLanguage, onLanguageChange, useProfileLanguage } from './i18n.js';
+import { t, language, setLanguage, onLanguageChange, useProfileLanguage } from './i18n.js';
 // The public app: state, data loading, routing and interaction. Pages are drawn
 // by the modules in ./views from the state kept here.
 import { APP_CONFIG, backendConfig, loadDirectory, loadLatestVideos, loadMeetings, loadPosts, loadPrayers, loadTeachingLibrary } from './data.js';
@@ -11,6 +11,7 @@ import {
 } from './account.js';
 import { announce, copyText, debounce, renderInto, toast } from './dom.js';
 import { churchTitle, filterChurches, findChurch } from './directory.js';
+import { referenceLabel } from './bible.js';
 import { filterTeachings } from './library.js';
 import { nextMeeting } from './meetings.js';
 import { rankPrefixOf } from './roles.js';
@@ -317,7 +318,7 @@ async function startAccount() {
 // ----------------------------------------------------------- interação ----
 
 async function shareTeaching(teaching) {
-  const text = `${teaching.title}${teaching.biblicalReference ? ` (${teaching.biblicalReference})` : ''}`;
+  const text = `${teaching.title}${teaching.biblicalReference ? ` (${referenceLabel(teaching.biblicalReference)})` : ''}`;
   if (navigator.share) {
     try { await navigator.share({ title: teaching.title, text, url: teaching.url }); return; }
     catch (error) { if (error?.name === 'AbortError') return; }
@@ -957,6 +958,15 @@ onLanguageChange(() => {
   }
   document.title = pageTitle(state.route);
 });
+// What the browser reads before and beside the page — the description, and the
+// name the installed app carries — follows the language too.
+const PAGE_DESCRIPTION = 'ISTN-SJ — Igreja Salvação de Todas as Nações · Sol da Justiça. Pregações do Profeta Elias, reuniões ao vivo e as igrejas ISTN-SJ pelo mundo.';
+function syncHead() {
+  document.querySelector('meta[name="description"]')?.setAttribute('content', t(PAGE_DESCRIPTION));
+  document.querySelector('link[rel="manifest"]')?.setAttribute('href', language() === 'pt' ? '/manifest.webmanifest' : `/manifest.webmanifest?lang=${language()}`);
+}
+syncHead();
+onLanguageChange(syncHead);
 const router = startRouter(onRoute);
 refreshMeetings();
 refreshPosts();

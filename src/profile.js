@@ -165,11 +165,11 @@ export function profileView({ state, escapeHtml, header, navigation, extraSectio
 // matters, and promises nothing in the meantime.
 function contactFootnote(profile, claim) {
   if (!profile.phone_public) {
-    return 'O seu contacto está oculto: só a equipa ISTN-SJ o vê. A escolha é sua, e pode mudá-la quando quiser.';
+    return t('O seu contacto está oculto: só a equipa ISTN-SJ o vê. A escolha é sua, e pode mudá-la quando quiser.');
   }
   return claim === 'aprovado' && profile.servo_id
     ? t("O seu número aparece junto do seu nome na página da sua igreja.")
-    : 'Autorizou a ISTN-SJ a mostrar o seu número. Por agora a aplicação só mostra o contacto de quem serve na igreja: até lá, o seu continua a ser visto apenas pela equipa.';
+    : t('Autorizou a ISTN-SJ a mostrar o seu número. Por agora a aplicação só mostra o contacto de quem serve na igreja: até lá, o seu continua a ser visto apenas pela equipa.');
 }
 
 // Whether the person's number may be shown to anyone else. Every account
