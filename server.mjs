@@ -4,6 +4,7 @@ import { createServer } from 'node:http';
 import { createGzip, gzipSync } from 'node:zlib';
 import { join } from 'node:path';
 import { APP_ROUTES, resolvePublicPath, isTextType } from './lib/static.mjs';
+import { localizedManifest } from './lib/manifest.mjs';
 import { PREVIEW_BOTS, previewFor, sectionPreview, withPreview } from './lib/link-preview.mjs';
 import { canonicalRedirect } from './lib/canonical.mjs';
 import { securityHeaders } from './lib/security.mjs';
@@ -176,6 +177,14 @@ async function handle(request, response) {
   // does not require a commit.
   if (url.pathname === '/api/config') {
     return sendJson(request, response, 200, { ...config, providers: await signInProviders() }, 'no-store');
+  }
+
+  // The installed app's name, in the reader's language (see lib/manifest.mjs).
+  if (url.pathname === '/manifest.webmanifest' && url.searchParams.has('lang')) {
+    const base = JSON.parse(readFileSync(join(root, 'manifest.webmanifest'), 'utf8'));
+    return send(request, response, 200, JSON.stringify(localizedManifest(base, url.searchParams.get('lang'))), {
+      'Content-Type': 'application/manifest+json; charset=utf-8', 'Cache-Control': 'no-cache'
+    });
   }
 
   if (url.pathname === '/sw.js') {

@@ -4,6 +4,7 @@
 // The picture is shrunk in the browser first. A phone camera file is several
 // megabytes; what the app shows never needs more than a fraction of that, and
 // the congregation is largely on mobile data.
+import { t } from './i18n.js';
 import { backendConfig } from './data.js';
 
 const MAX_EDGE = 800;
@@ -34,7 +35,7 @@ export const AUDIO_TYPES = ['audio/mpeg', 'audio/mp4', 'audio/x-m4a', 'audio/aac
 // useful to do to it in the browser, and anything done to it would be done to
 // the Prophet's voice.
 export async function uploadAudio(file, session) {
-  if (!file || !AUDIO_TYPES.includes(file.type)) throw new Error('Escolha um áudio MP3, M4A, AAC, OGG ou WAV.');
+  if (!file || !AUDIO_TYPES.includes(file.type)) throw new Error(t('Escolha um áudio MP3, M4A, AAC, OGG ou WAV.'));
   const { supabaseUrl, supabaseKey } = await backendConfig();
   if (!supabaseUrl) throw new Error('O armazenamento não está configurado neste servidor.');
   const extension = (file.name.match(/\.(mp3|m4a|aac|ogg|wav)$/i)?.[1] || 'mp3').toLowerCase();

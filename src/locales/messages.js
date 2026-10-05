@@ -401,7 +401,7 @@ export const messages = {
     "es": "Cultos"
   },
   "Cultos dos servos": {
-    "en": "Ministry services",
+    "en": "Servants’ services",
     "fr": "Cultes des serviteurs",
     "es": "Cultos de los siervos"
   },
@@ -986,12 +986,12 @@ export const messages = {
     "es": "Todavía no hay comentarios en esta publicación."
   },
   "Os comentários estão reservados aos servos com selo de verificação. Pode reagir a este anúncio.": {
-    "en": "Comments are reserved for verified ministry members. You can react to this announcement.",
+    "en": "Comments are reserved for verified servants. You can react to this announcement.",
     "fr": "Les commentaires sont réservés aux serviteurs vérifiés. Vous pouvez réagir à cette annonce.",
     "es": "Los comentarios están reservados a los siervos con insignia de verificación. Puede reaccionar a este anuncio."
   },
   "Entre com a sua conta para reagir. Comentar está reservado aos servos verificados.": {
-    "en": "Sign in to react. Only verified ministry members can comment.",
+    "en": "Sign in to react. Only verified servants can comment.",
     "fr": "Connectez-vous pour réagir. Les commentaires sont réservés aux serviteurs vérifiés.",
     "es": "Inicie sesión para reaccionar. Los comentarios están reservados a los siervos verificados."
   },
@@ -1751,7 +1751,7 @@ export const messages = {
     "es": "No indicada"
   },
   "Servo verificado · {0}": {
-    "en": "Verified ministry member · {0}",
+    "en": "Verified servant · {0}",
     "fr": "Serviteur vérifié · {0}",
     "es": "Siervo verificado · {0}"
   },
@@ -3854,5 +3854,80 @@ export const messages = {
     "en": "Unable to translate. Please try again.",
     "fr": "Impossible de traduire. Réessayez.",
     "es": "No se pudo traducir. Inténtelo de nuevo."
+  },
+  "O seu contacto está oculto: só a equipa ISTN-SJ o vê. A escolha é sua, e pode mudá-la quando quiser.": {
+    "en": "Your contact details are hidden: only the ISTN-SJ team can see them. The choice is yours, and you can change it whenever you like.",
+    "fr": "Vos coordonnées sont masquées : seule l’équipe ISTN-SJ peut les voir. C’est votre choix, et vous pouvez le modifier quand vous le souhaitez.",
+    "es": "Su contacto está oculto: solo lo ve el equipo ISTN-SJ. Usted decide y puede cambiarlo cuando quiera."
+  },
+  "Autorizou a ISTN-SJ a mostrar o seu número. Por agora a aplicação só mostra o contacto de quem serve na igreja: até lá, o seu continua a ser visto apenas pela equipa.": {
+    "en": "You have allowed ISTN-SJ to show your number. For now the app only shows the contact details of people who serve in the church: until then, yours is still seen only by the team.",
+    "fr": "Vous avez autorisé l’ISTN-SJ à afficher votre numéro. Pour l’instant, l’application n’affiche que les coordonnées des personnes qui servent dans l’église : d’ici là, le vôtre reste visible uniquement par l’équipe.",
+    "es": "Ha autorizado a la ISTN-SJ a mostrar su número. Por ahora la aplicación solo muestra el contacto de quienes sirven en la iglesia: hasta entonces, el suyo solo lo ve el equipo."
+  },
+  "Não tem permissão para acrescentar orações.": {
+    "en": "You do not have permission to add prayers.",
+    "fr": "Vous n’avez pas l’autorisation d’ajouter des prières.",
+    "es": "No tiene permiso para añadir oraciones."
+  },
+  "Não tem permissão para alterar esta oração.": {
+    "en": "You do not have permission to edit this prayer.",
+    "fr": "Vous n’avez pas l’autorisation de modifier cette prière.",
+    "es": "No tiene permiso para modificar esta oración."
+  },
+  "Escolha um áudio MP3, M4A, AAC, OGG ou WAV.": {
+    "en": "Choose an MP3, M4A, AAC, OGG or WAV audio file.",
+    "fr": "Choisissez un fichier audio MP3, M4A, AAC, OGG ou WAV.",
+    "es": "Elija un audio MP3, M4A, AAC, OGG o WAV."
+  },
+  "Esta reunião já não está disponível.": {
+    "en": "This meeting is no longer available.",
+    "fr": "Cette réunion n’est plus disponible.",
+    "es": "Esta reunión ya no está disponible."
+  },
+  "A participação dentro da App ainda não está ativa nesta reunião. Pode entrar pelo Zoom.": {
+    "en": "Joining inside the App is not yet enabled for this meeting. You can join through Zoom.",
+    "fr": "La participation dans l’application n’est pas encore activée pour cette réunion. Vous pouvez la rejoindre par Zoom.",
+    "es": "La participación dentro de la App aún no está activada en esta reunión. Puede entrar por Zoom."
+  },
+  "Pedido inválido.": {
+    "en": "Invalid request.",
+    "fr": "Requête invalide.",
+    "es": "Solicitud no válida."
+  },
+  "Não foi possível abrir a reunião. Tente novamente.": {
+    "en": "Could not open the meeting. Please try again.",
+    "fr": "Impossible d’ouvrir la réunion. Réessayez.",
+    "es": "No se pudo abrir la reunión. Inténtelo de nuevo."
+  },
+  "Job": {
+    "en": "Job",
+    "fr": "Job",
+    "es": "Job"
+  },
+  "Filémon": {
+    "en": "Philemon",
+    "fr": "Philémon",
+    "es": "Filemón"
+  },
+  "ISTN-SJ — Igreja Salvação de Todas as Nações · Sol da Justiça. Pregações do Profeta Elias, reuniões ao vivo e as igrejas ISTN-SJ pelo mundo.": {
+    "en": "ISTN-SJ — Salvation of All Nations Church · Sun of Righteousness. Sermons by Prophet Elijah, live meetings and ISTN-SJ churches around the world.",
+    "fr": "ISTN-SJ — Église du Salut de Toutes les Nations · Soleil de Justice. Prédications du Prophète Élie, réunions en direct et églises ISTN-SJ dans le monde.",
+    "es": "ISTN-SJ — Iglesia Salvación de Todas las Naciones · Sol de Justicia. Predicaciones del Profeta Elías, reuniones en directo e iglesias ISTN-SJ en todo el mundo."
+  },
+  "Pregações do Profeta Elias, reuniões ao vivo e as igrejas ISTN-SJ pelo mundo.": {
+    "en": "Sermons by Prophet Elijah, live meetings and ISTN-SJ churches around the world.",
+    "fr": "Prédications du Prophète Élie, réunions en direct et églises ISTN-SJ dans le monde.",
+    "es": "Predicaciones del Profeta Elías, reuniones en directo e iglesias ISTN-SJ en todo el mundo."
+  },
+  "Próxima reunião e sala do Zoom": {
+    "en": "Next meeting and Zoom room",
+    "fr": "Prochaine réunion et salle Zoom",
+    "es": "Próxima reunión y sala de Zoom"
+  },
+  "Encontrar uma igreja ISTN": {
+    "en": "Find an ISTN church",
+    "fr": "Trouver une église ISTN",
+    "es": "Encontrar una iglesia ISTN"
   }
 };

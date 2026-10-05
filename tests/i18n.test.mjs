@@ -74,7 +74,8 @@ test('conteúdo editorial e valores dos filtros ficam intactos em inglês e fran
   for (const code of ['en', 'fr', 'es']) inLanguage(code, () => {
     const html = teachingsPage(state);
     assert.match(html, /Palavra original &lt;texto&gt;/);
-    assert.match(html, /João 3:16/);
+    // The reference is read in the reader's language; the book filter's value stays the stored name.
+    assert.match(html, new RegExp(({ en: 'John 3:16', fr: 'Jean 3:16', es: 'Juan 3:16' })[code]));
     assert.match(html, /data-value="Cultos"/);
     assert.match(html, /value="João"/);
     assert.ok(html.includes(({ en: 'John (1)', fr: 'Jean (1)', es: 'Juan (1)' })[code]));

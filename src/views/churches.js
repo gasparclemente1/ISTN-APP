@@ -155,7 +155,7 @@ function prophecyHero() {
       <img src="/design/assets/photos/elias-ensinos.jpeg" width="1706" height="2560" alt="${th("Profeta Elias a pregar")}" loading="lazy" />
     </div>
     <figure class="prophecy-copy">
-      <blockquote><p>${escapeHtml(PROPHECY)}</p></blockquote>
+      <blockquote><p>${escapeHtml(t(PROPHECY))}</p></blockquote>
       <figcaption>${th("Profeta Elias")}</figcaption>
     </figure>
   </section>`;
