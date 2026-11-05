@@ -16,7 +16,7 @@ const SESSION_KEY = 'elias-admin-session';
 const state = {
   config: null, session: null, profile: null,
   view: 'meetings', meetings: null, churches: null, claims: null,
-  query: '', filter: 'todas', editing: null, meeting: null, servo: null, uploading: false,
+  query: '', filter: 'todas', countryFilter: '', editing: null, meeting: null, servo: null, uploading: false,
   servos: null, services: null, busy: false,
   audit: null, auditNames: {}, auditTable: '', auditHasMore: false,
   posts: null, postComments: null, postAuthors: null, publishers: null, communities: null,
@@ -590,32 +590,38 @@ function servoEditor() {
   </form></div>`;
 }
 
+function visibleChurches(mine = isCentral() ? state.churches : state.churches.filter((c) => c.id === state.profile?.church_id)) {
+  const query = slugify(state.query.trim());
+  return mine.filter((church) => {
+    const text = [church.name, church.locality, church.region, church.country, church.country_code, church.leader_name, church.leader_phone, ...(church.other_leaders || []).flatMap((p) => [p.name, p.phone])].filter(Boolean).join(' ');
+    const digits = state.query.replace(/\D/g, '');
+    return (!state.countryFilter || church.country_code === state.countryFilter)
+      && (state.filter === 'todas' || (state.filter === 'verificadas' ? church.verification_status === 'verified' : church.verification_status !== 'verified'))
+      && (!query || slugify(text).includes(query) || (digits.length >= 3 && text.replace(/\D/g, '').includes(digits)));
+  });
+}
+
 function churchesView() {
   if (!state.churches) return '<p class="admin-empty">A carregar…</p>';
   const mine = isCentral() ? state.churches : state.churches.filter((church) => church.id === state.profile?.church_id);
-  const query = state.query.trim().toLowerCase();
-  const visible = mine.filter((church) => {
-    const matchesFilter = state.filter === 'todas'
-      || (state.filter === 'porVerificar' && church.verification_status !== 'verified')
-      || (state.filter === 'verificadas' && church.verification_status === 'verified');
-    const haystack = [church.name, church.locality, church.region, church.country, church.country_code, church.leader_name].filter(Boolean).join(' ').toLowerCase();
-    return matchesFilter && (!query || haystack.includes(query));
-  });
+  const visible = visibleChurches(mine);
   if (!mine.length) return '<p class="admin-empty">Ainda não tem nenhuma igreja atribuída. Peça à equipa central.</p>';
   const pending = mine.filter((church) => church.verification_status !== 'verified').length;
   return `<div class="admin-card">
     <h2>Diretório</h2>
     <p class="admin-hint">${mine.length} ${mine.length === 1 ? 'registo' : 'registos'} · <strong>${pending}</strong> por verificar. Confirme com a igreja antes de marcar como verificado.</p>
     ${isCentral() ? '<button class="button button-gold" type="button" data-action="new-church">+ Nova igreja</button>' : ''}
-    <label class="search-box"><span>⌕</span><input id="church-search" value="${escapeHtml(state.query)}" placeholder="Procurar por nome, localidade, região ou responsável" autocomplete="off" /></label>
+    <label class="search-box"><span>⌕</span><input aria-label="Procurar no diretório" id="church-search" value="${escapeHtml(state.query)}" placeholder="Nome, localidade, responsável ou telefone" autocomplete="off" /></label>
     <div class="admin-filters">${[['todas', 'Todas'], ['porVerificar', 'Por verificar'], ['verificadas', 'Verificadas']]
       .map(([id, label]) => `<button class="filter ${state.filter === id ? 'selected' : ''}" data-filter="${id}">${label}</button>`).join('')}</div>
-    <ul class="admin-list">${visible.map((church) => `<li>
-      <button data-edit="${church.id}">
-        <span><strong>${escapeHtml(church.name || church.locality || church.country || 'Sem localidade')}</strong><small>${escapeHtml([SEAT_LABELS[church.seat], church.region, church.country || countryName(church.country_code)].filter(Boolean).join(' · ') || church.modality)}</small></span>
-        <span class="status-badge ${church.verification_status}">${church.verification_status === 'verified' ? 'Verificado' : 'A confirmar'}</span>
-      </button>
-    </li>`).join('') || '<li class="admin-empty">Nenhum registo corresponde.</li>'}</ul>
+    <label class="directory-country">País<select id="directory-country"><option value="">Todos os países</option>${[...new Set(mine.map((c) => c.country_code).filter(Boolean))].map((code) => `<option value="${escapeHtml(code)}" ${state.countryFilter === code ? 'selected' : ''}>${escapeHtml(countryName(code))}</option>`).join('')}</select></label>
+    <p class="admin-hint" role="status">${visible.length} de ${mine.length} registos</p>
+    <div class="directory-table-wrap"><table class="directory-table"><caption class="sr-only">Igrejas e contactos</caption><thead><tr><th scope="col">Igreja / localidade</th><th scope="col">Responsáveis e contactos</th><th scope="col">Estado</th><th scope="col">Acção</th></tr></thead><tbody>
+    ${visible.map((church) => `<tr><td><strong>${escapeHtml(church.name || church.locality || church.country || 'Sem localidade')}</strong><small>${escapeHtml([SEAT_LABELS[church.seat], church.region, church.country || countryName(church.country_code)].filter(Boolean).join(' · '))}</small></td>
+    <td>${[{ name: church.leader_name, phone: church.leader_phone }, ...(church.other_leaders || [])].map((p) => `<div>${escapeHtml(p.name || 'Sem responsável')}<small>${escapeHtml(p.phone || 'Sem telefone')}</small></div>`).join('')}</td>
+    <td><span class="status-badge ${church.verification_status}">${church.verification_status === 'verified' ? 'Verificado' : 'A confirmar'}</span></td>
+    <td><button class="button button-outline" data-edit="${church.id}" aria-label="Editar ${escapeHtml(church.name || church.locality || church.country || 'igreja')}">Editar</button></td></tr>`).join('') || '<tr><td colspan="4" class="admin-empty">Nenhum registo corresponde. Ajuste a pesquisa ou os filtros.</td></tr>'}
+    </tbody></table></div>
   </div>`;
 }
 
@@ -669,6 +675,7 @@ function churchEditor() {
     <div class="admin-dialog-actions">
       <button class="button button-outline" type="button" data-action="cancel">Cancelar</button>
       <button class="button button-gold" type="submit" ${state.busy ? 'disabled' : ''}>${state.busy ? 'A guardar…' : 'Guardar'}</button>
+      ${!isNew && visibleChurches().some((c, i, rows) => c.id === church.id && i < rows.length - 1) ? `<button class="button button-outline" type="submit" name="save-next" ${state.busy ? 'disabled' : ''}>Guardar e seguinte →</button>` : ''}
     </div>
   </form></div>`;
 }
@@ -1181,6 +1188,7 @@ function bind() {
     });
   }));
 
+  document.querySelector('#directory-country')?.addEventListener('change', (event) => { state.countryFilter = event.target.value; render(); });
   const search = document.querySelector('#church-search');
   if (search) search.addEventListener('input', (event) => { state.query = event.target.value; render(); });
 
@@ -1204,6 +1212,8 @@ function bind() {
     const form = event.target;
     const values = formValues(form);
     const church = state.editing;
+    const queue = visibleChurches();
+    const nextId = event.submitter?.name === 'save-next' ? queue[queue.findIndex((c) => c.id === church.id) + 1]?.id : null;
     if (state.services === null) { toast('Os horários não foram carregados. Feche e volte a abrir a igreja antes de guardar.', 'erro'); return; }
     if (values.whatsapp_group_url && !safeUrl(values.whatsapp_group_url)) { toast('O link do grupo tem de começar por https://.', 'erro'); return; }
     const servicos = [...form.querySelectorAll('[data-service-row]')]
@@ -1270,6 +1280,10 @@ function bind() {
       });
       state.editing = null; state.services = null;
       await loadChurches();
+      if (nextId) {
+        state.editing = state.churches.find((c) => c.id === nextId) || null;
+        if (state.editing) { state.services = null; render(); await loadServices(nextId); }
+      }
       toast('Registo guardado.');
     });
   });

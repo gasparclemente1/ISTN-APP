@@ -128,3 +128,32 @@
 .admin-row-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
 .admin-row-actions .text-button { font-size: .78rem; }
 .admin-list .admin-row-wide small { overflow-wrap: anywhere; }
+
+/* Compact administration workspace. */
+.admin-main { max-width:1280px; padding:16px 24px 48px; }
+.admin-bar { padding:12px max(24px,calc((100vw - 1280px)/2)); }
+.admin-tabs { padding:12px max(24px,calc((100vw - 1280px)/2)) 0; flex-wrap:wrap; gap:6px; }
+.admin-tab { padding:7px 13px; }
+.admin-card { padding:18px; }
+.admin-main .button { min-height:34px; padding:7px 12px; font-size:.8rem; width:auto; }
+.admin-main .admin-list button { padding:10px 12px; }
+.admin-main .admin-hint { margin-bottom:12px; }
+.directory-country { max-width:300px; margin:10px 0; }
+.directory-table-wrap { overflow-x:auto; }
+.directory-table { width:100%; border-collapse:collapse; text-align:left; font-size:.85rem; }
+.directory-table th, .directory-table td { padding:10px 12px; border-bottom:1px solid var(--line); vertical-align:top; }
+.directory-table th { color:var(--deep); font-size:.8rem; }
+.directory-table td small { display:block; margin:3px 0 6px; font-size:.76rem; color:var(--muted); }
+.directory-table td:first-child { min-width:180px; }
+.directory-table td:nth-child(2) { min-width:190px; }
+.directory-table tbody tr:hover { background:#8881; }
+.directory-table .button { white-space:nowrap; }
+.admin-dialog-actions { flex-wrap:wrap; gap:8px; }
+.admin-dialog-actions .button { width:auto; min-height:36px; padding:8px 12px; font-size:.8rem; }
+@media (max-width:600px) {
+  .admin-main { padding:12px 12px 40px; }
+  .admin-card { padding:14px; }
+  .admin-tabs { padding:10px 12px 0; }
+  .admin-bar { padding:12px; }
+  .directory-table th, .directory-table td { padding:9px 8px; }
+}
