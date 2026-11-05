@@ -8,15 +8,21 @@ import { slugify } from './text.js';
 import { renderInto } from './dom.js';
 import { PUBLISH_SCOPES, authorName, formatPostDate } from './posts.js';
 import { formatDuration, normalizePrayer, normalizeThemes, sortPrayers } from './prayers.js';
+import { matchesRecord, recordPage, readAllPages, sortRecords } from './admin-records.js';
+import { setLanguage } from './i18n.js';
 import { SEAT_LABELS, normalizeChurch, sharedPhones } from './directory.js';
+
+// The administration is Portuguese; do not overwrite the member app's saved language.
+setLanguage('pt', { remember: false });
 
 const root = document.querySelector('#admin');
 const SESSION_KEY = 'elias-admin-session';
 
 const state = {
   config: null, session: null, profile: null,
+  lists: {}, feedTab: 'publications', dirty: false,
   view: 'meetings', meetings: null, churches: null, claims: null,
-  query: '', filter: 'todas', countryFilter: '', editing: null, meeting: null, servo: null, uploading: false,
+  editing: null, meeting: null, servo: null, uploading: false,
   servos: null, services: null, busy: false,
   audit: null, auditNames: {}, auditTable: '', auditHasMore: false,
   posts: null, postComments: null, postAuthors: null, publishers: null, communities: null,
@@ -34,6 +40,7 @@ function writeSession(session) {
 function toast(message, tone = 'ok') {
   const element = document.createElement('div');
   element.className = `toast admin-toast ${tone}`;
+  element.setAttribute('role', tone === 'erro' ? 'alert' : 'status');
   element.textContent = message;
   document.body.append(element);
   setTimeout(() => element.remove(), 3600);
@@ -101,14 +108,14 @@ async function loadMeetings() {
 }
 
 async function loadChurches() {
-  state.churches = await rest('churches?select=*&order=country_code.asc,region.asc,locality.asc');
+  state.churches = await readAllPages(rest, 'churches?select=*&order=country_code.asc,region.asc,locality.asc,id.asc');
 }
 
 // The requests waiting on the team. Row level security only shows the central
 // team members who asked for something, never the rest of the congregation.
 async function loadClaims() {
   state.claims = isCentral()
-    ? await rest('app_users?select=id,display_name,photo_url,gender,phone,country_code,city,home_church_id,claimed_role,updated_at&servo_claim_status=eq.pendente&order=updated_at.asc')
+    ? await readAllPages(rest, 'app_users?select=id,display_name,photo_url,gender,phone,country_code,city,home_church_id,claimed_role,updated_at&servo_claim_status=eq.pendente&order=updated_at.asc,id.asc')
     : [];
 }
 
@@ -116,8 +123,8 @@ async function loadClaims() {
 // the team. Joined here so the editor works with one record per servant.
 async function loadServos() {
   const [servos, contacts] = await Promise.all([
-    rest('servos?select=*&order=role.asc,full_name.asc'),
-    rest('servo_contacts?select=servo_id,phone,phone_public').catch(() => [])
+    readAllPages(rest, 'servos?select=*&order=role.asc,full_name.asc,id.asc'),
+    readAllPages(rest, 'servo_contacts?select=servo_id,phone,phone_public&order=servo_id.asc').catch(() => [])
   ]);
   const byServo = new Map(contacts.map((contact) => [contact.servo_id, contact]));
   state.servos = servos.map((servo) => ({ ...servo, phone: byServo.get(servo.id)?.phone ?? servo.phone ?? null, phone_public: Boolean(byServo.get(servo.id)?.phone_public) }));
@@ -160,9 +167,9 @@ async function loadAudit({ more = false } = {}) {
 // publish. A local editor sees and moderates only their own church's.
 async function loadFeed() {
   const [posts, comments, authors, communities] = await Promise.all([
-    rest('posts?select=id,title,body,church_id,community_id,highlighted,highlight_until,hidden,published_at,author_id&order=published_at.desc&limit=100'),
-    rest('post_comments?select=id,post_id,author_id,body,hidden,created_at&order=created_at.desc&limit=100'),
-    rest('post_authors?select=id,display_name,photo_url,servo_role,verified').catch(() => []),
+    readAllPages(rest, 'posts?select=id,title,body,church_id,community_id,highlighted,highlight_until,hidden,published_at,author_id&order=published_at.desc,id.asc'),
+    readAllPages(rest, 'post_comments?select=id,post_id,author_id,body,hidden,created_at&order=created_at.desc,id.asc'),
+    readAllPages(rest, 'post_authors?select=id,display_name,photo_url,servo_role,verified&order=id.asc').catch(() => []),
     rest('communities?select=id,name,short_name&order=sort_order.asc').catch(() => [])
   ]);
   state.posts = posts;
@@ -173,7 +180,7 @@ async function loadFeed() {
 
 async function loadPublishers() {
   state.publishers = isCentral()
-    ? await rest('app_users?select=id,display_name,publish_scope,home_church_id,servo_id&servo_claim_status=eq.aprovado&order=display_name.asc')
+    ? await readAllPages(rest, 'app_users?select=id,display_name,publish_scope,home_church_id,servo_id&servo_claim_status=eq.aprovado&order=display_name.asc,id.asc')
     : [];
 }
 
@@ -197,18 +204,52 @@ function loginView() {
   </main>`;
 }
 
+function listState(key) {
+  return state.lists[key] ||= { query: '', country: '', status: '', role: '', church: '', theme: '', sort: 'name', page: 1, size: 25 };
+}
+function listInput(key, placeholder) {
+  return `<label class="search-box"><span aria-hidden="true">⌕</span><input type="search" id="${key}-query" data-list="${key}" data-field="query" value="${escapeHtml(listState(key).query)}" aria-label="Pesquisar ${placeholder}" placeholder="${escapeHtml(placeholder)}" autocomplete="off" /></label>`;
+}
+function listSelect(key, field, title, options) {
+  return `<label>${title}<select id="${key}-${field}" data-list="${key}" data-field="${field}">${options.map(([id, name]) => `<option value="${escapeHtml(id)}" ${String(listState(key)[field]) === String(id) ? 'selected' : ''}>${escapeHtml(name)}</option>`).join('')}</select></label>`;
+}
+function countriesFilter(key, rows) {
+  const codes = [...new Set(rows.map((r) => r.country_code).filter(Boolean))];
+  return listSelect(key, 'country', 'País', [['', 'Todos os países'], ...codes.map((c) => [c, countryName(c)]).sort((a, b) => a[1].localeCompare(b[1], 'pt'))]);
+}
+function resetFilters(key) {
+  return `<button class="text-button" type="button" data-reset-list="${key}">Limpar filtros</button>`;
+}
+function emptyResults(key) {
+  return `<div class="admin-empty"><strong>Nenhum registo encontrado</strong><p>Experimente outro nome ou ajuste os filtros.</p>${resetFilters(key)}</div>`;
+}
+function pager(key, total, top = false) {
+  const prefs = listState(key);
+  const page = recordPage(Array(total), prefs.page, prefs.size);
+  prefs.page = page.page;
+  if (top) return `<div class="admin-pagination admin-results-top"><span role="status">${page.from}–${page.to} de ${total} registos</span><div class="admin-page-buttons"><button class="button button-outline" type="button" data-page-list="${key}" data-page="${page.page - 1}" ${page.page === 1 ? 'disabled' : ''} aria-label="Página anterior">←</button><span>${page.page} / ${page.pages}</span><button class="button button-outline" type="button" data-page-list="${key}" data-page="${page.page + 1}" ${page.page === page.pages ? 'disabled' : ''} aria-label="Página seguinte">→</button></div></div>`;
+  return `<div class="admin-pagination"><span>${page.from}–${page.to} de ${total} registos</span>
+    ${listSelect(key, 'size', 'Por página', [[25, '25'], [50, '50'], [100, '100']])}
+    <div class="admin-page-buttons"><button class="button button-outline" type="button" data-page-list="${key}" data-page="${page.page - 1}" ${page.page === 1 ? 'disabled' : ''} aria-label="Página anterior">← Anterior</button>
+    <span>Página ${page.page} de ${page.pages}</span><button class="button button-outline" type="button" data-page-list="${key}" data-page="${page.page + 1}" ${page.page === page.pages ? 'disabled' : ''} aria-label="Página seguinte">Seguinte →</button></div></div>`;
+}
+const pageRows = (key, rows) => recordPage(rows, listState(key).page, listState(key).size).rows;
+function pageHeader(title, description, action = '') {
+  return `<div class="admin-section-heading"><div><h1>${title}</h1><p class="admin-hint">${description}</p></div><div class="admin-heading-actions">${action}<button class="button button-outline" type="button" data-action="refresh" ${state.busy ? 'disabled' : ''}>Actualizar</button></div></div>`;
+}
+
 function shell(content) {
   const role = isCentral() ? 'Equipa central' : 'Editor local';
   const pending = state.claims?.length || 0;
   const tabs = [['meetings', 'Reuniões'], ['churches', 'Diretório'], ['servos', 'Servos'], ['posts', 'Anúncios'], ['prayers', 'Orações'], ['claims', 'Pedidos'], ['history', 'Histórico']]
     .filter(([id]) => !['meetings', 'claims', 'history'].includes(id) || isCentral())
-    .map(([id, label]) => `<button class="admin-tab ${state.view === id ? 'selected' : ''}" data-view="${id}">${label}${id === 'claims' && pending ? `<span class="tab-count">${pending}</span>` : ''}</button>`).join('');
-  return `<header class="admin-bar">
+    .map(([id, label]) => `<button class="admin-tab ${state.view === id ? 'selected' : ''}" data-view="${id}" aria-current="${state.view === id ? 'page' : 'false'}">${label}${id === 'claims' && pending ? `<span class="tab-count">${pending}</span>` : ''}</button>`).join('');
+  return `<a class="skip-link" href="#admin-content">Saltar para o conteúdo</a><header class="admin-bar">
       <div><strong>ISTN-SJ · Administração</strong><small>${escapeHtml(state.profile?.full_name || state.session.user.email)} · ${role}</small></div>
       <div class="admin-bar-actions"><a class="text-button" href="/">Ver aplicação</a><button class="button button-outline" data-action="signout">Sair</button></div>
     </header>
-    <nav class="admin-tabs">${tabs}</nav>
-    <main class="admin-main">${content}</main>`;
+    <nav class="admin-tabs" aria-label="Áreas da administração">${tabs}</nav>
+    <main class="admin-main" id="admin-content" tabindex="-1">${content}</main>`;
 }
 
 const RECURRENCES = [
@@ -235,9 +276,7 @@ function meetingsView() {
       </li>`).join('') || '<li class="admin-empty">Nenhuma reunião.</li>'}</ul>`;
   };
   return `<div class="admin-card">
-    <h2>Reuniões no Zoom</h2>
-    <p class="admin-hint">Os horários são sempre hora de Luanda. Uma reunião sem hora fixa precisa de uma explicação no lugar dela.</p>
-    <button class="button button-gold" data-action="new-meeting">Adicionar reunião</button>
+    ${pageHeader('Reuniões', 'Horários na hora de Luanda. Use uma descrição quando não houver hora fixa.', '<button class="button button-gold" data-action="new-meeting">+ Adicionar reunião</button>')}
     ${group('geral', 'Reuniões gerais', 'As reuniões convencionais, abertas a toda a igreja.')}
     ${group('especial', 'Reuniões especiais', 'Ministros, crianças, vigílias e quaisquer outras.')}
   </div>`;
@@ -277,7 +316,7 @@ function meetingEditor() {
     <div class="admin-dialog-actions">
       ${isNew ? '' : '<button class="button button-outline admin-danger" type="button" data-action="delete-meeting">Eliminar</button>'}
       <button class="button button-outline" type="button" data-action="cancel-meeting">Cancelar</button>
-      <button class="button button-gold" type="submit" ${state.busy ? 'disabled' : ''}>${state.busy ? 'A guardar…' : isNew ? 'Criar igreja' : 'Guardar'}</button>
+      <button class="button button-gold" type="submit" ${state.busy ? 'disabled' : ''}>${state.busy ? 'A guardar…' : isNew ? 'Criar reunião' : 'Guardar'}</button>
     </div>
   </form></div>`;
 }
@@ -327,9 +366,9 @@ function claimsView() {
     </article>`;
   };
   return `<div class="admin-card">
-    <h2>Pedidos de verificação</h2>
-    <p class="admin-hint">Confirme com a igreja antes de aprovar. Aprovar atribui o selo e mostra a função no perfil da pessoa; recusar deixa-a voltar a pedir.</p>
-    ${state.claims.length ? `<div class="claim-list">${state.claims.map(card).join('')}</div>` : '<p class="admin-empty">Não há pedidos à espera.</p>'}
+    ${pageHeader('Pedidos de verificação', `${state.claims.length} pedidos pendentes · Confirme com a igreja antes de aprovar.`)}
+    <div class="admin-toolbar">${listInput('claims', 'Nome, igreja, cidade ou telefone')}${countriesFilter('claims', state.claims)}${resetFilters('claims')}</div>
+    ${(() => { const prefs = listState('claims'); const rows = state.claims.filter((c) => (!prefs.country || c.country_code === prefs.country) && matchesRecord([c.display_name, c.city, churchLabel(c.home_church_id), c.phone], [c.phone], prefs.query)); return `${pager('claims', rows.length, true)}<div class="claim-list">${pageRows('claims', rows).map(card).join('') || emptyResults('claims')}</div>${pager('claims', rows.length)}`; })()}
   </div>`;
 }
 
@@ -395,7 +434,7 @@ function historyView() {
 // written here and nowhere else.
 async function loadPrayers() {
   const [rows, themes] = await Promise.all([
-    rest('prayers?select=id,theme_id,title,description,audio_url,duration_seconds,file_bytes,hidden,published_at&order=published_at.desc&limit=400'),
+    readAllPages(rest, 'prayers?select=id,theme_id,title,description,audio_url,duration_seconds,file_bytes,hidden,published_at&order=published_at.desc,id.asc'),
     rest('prayer_themes?select=id,slug,name,sort_order&order=sort_order.asc')
   ]);
   state.prayerThemes = normalizeThemes(themes);
@@ -407,12 +446,13 @@ const megabytes = (bytes) => (bytes ? `${(bytes / 1048576).toFixed(1)} MB` : '')
 function prayersView() {
   if (!state.prayers) return '<p class="admin-empty">A carregar…</p>';
   const themes = state.prayerThemes || [];
+  const prefs = listState('prayers');
+  const visible = sortPrayers(state.prayers).filter((prayer) => (!prefs.theme || prayer.themeId === prefs.theme) && (!prefs.status || (prefs.status === 'hidden' ? prayer.hidden : !prayer.hidden)) && matchesRecord([prayer.title, prayer.description, prayer.theme?.name], [], prefs.query));
   const counted = (theme) => state.prayers.filter((prayer) => prayer.themeId === theme.id).length;
   return `<div class="admin-card">
-    <h2>Orações</h2>
-    <p class="admin-hint">Os áudios do Profeta Elias, arrumados pelos temas da equipa. São estes ficheiros que os pastores enviam a quem precisa — o título e a descrição são por eles que se procura.</p>
-    <button class="button button-gold" type="button" data-action="new-prayer">+ Acrescentar oração</button>
-    <ul class="admin-list">${sortPrayers(state.prayers).map((prayer) => `<li>
+    ${pageHeader('Orações', `${state.prayers.length} gravações · Áudios do Profeta Elias, organizados por tema.`, '<button class="button button-gold" type="button" data-action="new-prayer">+ Acrescentar oração</button>')}
+    <div class="admin-toolbar">${listInput('prayers', 'Título, descrição ou tema')}${listSelect('prayers', 'theme', 'Tema', [['', 'Todos os temas'], ...themes.map((t) => [t.id, t.name])])}${listSelect('prayers', 'status', 'Estado', [['', 'Todas'], ['visible', 'Visíveis'], ['hidden', 'Escondidas']])}${resetFilters('prayers')}</div>
+    ${pager('prayers', visible.length, true)}<ul class="admin-list admin-work-list">${pageRows('prayers', visible).map((prayer) => `<li>
       <div class="admin-row-wide">
         <span>
           <strong>${escapeHtml(prayer.title)}${prayer.hidden ? ' · escondida' : ''}</strong>
@@ -422,16 +462,17 @@ function prayersView() {
           <a class="text-button" href="${escapeHtml(safeUrl(prayer.audioUrl) || '#')}" target="_blank" rel="noopener noreferrer">Ouvir</a>
           <button class="text-button" type="button" data-prayer-edit="${prayer.id}">Editar</button>
           <button class="text-button" type="button" data-prayer-hide="${prayer.id}">${prayer.hidden ? 'Repor' : 'Esconder'}</button>
-          <button class="text-button admin-danger" type="button" data-prayer-delete="${prayer.id}">Eliminar</button>
+          <details class="admin-more"><summary aria-label="Mais acções para ${escapeHtml(prayer.title)}">Mais ⋯</summary><button class="text-button admin-danger" type="button" data-prayer-delete="${prayer.id}">Eliminar oração</button></details>
         </span>
       </div>
     </li>`).join('') || '<li class="admin-empty">Ainda não há orações.</li>'}</ul>
 
-    <h3>Temas</h3>
+    ${pager('prayers', visible.length)}<details class="admin-topics"><summary>Consultar temas (${themes.length})</summary>
     <p class="admin-hint">A ordem é a que a equipa deu, e é por ela que os temas aparecem na aplicação. Para acrescentar ou renomear um tema, fale com quem trata da base de dados.</p>
     <ul class="admin-list">${themes.map((theme) => `<li><div class="admin-row-wide">
       <span><strong>${escapeHtml(theme.name)}</strong><small>${counted(theme)} ${counted(theme) === 1 ? 'oração' : 'orações'}</small></span>
     </div></li>`).join('') || '<li class="admin-empty">Nenhum tema definido.</li>'}</ul>
+  </details>
   </div>`;
 }
 
@@ -470,67 +511,61 @@ function feedView() {
   const communityOf = (post) => (state.communities || []).find((community) => community.id === post.community_id)?.name || '';
   const comments = (state.postComments || []).filter((comment) => state.posts.some((post) => post.id === comment.post_id));
 
+  const key = state.feedTab;
+  const prefs = listState(key);
+  const sources = key === 'publications' ? state.posts : key === 'comments' ? comments : state.publishers || [];
+  const rows = sources.filter((row) => {
+    const churchId = row.home_church_id || row.church_id || state.posts.find((p) => p.id === row.post_id)?.church_id;
+    return (!prefs.status || (prefs.status === 'hidden' ? row.hidden : prefs.status === 'highlighted' ? row.highlighted && !row.hidden : !row.hidden))
+      && (!prefs.church || (prefs.church === 'global' ? !churchId : churchId === prefs.church))
+      && matchesRecord([row.title, row.body, row.display_name, authorOf(row.author_id), churchLabel(churchId)], [], prefs.query);
+  });
   return `<div class="admin-card">
-    <h2>Anúncios</h2>
-    <p class="admin-hint">Publicados na aplicação. Esconder retira um anúncio da aplicação sem o apagar — e pode ser revertido.</p>
-    <ul class="admin-list">${state.posts.map((post) => `<li>
-      <div class="admin-row-wide">
-        <span>
-          <strong>${escapeHtml(post.title || post.body.slice(0, 60))}${post.hidden ? ' · escondido' : ''}</strong>
-          <small>${escapeHtml([authorOf(post.author_id), scopeOf(post), communityOf(post), formatPostDate(post.published_at)].filter(Boolean).join(' · '))}</small>
-        </span>
-        <span class="admin-row-actions">
-          ${post.highlighted ? '<span class="status-badge verified">Em destaque</span>' : ''}
-          <button class="text-button" type="button" data-post-highlight="${post.id}">${post.highlighted ? 'Retirar destaque' : 'Destacar'}</button>
-          <button class="text-button" type="button" data-post-hide="${post.id}">${post.hidden ? 'Repor' : 'Esconder'}</button>
-          <button class="text-button admin-danger" type="button" data-post-delete="${post.id}">Eliminar</button>
-        </span>
-      </div>
-    </li>`).join('') || '<li class="admin-empty">Ainda não há anúncios.</li>'}</ul>
-
-    <h3>Comentários</h3>
-    <p class="admin-hint">Só servos verificados podem comentar. Esconder um comentário deixa-o invisível na aplicação.</p>
-    <ul class="admin-list">${comments.map((comment) => `<li>
-      <div class="admin-row-wide">
-        <span>
-          <strong>${escapeHtml(authorOf(comment.author_id))}${comment.hidden ? ' · escondido' : ''}</strong>
-          <small>${escapeHtml(comment.body.slice(0, 90))} · ${escapeHtml(formatPostDate(comment.created_at))}</small>
-        </span>
-        <span class="admin-row-actions">
-          <button class="text-button" type="button" data-comment-hide="${comment.id}">${comment.hidden ? 'Repor' : 'Esconder'}</button>
-        </span>
-      </div>
-    </li>`).join('') || '<li class="admin-empty">Ainda não há comentários.</li>'}</ul>
-
-    ${isCentral() ? `<h3>Quem pode publicar</h3>
-    <p class="admin-hint">A equipa central e o Apóstolo publicam sempre; um editor local publica na sua igreja. Aqui dá-se o direito a servos verificados.</p>
-    <ul class="admin-list">${(state.publishers || []).map((person) => `<li>
-      <div class="admin-row-wide">
-        <span><strong>${escapeHtml(person.display_name || 'Sem nome')}</strong><small>${escapeHtml(churchLabel(person.home_church_id))}</small></span>
-        <label class="admin-inline"><span class="sr-only">Direito de publicar de ${escapeHtml(person.display_name || '')}</span>
-          <select data-publish-scope="${person.id}">
-            ${PUBLISH_SCOPES.map((scope) => `<option value="${scope.id}" ${(person.publish_scope || 'nenhum') === scope.id ? 'selected' : ''}>${scope.label}</option>`).join('')}
-          </select>
-        </label>
-      </div>
-    </li>`).join('') || '<li class="admin-empty">Ainda não há servos verificados com conta.</li>'}</ul>` : ''}
+    ${pageHeader('Anúncios', 'Publicações, comentários e direitos de publicação.')}
+    <nav class="admin-subnav" aria-label="Gestão de anúncios">${[['publications', 'Publicações'], ['comments', 'Comentários'], ...(isCentral() ? [['publishers', 'Quem pode publicar']] : [])].map(([id, title]) => `<button type="button" data-feed-tab="${id}" aria-current="${key === id ? 'page' : 'false'}" class="${key === id ? 'selected' : ''}">${title}</button>`).join('')}</nav>
+    <p class="admin-hint">${key === 'publishers' ? 'Atribua o âmbito de publicação a cada servo verificado.' : 'Esconder retira o conteúdo da aplicação e permite repô-lo mais tarde.'}</p>
+    <div class="admin-toolbar">${listInput(key, key === 'publishers' ? 'Nome ou igreja' : 'Título, texto ou autor')}
+    ${key === 'publishers' ? '' : listSelect(key, 'status', 'Estado', [['', 'Todos'], ['visible', 'Visíveis'], ['hidden', 'Escondidos'], ...(key === 'publications' ? [['highlighted', 'Em destaque']] : [])])}
+    ${listSelect(key, 'church', 'Âmbito', [['', 'Todos'], ['global', 'Toda a ISTN'], ...(state.churches || []).map((c) => [c.id, churchLabel(c.id)])])}${resetFilters(key)}</div>
+    ${pager(key, rows.length, true)}<ul class="admin-list admin-work-list">${pageRows(key, rows).map((row) => `<li><div class="admin-row-wide"><div class="admin-record-summary">
+      <strong>${escapeHtml(key === 'publications' ? row.title || row.body.slice(0, 90) : key === 'comments' ? authorOf(row.author_id) : row.display_name || 'Sem nome')}</strong>
+      <small>${escapeHtml(key === 'publications' ? [authorOf(row.author_id), scopeOf(row), communityOf(row), formatPostDate(row.published_at)].filter(Boolean).join(' · ') : key === 'comments' ? `${row.body.slice(0, 140)} · ${formatPostDate(row.created_at)}` : churchLabel(row.home_church_id))}</small>
+      ${key === 'comments' ? `<small>Em: ${escapeHtml(state.posts.find((p) => p.id === row.post_id)?.title || 'Anúncio')}</small>` : ''}
+      <div class="admin-record-badges">${row.hidden ? '<span class="status-badge needs_review">Escondido</span>' : ''}${row.highlighted ? '<span class="status-badge verified">Em destaque</span>' : ''}</div>
+      </div><div class="admin-row-actions">
+      ${key === 'publications' ? `<button class="button button-outline" type="button" data-post-highlight="${row.id}">${row.highlighted ? 'Retirar destaque' : 'Destacar'}</button><button class="button button-outline" type="button" data-post-hide="${row.id}">${row.hidden ? 'Repor' : 'Esconder'}</button><details class="admin-more"><summary aria-label="Mais acções para ${escapeHtml(row.title || 'anúncio')}">Mais ⋯</summary><button class="text-button admin-danger" type="button" data-post-delete="${row.id}">Eliminar anúncio</button></details>` : key === 'comments' ? `<button class="button button-outline" type="button" data-comment-hide="${row.id}">${row.hidden ? 'Repor' : 'Esconder'}</button>` : `<label class="admin-inline"><span class="sr-only">Direito de publicar de ${escapeHtml(row.display_name || '')}</span><select data-publish-scope="${row.id}">${PUBLISH_SCOPES.map((scope) => `<option value="${scope.id}" ${(row.publish_scope || 'nenhum') === scope.id ? 'selected' : ''}>${scope.label}</option>`).join('')}</select></label>`}
+      </div></div></li>`).join('') || `<li>${emptyResults(key)}</li>`}</ul>${pager(key, rows.length)}
   </div>`;
 }
 
+function visibleServos() {
+  const prefs = listState('servos');
+  const mine = isCentral() ? state.servos : state.servos.filter((servo) => servo.church_id === state.profile?.church_id);
+  return sortRecords(mine.filter((servo) => {
+    const church = state.churches?.find((c) => c.id === servo.church_id);
+    return (!prefs.country || church?.country_code === prefs.country)
+      && (!prefs.church || servo.church_id === prefs.church)
+      && (!prefs.role || servo.role === prefs.role)
+      && (!prefs.status || (prefs.status === 'active' ? servo.active !== false : servo.active === false))
+      && matchesRecord([servantName(servo), roleLabel(servo.role), churchLabel(servo.church_id), church?.country, servo.phone], [servo.phone], prefs.query);
+  }), (servo) => prefs.sort === 'church' ? `${churchLabel(servo.church_id)} ${servo.full_name}` : servo.full_name);
+}
 function servosView() {
   if (!state.servos) return '<p class="admin-empty">A carregar…</p>';
   const mine = isCentral() ? state.servos : state.servos.filter((servo) => servo.church_id === state.profile?.church_id);
-  const ministros = mine.filter((servo) => servo.is_minister).length;
+  const visible = visibleServos();
+  const churches = (state.churches || []).filter((c) => mine.some((servo) => servo.church_id === c.id));
+  const roles = [...new Set(mine.map((servo) => servo.role))].map((role) => [role, roleLabel(role)]);
   return `<div class="admin-card">
-    <h2>Servos</h2>
-    <p class="admin-hint">${mine.length} ${mine.length === 1 ? 'registo' : 'registos'} · <strong>${ministros}</strong> ministros. Ministro é de discípulo para cima — a aplicação calcula, não se escolhe.</p>
-    <button class="button button-gold" data-action="new-servo">Adicionar servo</button>
-    <ul class="admin-list">${mine.map((servo) => `<li>
-      <button data-servo="${servo.id}">
-        <span><strong class="servo-line">${escapeHtml(servantName(servo))}${badgeTier(servo.role) === 'neutro' ? quietCheck() : verifiedSeal(servo.role)}${servo.active === false ? ' · inativo' : ''}</strong><small>${escapeHtml(roleLabel(servo.role))} · ${escapeHtml(churchLabel(servo.church_id))}</small></span>
-        ${servo.is_minister ? '<span class="status-badge verified">Ministro</span>' : ''}
-      </button>
-    </li>`).join('') || '<li class="admin-empty">Nenhum servo registado.</li>'}</ul>
+    ${pageHeader('Servos', `${mine.length} registos · ${mine.filter((servo) => servo.is_minister).length} ministros`, '<button class="button button-gold" type="button" data-action="new-servo">+ Adicionar servo</button>')}
+    <div class="admin-toolbar">${listInput('servos', 'Nome, igreja ou telefone')}${countriesFilter('servos', churches)}
+    ${listSelect('servos', 'church', 'Igreja', [['', 'Todas as igrejas'], ...churches.map((c) => [c.id, churchLabel(c.id)])])}
+    ${listSelect('servos', 'role', 'Função', [['', 'Todas as funções'], ...roles])}
+    ${listSelect('servos', 'status', 'Estado', [['', 'Todos'], ['active', 'Em funções'], ['inactive', 'Inactivos']])}
+    ${listSelect('servos', 'sort', 'Ordenar', [['name', 'Nome'], ['church', 'Igreja']])}${resetFilters('servos')}</div>
+    ${pager('servos', visible.length, true)}<div class="directory-table-wrap" role="region" aria-label="Tabela de servos, deslocável na horizontal" tabindex="0"><table class="directory-table"><caption class="sr-only">Servos registados</caption><thead><tr><th scope="col">Nome</th><th scope="col">Função</th><th scope="col">Igreja</th><th scope="col">Contacto</th><th scope="col">Estado</th><th scope="col">Acção</th></tr></thead><tbody>
+    ${pageRows('servos', visible).map((servo) => `<tr><td><strong class="servo-line">${escapeHtml(servantName(servo))}${badgeTier(servo.role) === 'neutro' ? quietCheck() : verifiedSeal(servo.role)}</strong></td><td>${escapeHtml(roleLabel(servo.role))}${servo.is_minister ? '<small>Ministro</small>' : ''}</td><td>${escapeHtml(churchLabel(servo.church_id))}<small>${escapeHtml(countryName(state.churches?.find((c) => c.id === servo.church_id)?.country_code || ''))}</small></td><td>${escapeHtml(servo.phone || 'Sem telefone')}<small>${servo.phone ? servo.phone_public ? 'Público, por escolha do servo' : 'Privado' : ''}</small></td><td><span class="status-badge ${servo.active === false ? 'needs_review' : 'verified'}">${servo.active === false ? 'Inactivo' : 'Em funções'}</span></td><td><button class="button button-outline" data-servo="${servo.id}" aria-label="Editar ${escapeHtml(servantName(servo))}">Editar</button></td></tr>`).join('') || '<tr><td colspan="6">' + emptyResults('servos') + '</td></tr>'}
+    </tbody></table></div>${pager('servos', visible.length)}
   </div>`;
 }
 
@@ -586,42 +621,38 @@ function servoEditor() {
       ${isNew ? '' : '<button class="button button-outline admin-danger" type="button" data-action="delete-servo">Eliminar</button>'}
       <button class="button button-outline" type="button" data-action="cancel-servo">Cancelar</button>
       <button class="button button-gold" type="submit" ${state.busy ? 'disabled' : ''}>${state.busy ? 'A guardar…' : 'Guardar'}</button>
+      ${!isNew && visibleServos().some((c, i, rows) => c.id === servo.id && i < rows.length - 1) ? '<button class="button button-outline" type="submit" name="save-next">Guardar e seguinte →</button>' : ''}
     </div>
   </form></div>`;
 }
 
 function visibleChurches(mine = isCentral() ? state.churches : state.churches.filter((c) => c.id === state.profile?.church_id)) {
-  const query = slugify(state.query.trim());
-  return mine.filter((church) => {
-    const text = [church.name, church.locality, church.region, church.country, church.country_code, church.leader_name, church.leader_phone, ...(church.other_leaders || []).flatMap((p) => [p.name, p.phone])].filter(Boolean).join(' ');
-    const digits = state.query.replace(/\D/g, '');
-    return (!state.countryFilter || church.country_code === state.countryFilter)
-      && (state.filter === 'todas' || (state.filter === 'verificadas' ? church.verification_status === 'verified' : church.verification_status !== 'verified'))
-      && (!query || slugify(text).includes(query) || (digits.length >= 3 && text.replace(/\D/g, '').includes(digits)));
+  const prefs = listState('churches');
+  const rows = mine.filter((church) => {
+    const people = [{ name: church.leader_name, phone: church.leader_phone }, ...(church.other_leaders || [])];
+    return (!prefs.country || church.country_code === prefs.country)
+      && (!prefs.status || (prefs.status === 'verified' ? church.verification_status === 'verified' : church.verification_status !== 'verified'))
+      && matchesRecord([church.name, church.locality, church.region, church.country, church.country_code, ...people.flatMap((p) => [p.name, p.phone])], people.map((p) => p.phone), prefs.query);
   });
+  return sortRecords(rows, (c) => prefs.sort === 'country' ? `${countryName(c.country_code)} ${c.name || c.locality || ''}` : c.name || c.locality || c.country || '');
 }
 
 function churchesView() {
   if (!state.churches) return '<p class="admin-empty">A carregar…</p>';
   const mine = isCentral() ? state.churches : state.churches.filter((church) => church.id === state.profile?.church_id);
   const visible = visibleChurches(mine);
-  if (!mine.length) return '<p class="admin-empty">Ainda não tem nenhuma igreja atribuída. Peça à equipa central.</p>';
   const pending = mine.filter((church) => church.verification_status !== 'verified').length;
   return `<div class="admin-card">
-    <h2>Diretório</h2>
-    <p class="admin-hint">${mine.length} ${mine.length === 1 ? 'registo' : 'registos'} · <strong>${pending}</strong> por verificar. Confirme com a igreja antes de marcar como verificado.</p>
-    ${isCentral() ? '<button class="button button-gold" type="button" data-action="new-church">+ Nova igreja</button>' : ''}
-    <label class="search-box"><span>⌕</span><input aria-label="Procurar no diretório" id="church-search" value="${escapeHtml(state.query)}" placeholder="Nome, localidade, responsável ou telefone" autocomplete="off" /></label>
-    <div class="admin-filters">${[['todas', 'Todas'], ['porVerificar', 'Por verificar'], ['verificadas', 'Verificadas']]
-      .map(([id, label]) => `<button class="filter ${state.filter === id ? 'selected' : ''}" data-filter="${id}">${label}</button>`).join('')}</div>
-    <label class="directory-country">País<select id="directory-country"><option value="">Todos os países</option>${[...new Set(mine.map((c) => c.country_code).filter(Boolean))].map((code) => `<option value="${escapeHtml(code)}" ${state.countryFilter === code ? 'selected' : ''}>${escapeHtml(countryName(code))}</option>`).join('')}</select></label>
-    <p class="admin-hint" role="status">${visible.length} de ${mine.length} registos</p>
-    <div class="directory-table-wrap"><table class="directory-table"><caption class="sr-only">Igrejas e contactos</caption><thead><tr><th scope="col">Igreja / localidade</th><th scope="col">Responsáveis e contactos</th><th scope="col">Estado</th><th scope="col">Acção</th></tr></thead><tbody>
-    ${visible.map((church) => `<tr><td><strong>${escapeHtml(church.name || church.locality || church.country || 'Sem localidade')}</strong><small>${escapeHtml([SEAT_LABELS[church.seat], church.region, church.country || countryName(church.country_code)].filter(Boolean).join(' · '))}</small></td>
+    ${pageHeader('Directório', `${mine.length} locais · ${pending} por confirmar. Confirme com a igreja antes de verificar os dados.`, isCentral() ? '<button class="button button-gold" type="button" data-action="new-church">+ Nova igreja</button>' : '')}
+    <div class="admin-toolbar">${listInput('churches', 'Nome, localidade, responsável ou telefone')}${countriesFilter('churches', mine)}
+    ${listSelect('churches', 'status', 'Estado', [['', 'Todos os estados'], ['pending', 'Por confirmar'], ['verified', 'Verificados']])}
+    ${listSelect('churches', 'sort', 'Ordenar', [['name', 'Nome / localidade'], ['country', 'País']])}${resetFilters('churches')}</div>
+    ${pager('churches', visible.length, true)}<div class="directory-table-wrap" role="region" aria-label="Tabela de igrejas, deslocável na horizontal" tabindex="0"><table class="directory-table"><caption class="sr-only">Igrejas e contactos</caption><thead><tr><th scope="col">Igreja / localidade</th><th scope="col">Responsáveis e contactos</th><th scope="col">Estado</th><th scope="col">Acção</th></tr></thead><tbody>
+    ${pageRows('churches', visible).map((church) => `<tr><td><strong>${escapeHtml(church.name || church.locality || church.country || 'Sem localidade')}</strong><small>${escapeHtml([SEAT_LABELS[church.seat], church.region, church.country || countryName(church.country_code)].filter(Boolean).join(' · '))}</small></td>
     <td>${[{ name: church.leader_name, phone: church.leader_phone }, ...(church.other_leaders || [])].map((p) => `<div>${escapeHtml(p.name || 'Sem responsável')}<small>${escapeHtml(p.phone || 'Sem telefone')}</small></div>`).join('')}</td>
     <td><span class="status-badge ${church.verification_status}">${church.verification_status === 'verified' ? 'Verificado' : 'A confirmar'}</span></td>
     <td><button class="button button-outline" data-edit="${church.id}" aria-label="Editar ${escapeHtml(church.name || church.locality || church.country || 'igreja')}">Editar</button></td></tr>`).join('') || '<tr><td colspan="4" class="admin-empty">Nenhum registo corresponde. Ajuste a pesquisa ou os filtros.</td></tr>'}
-    </tbody></table></div>
+    </tbody></table></div>${pager('churches', visible.length)}
   </div>`;
 }
 
@@ -629,6 +660,7 @@ function churchEditor() {
   const church = state.editing;
   const services = state.services || [];
   const isNew = Boolean(church.isNew);
+  if (!isNew && state.services === null) return `<div class="admin-overlay"><form class="admin-card admin-dialog"><h2>${escapeHtml(church.name || church.locality || 'Igreja')}</h2><p class="admin-hint">A carregar os dados da igreja. Se a ligação falhar, feche e volte a abrir o registo.</p><div class="admin-dialog-actions"><button class="button button-outline" type="button" data-action="cancel">Fechar</button></div></form></div>`;
   return `<div class="admin-overlay"><form id="church-form" class="admin-card admin-dialog">
     <h2>${isNew ? 'Nova igreja' : escapeHtml(church.name || church.locality || church.country || 'Local')}</h2>
     ${isNew
@@ -751,6 +783,16 @@ function serviceRow(service, index, { placeholder = false } = {}) {
 
 // ---------------------------------------------------------------- ligação --
 
+let dialogOpen = false;
+let editorKey = null;
+let returnFocus = null;
+function closeEditor() {
+  if (state.busy || state.prayerUploading || state.uploading) return;
+  if (state.dirty && !confirm('Tem alterações por guardar. Fechar sem guardar?')) return;
+  state.editing = null; state.meeting = null; state.servo = null; state.prayerDraft = null; state.services = null; state.dirty = false; render();
+}
+window.addEventListener('beforeunload', (event) => { if (state.dirty) { event.preventDefault(); event.returnValue = ''; } });
+
 function render() {
   if (!state.config) { root.innerHTML = '<p class="admin-empty">A carregar…</p>'; return; }
   if (!state.config.supabaseUrl) {
@@ -766,8 +808,41 @@ function render() {
     : state.view === 'posts' ? feedView()
     : state.view === 'prayers' ? prayersView()
     : churchesView();
+  const record = state.editing || state.meeting || state.servo || state.prayerDraft;
+  const nextEditorKey = record ? `${state.view}:${record.id || 'new'}` : null;
+  const changedEditor = editorKey !== nextEditorKey;
+  const opening = Boolean(record);
+  if (opening && !dialogOpen) { returnFocus = document.activeElement?.closest('[data-edit], [data-servo], [data-meeting], [data-action], [data-prayer-edit]')?.outerHTML; state.dirty = false; }
   renderInto(root, shell(content) + (state.editing ? churchEditor() : '') + (state.meeting ? meetingEditor() : '') + (state.servo ? servoEditor() : '') + (state.prayerDraft ? prayerEditor() : ''));
   bind();
+  const dialog = root.querySelector('.admin-dialog');
+  document.body.classList.toggle('admin-editing', Boolean(dialog));
+  if (dialog) root.querySelector('.admin-main')?.setAttribute('inert', '');
+  else root.querySelector('.admin-main')?.removeAttribute('inert');
+  for (const element of root.querySelectorAll('.admin-bar, .admin-tabs')) element.inert = Boolean(dialog);
+  if (dialog) {
+    dialog.setAttribute('role', 'dialog'); dialog.setAttribute('aria-modal', 'true'); dialog.tabIndex = -1;
+    const heading = dialog.querySelector('h2'); if (heading) { heading.id = 'admin-dialog-title'; dialog.setAttribute('aria-labelledby', heading.id); }
+    if (!dialogOpen || changedEditor || !dialog.contains(document.activeElement)) { dialog.focus(); }
+    dialog.addEventListener('input', () => { state.dirty = true; });
+    dialog.addEventListener('change', () => { state.dirty = true; });
+    dialog.querySelectorAll('[data-action="add-service"], [data-action="add-leader"], [data-remove-service], [data-remove-leader]').forEach((b) => b.addEventListener('click', () => { state.dirty = true; }));
+    dialog.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') { event.preventDefault(); closeEditor(); }
+      if (event.key !== 'Tab') return;
+      const fields = [...dialog.querySelectorAll('button, input, select, textarea, a[href]')].filter((e) => !e.disabled && e.getClientRects().length);
+      if (!fields.length) return;
+      if (event.shiftKey && (document.activeElement === fields[0] || document.activeElement === dialog)) { event.preventDefault(); fields.at(-1).focus(); }
+      else if (!event.shiftKey && (document.activeElement === fields.at(-1) || document.activeElement === dialog)) { event.preventDefault(); fields[0].focus(); }
+    });
+  } else if (dialogOpen && returnFocus) {
+    const holder = document.createElement('div'); holder.innerHTML = returnFocus;
+    const former = holder.firstElementChild;
+    const attribute = [...former.attributes].find((a) => a.name.startsWith('data-'));
+    if (attribute) [...root.querySelectorAll(`[${attribute.name}]`)].find((e) => e.getAttribute(attribute.name) === attribute.value)?.focus({ preventScroll: true });
+    state.dirty = false;
+  }
+  dialogOpen = Boolean(dialog); editorKey = nextEditorKey;
 }
 
 function formValues(form) {
@@ -779,7 +854,7 @@ function formValues(form) {
 // open form from the stored record and throw away everything just typed.
 function setBusy(busy) {
   state.busy = busy;
-  root.querySelectorAll('button[type="submit"], [data-claim-approve], [data-claim-reject]').forEach((button) => {
+  root.querySelectorAll('button[type="submit"], [data-claim-approve], [data-claim-reject], [data-post-hide], [data-post-highlight], [data-post-delete], [data-comment-hide], [data-prayer-hide], [data-prayer-delete], [data-action="refresh"]').forEach((button) => {
     button.disabled = busy;
     if (button.type === 'submit') {
       button.dataset.label ||= button.textContent;
@@ -817,6 +892,27 @@ function bind() {
     });
   });
 
+  root.querySelectorAll('[data-list]').forEach((control) => control.addEventListener(control.dataset.field === 'query' ? 'input' : 'change', () => {
+    const prefs = listState(control.dataset.list);
+    prefs[control.dataset.field] = control.dataset.field === 'size' ? Number(control.value) : control.value;
+    prefs.page = 1;
+    render();
+  }));
+  root.querySelectorAll('[data-reset-list]').forEach((button) => button.addEventListener('click', () => {
+    delete state.lists[button.dataset.resetList]; render();
+  }));
+  root.querySelectorAll('[data-page-list]').forEach((button) => button.addEventListener('click', () => {
+    listState(button.dataset.pageList).page = Number(button.dataset.page); render();
+    root.querySelector('#admin-content')?.focus({ preventScroll: true });
+  }));
+  root.querySelectorAll('[data-feed-tab]').forEach((button) => button.addEventListener('click', () => { state.feedTab = button.dataset.feedTab; render(); }));
+  root.querySelector('[data-action="refresh"]')?.addEventListener('click', () => guard(async () => {
+    if (state.view === 'posts') { await loadFeed(); if (isCentral()) await loadPublishers(); }
+    else if (state.view === 'prayers') await loadPrayers();
+    else if (state.view === 'meetings') await loadMeetings();
+    else { await loadChurches(); await loadServos(); await loadClaims(); }
+    toast('Dados actualizados.');
+  }));
   root.querySelectorAll('[data-view]').forEach((element) => element.addEventListener('click', () => {
     state.view = element.dataset.view;
     render();
@@ -865,9 +961,7 @@ function bind() {
   }));
 
   root.querySelector('[data-action="close-prayer"]')?.addEventListener('click', () => {
-    if (state.prayerUploading) return;
-    state.prayerDraft = null;
-    render();
+    closeEditor();
   });
 
   root.querySelectorAll('[data-prayer-hide]').forEach((button) => button.addEventListener('click', () => {
@@ -969,9 +1063,11 @@ function bind() {
     guard(() => loadAudit());
   });
   document.querySelector('[data-action="audit-more"]')?.addEventListener('click', () => guard(() => loadAudit({ more: true })));
-  root.querySelectorAll('[data-filter]').forEach((element) => element.addEventListener('click', () => { state.filter = element.dataset.filter; render(); }));
   root.querySelectorAll('[data-action="signout"]').forEach((element) => element.addEventListener('click', () => {
-    writeSession(null); state.profile = null; state.meetings = null; state.churches = null; state.servos = null; state.claims = null; render();
+    writeSession(null);
+    for (const key of ['profile', 'meetings', 'churches', 'servos', 'claims', 'posts', 'postComments', 'postAuthors', 'publishers', 'communities', 'prayers', 'prayerThemes', 'audit']) state[key] = null;
+    state.lists = {}; state.feedTab = 'publications'; state.auditNames = {};
+    render();
   }));
 
   function syncRecurrenceFields() {
@@ -992,7 +1088,7 @@ function bind() {
     state.meeting = state.meetings.find((meeting) => meeting.id === element.dataset.meeting) || null;
     render();
   }));
-  document.querySelector('[data-action="cancel-meeting"]')?.addEventListener('click', () => { state.meeting = null; render(); });
+  document.querySelector('[data-action="cancel-meeting"]')?.addEventListener('click', closeEditor);
 
   document.querySelector('[data-action="delete-meeting"]')?.addEventListener('click', () => {
     if (!confirm(`Eliminar "${state.meeting.title}"? Esta ação não pode ser anulada.`)) return;
@@ -1045,7 +1141,7 @@ function bind() {
   root.querySelectorAll('[data-servo]').forEach((el) => el.addEventListener('click', () => {
     state.servo = state.servos.find((servo) => servo.id === el.dataset.servo) || null; render();
   }));
-  document.querySelector('[data-action="cancel-servo"]')?.addEventListener('click', () => { state.servo = null; render(); });
+  document.querySelector('[data-action="cancel-servo"]')?.addEventListener('click', closeEditor);
 
   // As funções são separadas por género, e o aviso de ministro acompanha a escolha.
   const genderSelect = document.querySelector('#servo-gender');
@@ -1075,6 +1171,8 @@ function bind() {
   document.querySelector('#servo-form')?.addEventListener('submit', (event) => {
     event.preventDefault();
     const values = formValues(event.target);
+    const queue = visibleServos();
+    const nextId = event.submitter?.name === 'save-next' ? queue[queue.findIndex((c) => c.id === state.servo.id) + 1]?.id : null;
     const body = {
       full_name: values.full_name.trim(), gender: values.gender, role: values.role,
       church_id: values.church_id || null,
@@ -1087,7 +1185,7 @@ function bind() {
         : await rest('servos', { method: 'POST', headers: { Prefer: 'return=representation' }, body: JSON.stringify(body) });
       if (!saved?.length) throw new Error('Não tem permissão para guardar este servo.');
       if (phone !== (state.servo.phone || null)) await saveServoPhone(saved[0].id, phone);
-      state.servo = null; await loadServos(); toast('Servo guardado.');
+      await loadServos(); state.servo = nextId ? state.servos.find((c) => c.id === nextId) || null : null; state.dirty = false; toast('Servo guardado.');
     });
   });
 
@@ -1188,9 +1286,6 @@ function bind() {
     });
   }));
 
-  document.querySelector('#directory-country')?.addEventListener('change', (event) => { state.countryFilter = event.target.value; render(); });
-  const search = document.querySelector('#church-search');
-  if (search) search.addEventListener('input', (event) => { state.query = event.target.value; render(); });
 
   document.querySelector('[data-action="new-church"]')?.addEventListener('click', () => {
     state.editing = { isNew: true, modality: 'physical', other_leaders: [], verification_status: 'needs_review' };
@@ -1205,7 +1300,7 @@ function bind() {
     if (state.editing) guard(async () => { await loadServices(state.editing.id); });
   }));
 
-  document.querySelector('[data-action="cancel"]')?.addEventListener('click', () => { state.editing = null; render(); });
+  document.querySelector('[data-action="cancel"]')?.addEventListener('click', closeEditor);
 
   document.querySelector('#church-form')?.addEventListener('submit', (event) => {
     event.preventDefault();
@@ -1278,13 +1373,13 @@ function bind() {
           p_details: details, p_change_seat: isCentral() && seat !== (church.seat || null), p_seat: seat
         })
       });
-      state.editing = null; state.services = null;
+      state.dirty = false; state.editing = null; state.services = null;
       await loadChurches();
       if (nextId) {
         state.editing = state.churches.find((c) => c.id === nextId) || null;
         if (state.editing) { state.services = null; render(); await loadServices(nextId); }
       }
-      toast('Registo guardado.');
+      state.dirty = false; toast('Registo guardado.');
     });
   });
 
